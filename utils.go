@@ -4,7 +4,7 @@ import (
 	"reflect"
 )
 
-func getReflectedSlice(v interface{}) (slice reflect.Value, err error) {
+func getReflectedSlice(t reflect.Type, v interface{}) (slice reflect.Value, err error) {
 	ptr := reflect.ValueOf(v)
 	if ptr.Kind() != reflect.Ptr {
 		return
@@ -16,7 +16,7 @@ func getReflectedSlice(v interface{}) (slice reflect.Value, err error) {
 		return
 	}
 
-	if !isType(slice, c.elemType) {
+	if !isType(slice, t) {
 		err = ErrInvalidType
 		return
 	}

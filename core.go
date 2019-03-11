@@ -30,7 +30,7 @@ const (
 // New will return a new instance of Core
 func New(name, dir string, example Value, relationships ...string) (cc *Core, err error) {
 	var c Core
-	c.elemType = getCoreType(example)
+	c.entryType = getCoreType(example)
 	if err = c.init(name, dir, relationships); err != nil {
 		return
 	}
@@ -45,7 +45,7 @@ type Core struct {
 	dbu *dbutils.DBUtils
 
 	// Element type
-	elemType reflect.Type
+	entryType reflect.Type
 
 	name          []byte
 	relationships [][]byte
@@ -136,7 +136,7 @@ func (c *Core) getByRelationship(txn *bolt.Tx, relationship, relationshipID []by
 	}
 
 	err = bkt.ForEach(func(entryID, _ []byte) (err error) {
-		val := reflect.New(c.elemType)
+		val := reflect.New(c.entryType)
 		if err = c.get(txn, entryID, val.Interface()); err != nil {
 			return
 		}
@@ -240,7 +240,7 @@ func (c *Core) new(txn *bolt.Tx, val Value, relationshipIDs []string) (entryID [
 }
 
 func (c *Core) edit(txn *bolt.Tx, entryID []byte, val Value) (err error) {
-	original := reflect.New(c.elemType).Interface().(Value)
+	original := reflect.New(c.entryType).Interface().(Value)
 	if err = c.get(txn, entryID, original); err != nil {
 		return
 	}
@@ -291,7 +291,7 @@ func (c *Core) Get(entryID string, val Value) (err error) {
 // GetByRelationship will attempt to get all entries associated with a given relationship
 func (c *Core) GetByRelationship(relationship, relationshipID string, entries interface{}) (err error) {
 	var es reflect.Value
-	if es, err = getReflectedSlice(entries); err != nil {
+	if es, err = getReflectedSlice(c.entryType, entries); err != nil {
 		return
 	}
 

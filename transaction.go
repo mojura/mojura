@@ -38,7 +38,7 @@ func (t *Transaction) Get(entryID string, val Value) (err error) {
 // GetByRelationship will attempt to get all entries associated with a given relationship
 func (t *Transaction) GetByRelationship(relationship, relationshipID string, entries interface{}) (err error) {
 	var es reflect.Value
-	if es, err = getReflectedSlice(entries); err != nil {
+	if es, err = getReflectedSlice(t.c.entryType, entries); err != nil {
 		return
 	}
 
