@@ -87,6 +87,15 @@ func (c *Core) init(name, dir string, relationships []string) (err error) {
 	return
 }
 
+func (c *Core) newEntryValue() (value Value) {
+	// Zero value of the entry type
+	zero := reflect.New(c.entryType)
+	// Interface of zero value
+	iface := zero.Interface()
+	// Assert as a value (we've confirmed this type at initialization)
+	return iface.(Value)
+}
+
 func (c *Core) getRelationshipBucket(txn *bolt.Tx, relationship, relationshipID []byte) (bkt *bolt.Bucket, err error) {
 	var relationshipBkt *bolt.Bucket
 	if relationshipBkt = txn.Bucket(relationship); relationshipBkt == nil {
@@ -143,6 +152,43 @@ func (c *Core) getByRelationship(txn *bolt.Tx, relationship, relationshipID []by
 
 		entries.Set(reflect.Append(entries, val))
 		return
+	})
+
+	return
+}
+
+func (c *Core) forEach(txn *bolt.Tx, fn ForEachFn) (err error) {
+	var bkt *bolt.Bucket
+	if bkt = txn.Bucket(c.name); bkt == nil {
+		err = ErrNotInitialized
+		return
+	}
+
+	err = bkt.ForEach(func(key, bs []byte) (err error) {
+		val := reflect.New(c.entryType).Interface().(Value)
+		if err = json.Unmarshal(bs, val); err != nil {
+			return
+		}
+
+		return fn(string(key), val)
+	})
+
+	return
+}
+
+func (c *Core) forEachRelationship(txn *bolt.Tx, relationship, relationshipID []byte, fn ForEachFn) (err error) {
+	var bkt *bolt.Bucket
+	if bkt, err = c.getRelationshipBucket(txn, relationship, relationshipID); bkt == nil || err != nil {
+		return
+	}
+
+	err = bkt.ForEach(func(entryID, _ []byte) (err error) {
+		val := c.newEntryValue()
+		if err = c.get(txn, entryID, val); err != nil {
+			return
+		}
+
+		return fn(string(entryID), val)
 	})
 
 	return
@@ -315,6 +361,24 @@ func (c *Core) Edit(entryID string, val Value) (err error) {
 func (c *Core) Remove(entryID string, relationshipIDs ...string) (err error) {
 	err = c.db.View(func(txn *bolt.Tx) (err error) {
 		return c.remove(txn, []byte(entryID), relationshipIDs)
+	})
+
+	return
+}
+
+// ForEach will iterate through each of the entries
+func (c *Core) ForEach(fn ForEachFn) (err error) {
+	err = c.db.View(func(txn *bolt.Tx) (err error) {
+		return c.forEach(txn, fn)
+	})
+
+	return
+}
+
+// ForEachRelationship will iterate through each of the entries for a given relationship and relationship ID
+func (c *Core) ForEachRelationship(relationship, relationshipID string, fn ForEachFn) (err error) {
+	err = c.db.View(func(txn *bolt.Tx) (err error) {
+		return c.forEachRelationship(txn, []byte(relationship), []byte(relationshipID), fn)
 	})
 
 	return
