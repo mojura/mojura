@@ -3,6 +3,7 @@ package core
 import (
 	"encoding/json"
 	"path"
+	"reflect"
 	"time"
 
 	"github.com/Hatch1fy/errors"
@@ -20,12 +21,16 @@ const (
 	ErrEntryNotFound = errors.Error("entry was not found")
 	// ErrInvalidNumberOfRelationships is returned when an invalid number of relationships is provided in a New call
 	ErrInvalidNumberOfRelationships = errors.Error("invalid number of relationships")
+	// ErrInvalidType is returned when a type which does not match the generator is provided
+	ErrInvalidType = errors.Error("invalid type encountered, please check generators")
+	// ErrInvalidEntries is returned when a non-slice is presented to GetByRelationship
+	ErrInvalidEntries = errors.Error("invalid entries, slice expected")
 )
 
 // New will return a new instance of Core
-func New(name, dir string, g Generator, relationships ...string) (cc *Core, err error) {
+func New(name, dir string, example interface{}, relationships ...string) (cc *Core, err error) {
 	var c Core
-	c.g = g
+	c.elemType = getCoreType(example)
 	if err = c.init(name, dir, relationships); err != nil {
 		return
 	}
@@ -39,7 +44,8 @@ type Core struct {
 	db  *bolt.DB
 	dbu *dbutils.DBUtils
 
-	g Generator
+	// Element type
+	elemType reflect.Type
 
 	name          []byte
 	relationships [][]byte
@@ -92,7 +98,7 @@ func (c *Core) getRelationshipBucket(txn *bolt.Tx, relationship, relationshipID 
 	return
 }
 
-func (c *Core) get(txn *bolt.Tx, entryID []byte) (val Value, err error) {
+func (c *Core) get(txn *bolt.Tx, entryID []byte, val interface{}) (err error) {
 	var bkt *bolt.Bucket
 	if bkt = txn.Bucket(c.name); bkt == nil {
 		err = ErrNotInitialized
@@ -105,7 +111,6 @@ func (c *Core) get(txn *bolt.Tx, entryID []byte) (val Value, err error) {
 		return
 	}
 
-	val = c.g()
 	err = json.Unmarshal(bs, val)
 	return
 }
@@ -124,19 +129,19 @@ func (c *Core) getIDsByRelationship(txn *bolt.Tx, relationship, relationshipID [
 	return
 }
 
-func (c *Core) getEntriesByRelationship(txn *bolt.Tx, relationship, relationshipID []byte) (entries []Value, err error) {
+func (c *Core) getByRelationship(txn *bolt.Tx, relationship, relationshipID []byte, entries reflect.Value) (err error) {
 	var bkt *bolt.Bucket
 	if bkt, err = c.getRelationshipBucket(txn, relationship, relationshipID); bkt == nil || err != nil {
 		return
 	}
 
 	err = bkt.ForEach(func(entryID, _ []byte) (err error) {
-		var val Value
-		if val, err = c.get(txn, entryID); err != nil {
+		val := reflect.New(c.elemType)
+		if err = c.get(txn, entryID, val.Interface()); err != nil {
 			return
 		}
 
-		entries = append(entries, val)
+		entries.Set(reflect.Append(entries, val))
 		return
 	})
 
@@ -221,8 +226,8 @@ func (c *Core) new(txn *bolt.Tx, val Value, relationshipIDs []string) (entryID [
 		return
 	}
 
+	val.SetID(string(entryID))
 	val.SetCreatedAt(time.Now().Unix())
-
 	if err = c.put(txn, entryID, val); err != nil {
 		return
 	}
@@ -234,13 +239,14 @@ func (c *Core) new(txn *bolt.Tx, val Value, relationshipIDs []string) (entryID [
 	return
 }
 
-func (c *Core) edit(txn *bolt.Tx, entryID []byte, fn func(Value) error) (err error) {
+func (c *Core) edit(txn *bolt.Tx, entryID []byte, fn func(interface{}) error) (err error) {
 	var val Value
-	if val, err = c.get(txn, []byte(entryID)); err != nil {
+	elem := c.elemType.Elem()
+	if err = c.get(txn, []byte(entryID), elem); err != nil {
 		return
 	}
 
-	if err = fn(val); err != nil {
+	if err = fn(elem); err != nil {
 		return
 	}
 
@@ -261,7 +267,7 @@ func (c *Core) remove(txn *bolt.Tx, entryID []byte, relationshipIDs []string) (e
 
 // New will insert a new entry with the given value and the associated relationships
 func (c *Core) New(val Value, relationshipIDs ...string) (entryID string, err error) {
-	err = c.db.View(func(txn *bolt.Tx) (err error) {
+	err = c.db.Update(func(txn *bolt.Tx) (err error) {
 		var id []byte
 		if id, err = c.new(txn, val, relationshipIDs); err != nil {
 			return
@@ -275,9 +281,17 @@ func (c *Core) New(val Value, relationshipIDs ...string) (entryID string, err er
 }
 
 // Get will attempt to get an entry by ID
-func (c *Core) Get(entryID string) (val Value, err error) {
+func (c *Core) Get(entryID string, val Value) (err error) {
 	err = c.db.View(func(txn *bolt.Tx) (err error) {
-		val, err = c.get(txn, []byte(entryID))
+		if err = c.get(txn, []byte(entryID), val); err != nil {
+			return
+		}
+
+		/*
+			entryValue := reflect.ValueOf(entry).Elem()
+			valValue := reflect.ValueOf(val).Elem()
+			valValue.Set(entryValue)
+		*/
 		return
 	})
 
@@ -285,17 +299,25 @@ func (c *Core) Get(entryID string) (val Value, err error) {
 }
 
 // GetByRelationship will attempt to get all entries associated with a given relationship
-func (c *Core) GetByRelationship(relationship, relationshipID string) (entries []Value, err error) {
+func (c *Core) GetByRelationship(relationship, relationshipID string, entries interface{}) (err error) {
+	es, ok := getReflectedSlice(entries)
+	if !ok {
+		return ErrInvalidEntries
+	}
+
+	if !isType(es, c.elemType) {
+		return ErrInvalidType
+	}
+
 	err = c.db.View(func(txn *bolt.Tx) (err error) {
-		entries, err = c.getEntriesByRelationship(txn, []byte(relationship), []byte(relationshipID))
-		return
+		return c.getByRelationship(txn, []byte(relationship), []byte(relationshipID), es)
 	})
 
 	return
 }
 
 // Edit will attempt to edit an entry by ID
-func (c *Core) Edit(entryID string, fn func(Value) error) (err error) {
+func (c *Core) Edit(entryID string, fn func(interface{}) error) (err error) {
 	err = c.db.Update(func(txn *bolt.Tx) (err error) {
 		return c.edit(txn, []byte(entryID), fn)
 	})
