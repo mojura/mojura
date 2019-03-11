@@ -359,7 +359,7 @@ func (c *Core) Edit(entryID string, val Value) (err error) {
 
 // Remove will remove a relationship ID and it's related relationship IDs
 func (c *Core) Remove(entryID string, relationshipIDs ...string) (err error) {
-	err = c.db.View(func(txn *bolt.Tx) (err error) {
+	err = c.db.Update(func(txn *bolt.Tx) (err error) {
 		return c.remove(txn, []byte(entryID), relationshipIDs)
 	})
 
