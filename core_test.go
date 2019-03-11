@@ -179,6 +179,48 @@ func TestCore_GetByRelationship_invalid(t *testing.T) {
 	}
 }
 
+func TestCore_Edit(t *testing.T) {
+	var (
+		c   *Core
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c)
+
+	var foobar testStruct
+	foobar.UserID = "user_1"
+	foobar.ContactID = "contact_1"
+	foobar.Foo = "FOO FOO"
+	foobar.Bar = "bunny bar bar"
+
+	var entryID string
+	if entryID, err = c.New(&foobar, foobar.UserID, foobar.ContactID); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = c.Edit(entryID, func(val interface{}) (err error) {
+		fb := val.(*testStruct)
+		fb.Foo = "HELLO"
+		return
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	foobar.Foo = "HELLO"
+
+	var fb testStruct
+	if err = c.Get(entryID, &fb); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = testCheck(&foobar, &fb); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func testCheck(a, b *testStruct) (err error) {
 	if a.ID != b.ID {
 		return fmt.Errorf("invalid id, expected %s and received %s", a.ID, b.ID)
@@ -304,6 +346,19 @@ func ExampleCore_GetByRelationship() {
 	for i, ts := range tss {
 		fmt.Printf("Retrieved entry #%d! %+v\n", i, ts)
 	}
+}
+
+func ExampleCore_Edit() {
+	var err error
+	if err = c.Edit("00000000", func(v interface{}) (err error) {
+		ts := v.(*testStruct)
+		ts.Foo = "New foo value"
+		return
+	}); err != nil {
+		return
+	}
+
+	fmt.Printf("Edited entry %s!\n", "00000000")
 }
 
 func ExampleCore_Remove() {

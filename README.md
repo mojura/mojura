@@ -73,6 +73,22 @@ func ExampleCore_GetByRelationship() {
 }
 ```
 
+### Core.Edit
+```go
+func ExampleCore_Edit() {
+	var err error
+	if err = c.Edit("00000000", func(v interface{}) (err error) {
+		ts := v.(*testStruct)
+		ts.Foo = "New foo value"
+		return
+	}); err != nil {
+		return
+	}
+
+	fmt.Printf("Edited entry %s!\n", "00000000")
+}
+```
+
 ### Core.Remove
 ```go
 func ExampleCore_Remove() {
