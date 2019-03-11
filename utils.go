@@ -44,3 +44,6 @@ func isType(v reflect.Value, t reflect.Type) (ok bool) {
 
 	return e.Elem() == t
 }
+
+// ForEachFn are called during iteration
+type ForEachFn func(key string, val Value) error
