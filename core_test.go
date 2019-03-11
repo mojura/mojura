@@ -237,7 +237,7 @@ func testInit() (c *Core, err error) {
 		return
 	}
 
-	return New("test", testDir, testStruct{}, "users", "contacts")
+	return New("test", testDir, &testStruct{}, "users", "contacts")
 }
 
 func testTeardown(c *Core) (err error) {
@@ -254,7 +254,7 @@ func ExampleNew() {
 		err error
 	)
 
-	if c, err = New("example", "./data", testStruct{}, "users", "contacts"); err != nil {
+	if c, err = New("example", "./data", &testStruct{}, "users", "contacts"); err != nil {
 		return
 	}
 

@@ -28,7 +28,7 @@ const (
 )
 
 // New will return a new instance of Core
-func New(name, dir string, example interface{}, relationships ...string) (cc *Core, err error) {
+func New(name, dir string, example Value, relationships ...string) (cc *Core, err error) {
 	var c Core
 	c.elemType = getCoreType(example)
 	if err = c.init(name, dir, relationships); err != nil {
@@ -240,17 +240,16 @@ func (c *Core) new(txn *bolt.Tx, val Value, relationshipIDs []string) (entryID [
 }
 
 func (c *Core) edit(txn *bolt.Tx, entryID []byte, fn func(interface{}) error) (err error) {
-	var val Value
-	elem := c.elemType.Elem()
-	if err = c.get(txn, []byte(entryID), elem); err != nil {
+	val := reflect.New(c.elemType)
+	if err = c.get(txn, entryID, val.Interface()); err != nil {
 		return
 	}
 
-	if err = fn(elem); err != nil {
+	if err = fn(val); err != nil {
 		return
 	}
 
-	return c.put(txn, entryID, val)
+	return c.put(txn, entryID, val.Interface().(Value))
 }
 
 func (c *Core) remove(txn *bolt.Tx, entryID []byte, relationshipIDs []string) (err error) {
@@ -283,16 +282,7 @@ func (c *Core) New(val Value, relationshipIDs ...string) (entryID string, err er
 // Get will attempt to get an entry by ID
 func (c *Core) Get(entryID string, val Value) (err error) {
 	err = c.db.View(func(txn *bolt.Tx) (err error) {
-		if err = c.get(txn, []byte(entryID), val); err != nil {
-			return
-		}
-
-		/*
-			entryValue := reflect.ValueOf(entry).Elem()
-			valValue := reflect.ValueOf(val).Elem()
-			valValue.Set(entryValue)
-		*/
-		return
+		return c.get(txn, []byte(entryID), val)
 	})
 
 	return
