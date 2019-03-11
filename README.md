@@ -73,6 +73,33 @@ func ExampleCore_GetByRelationship() {
 }
 ```
 
+### Core.ForEach
+```go
+
+func ExampleCore_ForEach() {
+	var err error
+	if err = c.ForEach(func(key string, val Value) (err error) {
+		fmt.Printf("Iterating entry (%s)! %+v\n", key, val)
+		return
+	}); err != nil {
+		return
+	}
+}
+```
+
+### Core.ForEachRelationship
+```go
+func ExampleCore_ForEachRelationship() {
+	var err error
+	if err = c.ForEachRelationship("users", "user_1", func(key string, val Value) (err error) {
+		fmt.Printf("Iterating entry (%s)! %+v\n", key, val)
+		return
+	}); err != nil {
+		return
+	}
+}
+```
+
 ### Core.Edit
 ```go
 func ExampleCore_Edit() {

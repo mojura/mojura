@@ -193,6 +193,97 @@ func TestCore_Edit(t *testing.T) {
 	}
 }
 
+func TestCore_ForEach(t *testing.T) {
+	var (
+		c   *Core
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c)
+
+	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+
+	if _, err = c.New(&foobar, foobar.UserID, foobar.ContactID); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err = c.New(&foobar, foobar.UserID, foobar.ContactID); err != nil {
+		t.Fatal(err)
+	}
+
+	var cnt int
+	if err = c.ForEach(func(key string, v Value) (err error) {
+		fb := v.(*testStruct)
+		// We are not checking ID correctness in this test
+		foobar.ID = fb.ID
+
+		if err = testCheck(&foobar, fb); err != nil {
+			t.Fatal(err)
+		}
+
+		cnt++
+		return
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if cnt != 2 {
+		t.Fatalf("invalid number of entries, expected %d and received %d", 2, cnt)
+	}
+
+	return
+}
+
+func TestCore_ForEachRelationship(t *testing.T) {
+	var (
+		c   *Core
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c)
+
+	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+
+	if _, err = c.New(&foobar, foobar.UserID, foobar.ContactID); err != nil {
+		t.Fatal(err)
+	}
+
+	foobar.UserID = "user_2"
+	foobar.ContactID = "contact_3"
+
+	if _, err = c.New(&foobar, foobar.UserID, foobar.ContactID); err != nil {
+		t.Fatal(err)
+	}
+
+	var cnt int
+	if err = c.ForEachRelationship("contacts", foobar.ContactID, func(key string, v Value) (err error) {
+		fb := v.(*testStruct)
+		// We are not checking ID correctness in this test
+		foobar.ID = fb.ID
+
+		if err = testCheck(&foobar, fb); err != nil {
+			t.Fatal(err)
+		}
+
+		cnt++
+		return
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if cnt != 1 {
+		t.Fatalf("invalid number of entries, expected %d and received %d", 1, cnt)
+	}
+
+	return
+}
+
 func ExampleNew() {
 	var (
 		c   *Core
@@ -248,6 +339,26 @@ func ExampleCore_GetByRelationship() {
 
 	for i, ts := range tss {
 		fmt.Printf("Retrieved entry #%d! %+v\n", i, ts)
+	}
+}
+
+func ExampleCore_ForEach() {
+	var err error
+	if err = c.ForEach(func(key string, val Value) (err error) {
+		fmt.Printf("Iterating entry (%s)! %+v\n", key, val)
+		return
+	}); err != nil {
+		return
+	}
+}
+
+func ExampleCore_ForEachRelationship() {
+	var err error
+	if err = c.ForEachRelationship("users", "user_1", func(key string, val Value) (err error) {
+		fmt.Printf("Iterating entry (%s)! %+v\n", key, val)
+		return
+	}); err != nil {
+		return
 	}
 }
 
