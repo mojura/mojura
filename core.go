@@ -290,13 +290,9 @@ func (c *Core) Get(entryID string, val Value) (err error) {
 
 // GetByRelationship will attempt to get all entries associated with a given relationship
 func (c *Core) GetByRelationship(relationship, relationshipID string, entries interface{}) (err error) {
-	es, ok := getReflectedSlice(entries)
-	if !ok {
-		return ErrInvalidEntries
-	}
-
-	if !isType(es, c.elemType) {
-		return ErrInvalidType
+	var es reflect.Value
+	if es, err = getReflectedSlice(entries); err != nil {
+		return
 	}
 
 	err = c.db.View(func(txn *bolt.Tx) (err error) {
@@ -319,6 +315,19 @@ func (c *Core) Edit(entryID string, val Value) (err error) {
 func (c *Core) Remove(entryID string, relationshipIDs ...string) (err error) {
 	err = c.db.View(func(txn *bolt.Tx) (err error) {
 		return c.remove(txn, []byte(entryID), relationshipIDs)
+	})
+
+	return
+}
+
+// Transaction will initialize a transaction
+func (c *Core) Transaction(fn func(*Transaction) error) (err error) {
+	err = c.db.Update(func(txn *bolt.Tx) (err error) {
+		t := newTransaction(c, txn)
+		err = fn(&t)
+		t.c = nil
+		t.txn = nil
+		return
 	})
 
 	return
