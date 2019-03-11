@@ -239,17 +239,17 @@ func (c *Core) new(txn *bolt.Tx, val Value, relationshipIDs []string) (entryID [
 	return
 }
 
-func (c *Core) edit(txn *bolt.Tx, entryID []byte, fn func(interface{}) error) (err error) {
-	val := reflect.New(c.elemType)
-	if err = c.get(txn, entryID, val.Interface()); err != nil {
+func (c *Core) edit(txn *bolt.Tx, entryID []byte, val Value) (err error) {
+	original := reflect.New(c.elemType).Interface().(Value)
+	if err = c.get(txn, entryID, original); err != nil {
 		return
 	}
 
-	if err = fn(val); err != nil {
-		return
-	}
-
-	return c.put(txn, entryID, val.Interface().(Value))
+	// Ensure the ID is set as the original ID
+	val.SetID(original.GetID())
+	// Ensure the created at timestamp is set as the original created at
+	val.SetCreatedAt(original.GetCreatedAt())
+	return c.put(txn, entryID, val)
 }
 
 func (c *Core) remove(txn *bolt.Tx, entryID []byte, relationshipIDs []string) (err error) {
@@ -307,9 +307,9 @@ func (c *Core) GetByRelationship(relationship, relationshipID string, entries in
 }
 
 // Edit will attempt to edit an entry by ID
-func (c *Core) Edit(entryID string, fn func(interface{}) error) (err error) {
+func (c *Core) Edit(entryID string, val Value) (err error) {
 	err = c.db.Update(func(txn *bolt.Tx) (err error) {
-		return c.edit(txn, []byte(entryID), fn)
+		return c.edit(txn, []byte(entryID), val)
 	})
 
 	return

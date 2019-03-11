@@ -201,15 +201,11 @@ func TestCore_Edit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err = c.Edit(entryID, func(val interface{}) (err error) {
-		fb := val.(*testStruct)
-		fb.Foo = "HELLO"
-		return
-	}); err != nil {
+	foobar.Foo = "HELLO"
+
+	if err = c.Edit(entryID, &foobar); err != nil {
 		t.Fatal(err)
 	}
-
-	foobar.Foo = "HELLO"
 
 	var fb testStruct
 	if err = c.Get(entryID, &fb); err != nil {
@@ -219,75 +215,6 @@ func TestCore_Edit(t *testing.T) {
 	if err = testCheck(&foobar, &fb); err != nil {
 		t.Fatal(err)
 	}
-}
-
-func testCheck(a, b *testStruct) (err error) {
-	if a.ID != b.ID {
-		return fmt.Errorf("invalid id, expected %s and received %s", a.ID, b.ID)
-	}
-
-	if a.UserID != b.UserID {
-		return fmt.Errorf("invalid user id, expected %s and received %s", a.UserID, b.UserID)
-	}
-
-	if a.ContactID != b.ContactID {
-		return fmt.Errorf("invalid contact id, expected %s and received %s", a.ContactID, b.ContactID)
-	}
-
-	if a.Foo != b.Foo {
-		return fmt.Errorf("invalid foo, expected %s and received %s", a.Foo, b.Foo)
-	}
-
-	if a.Bar != b.Bar {
-		return fmt.Errorf("invalid bar, expected %s and received %s", a.Bar, b.Bar)
-	}
-
-	return
-}
-
-type testStruct struct {
-	ID        string `json:"id"`
-	UserID    string `json:"userID"`
-	ContactID string `json:"contactID"`
-
-	Foo string `json:"foo"`
-	Bar string `json:"bar"`
-
-	UpdatedAt int64 `json:"updatedAt"`
-	CreatedAt int64 `json:"createdAt"`
-}
-
-func (t *testStruct) SetID(id string) {
-	t.ID = id
-}
-
-func (t *testStruct) SetUpdatedAt(updatedAt int64) {
-	t.UpdatedAt = updatedAt
-}
-
-func (t *testStruct) SetCreatedAt(createdAt int64) {
-	t.CreatedAt = createdAt
-}
-
-type testBadType struct {
-	Foo string
-	Bar string
-}
-
-func testInit() (c *Core, err error) {
-	if err = os.MkdirAll(testDir, 0744); err != nil {
-		return
-	}
-
-	return New("test", testDir, &testStruct{}, "users", "contacts")
-}
-
-func testTeardown(c *Core) (err error) {
-	if err = c.Close(); err != nil {
-		return
-	}
-
-	return os.RemoveAll(testDir)
 }
 
 func ExampleNew() {
@@ -349,12 +276,17 @@ func ExampleCore_GetByRelationship() {
 }
 
 func ExampleCore_Edit() {
-	var err error
-	if err = c.Edit("00000000", func(v interface{}) (err error) {
-		ts := v.(*testStruct)
-		ts.Foo = "New foo value"
-		return
-	}); err != nil {
+	var (
+		ts  *testStruct
+		err error
+	)
+
+	// We will pretend the test struct is already populated
+
+	// Let's update the Foo field to "New foo value"
+	ts.Foo = "New foo value"
+
+	if err = c.Edit("00000000", ts); err != nil {
 		return
 	}
 
@@ -368,4 +300,85 @@ func ExampleCore_Remove() {
 	}
 
 	fmt.Printf("Removed entry %s!\n", "00000000")
+}
+
+func testInit() (c *Core, err error) {
+	if err = os.MkdirAll(testDir, 0744); err != nil {
+		return
+	}
+
+	return New("test", testDir, &testStruct{}, "users", "contacts")
+}
+
+func testTeardown(c *Core) (err error) {
+	if err = c.Close(); err != nil {
+		return
+	}
+
+	return os.RemoveAll(testDir)
+}
+
+func testCheck(a, b *testStruct) (err error) {
+	if a.ID != b.ID {
+		return fmt.Errorf("invalid id, expected %s and received %s", a.ID, b.ID)
+	}
+
+	if a.UserID != b.UserID {
+		return fmt.Errorf("invalid user id, expected %s and received %s", a.UserID, b.UserID)
+	}
+
+	if a.ContactID != b.ContactID {
+		return fmt.Errorf("invalid contact id, expected %s and received %s", a.ContactID, b.ContactID)
+	}
+
+	if a.Foo != b.Foo {
+		return fmt.Errorf("invalid foo, expected %s and received %s", a.Foo, b.Foo)
+	}
+
+	if a.Bar != b.Bar {
+		return fmt.Errorf("invalid bar, expected %s and received %s", a.Bar, b.Bar)
+	}
+
+	return
+}
+
+type testStruct struct {
+	ID        string `json:"id"`
+	UserID    string `json:"userID"`
+	ContactID string `json:"contactID"`
+
+	Foo string `json:"foo"`
+	Bar string `json:"bar"`
+
+	UpdatedAt int64 `json:"updatedAt"`
+	CreatedAt int64 `json:"createdAt"`
+}
+
+func (t *testStruct) SetID(id string) {
+	t.ID = id
+}
+
+func (t *testStruct) GetUpdatedAt() (updatedAt int64) {
+	return t.UpdatedAt
+}
+
+func (t *testStruct) GetCreatedAt() (createdAt int64) {
+	return t.CreatedAt
+}
+
+func (t *testStruct) GetID() (id string) {
+	return t.ID
+}
+
+func (t *testStruct) SetUpdatedAt(updatedAt int64) {
+	t.UpdatedAt = updatedAt
+}
+
+func (t *testStruct) SetCreatedAt(createdAt int64) {
+	t.CreatedAt = createdAt
+}
+
+type testBadType struct {
+	Foo string
+	Bar string
 }
