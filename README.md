@@ -1,2 +1,2 @@
-# Core
-Core is a service core helper library
+# Service core
+Service core is a service helper library for core ancillary methods
