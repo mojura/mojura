@@ -38,11 +38,7 @@ func TestCore_New(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	var foobar testStruct
-	foobar.UserID = "user_1"
-	foobar.ContactID = "contact_1"
-	foobar.Foo = "FOO FOO"
-	foobar.Bar = "bunny bar bar"
+	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
 
 	var entryID string
 	if entryID, err = c.New(&foobar, foobar.UserID, foobar.ContactID); err != nil {
@@ -65,11 +61,7 @@ func TestCore_Get(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	var foobar testStruct
-	foobar.UserID = "user_1"
-	foobar.ContactID = "contact_1"
-	foobar.Foo = "FOO FOO"
-	foobar.Bar = "bunny bar bar"
+	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
 
 	var entryID string
 	if entryID, err = c.New(&foobar, foobar.UserID, foobar.ContactID); err != nil {
@@ -97,11 +89,7 @@ func TestCore_GetByRelationship_users(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	var foobar testStruct
-	foobar.UserID = "user_1"
-	foobar.ContactID = "contact_1"
-	foobar.Foo = "FOO FOO"
-	foobar.Bar = "bunny bar bar"
+	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
 
 	if _, err = c.New(&foobar, foobar.UserID, foobar.ContactID); err != nil {
 		t.Fatal(err)
@@ -130,11 +118,7 @@ func TestCore_GetByRelationship_contacts(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	var foobar testStruct
-	foobar.UserID = "user_1"
-	foobar.ContactID = "contact_1"
-	foobar.Foo = "FOO FOO"
-	foobar.Bar = "bunny bar bar"
+	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
 
 	if _, err = c.New(&foobar, foobar.UserID, foobar.ContactID); err != nil {
 		t.Fatal(err)
@@ -163,11 +147,7 @@ func TestCore_GetByRelationship_invalid(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	var foobar testStruct
-	foobar.UserID = "user_1"
-	foobar.ContactID = "contact_1"
-	foobar.Foo = "FOO FOO"
-	foobar.Bar = "bunny bar bar"
+	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
 
 	if _, err = c.New(&foobar, foobar.UserID, foobar.ContactID); err != nil {
 		t.Fatal(err)
@@ -190,11 +170,7 @@ func TestCore_Edit(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	var foobar testStruct
-	foobar.UserID = "user_1"
-	foobar.ContactID = "contact_1"
-	foobar.Foo = "FOO FOO"
-	foobar.Bar = "bunny bar bar"
+	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
 
 	var entryID string
 	if entryID, err = c.New(&foobar, foobar.UserID, foobar.ContactID); err != nil {
@@ -339,6 +315,14 @@ func testCheck(a, b *testStruct) (err error) {
 		return fmt.Errorf("invalid bar, expected %s and received %s", a.Bar, b.Bar)
 	}
 
+	return
+}
+
+func newTestStruct(userID, contactID, foo, bar string) (t testStruct) {
+	t.UserID = userID
+	t.ContactID = contactID
+	t.Foo = foo
+	t.Bar = bar
 	return
 }
 
