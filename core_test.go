@@ -159,6 +159,54 @@ func TestCore_GetByRelationship_invalid(t *testing.T) {
 	}
 }
 
+func TestCore_GetByRelationship_update(t *testing.T) {
+	var (
+		c   *Core
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c)
+
+	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+
+	var entryID string
+	if entryID, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	foobar.UserID = "user_3"
+
+	if err = c.Edit(entryID, &foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	var foobars []*testStruct
+	if err = c.GetByRelationship("users", "user_1", &foobars); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(foobars) != 0 {
+		t.Fatalf("invalid number of entries, expected %d and received %d", 0, len(foobars))
+	}
+
+	if err = c.GetByRelationship("users", "user_3", &foobars); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(foobars) != 1 {
+		t.Fatalf("invalid number of entries, expected %d and received %d", 1, len(foobars))
+	}
+
+	for _, fb := range foobars {
+		if err = testCheck(&foobar, fb); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestCore_Edit(t *testing.T) {
 	var (
 		c   *Core
