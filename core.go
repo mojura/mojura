@@ -25,6 +25,9 @@ const (
 	ErrInvalidType = errors.Error("invalid type encountered, please check generators")
 	// ErrInvalidEntries is returned when a non-slice is presented to GetByRelationship
 	ErrInvalidEntries = errors.Error("invalid entries, slice expected")
+
+	// Break is a non-error which will cause a ForEach loop to break early
+	Break = errors.Error("break!")
 )
 
 // New will return a new instance of Core
@@ -170,14 +173,16 @@ func (c *Core) forEach(txn *bolt.Tx, fn ForEachFn) (err error) {
 		return
 	}
 
-	err = bkt.ForEach(func(key, bs []byte) (err error) {
+	if err = bkt.ForEach(func(key, bs []byte) (err error) {
 		val := reflect.New(c.entryType).Interface().(Value)
 		if err = json.Unmarshal(bs, val); err != nil {
 			return
 		}
 
 		return fn(string(key), val)
-	})
+	}); err == Break {
+		err = nil
+	}
 
 	return
 }
@@ -188,14 +193,16 @@ func (c *Core) forEachRelationship(txn *bolt.Tx, relationship, relationshipID []
 		return
 	}
 
-	err = bkt.ForEach(func(entryID, _ []byte) (err error) {
+	if err = bkt.ForEach(func(entryID, _ []byte) (err error) {
 		val := c.newEntryValue()
 		if err = c.get(txn, entryID, val); err != nil {
 			return
 		}
 
 		return fn(string(entryID), val)
-	})
+	}); err == Break {
+		err = nil
+	}
 
 	return
 }
