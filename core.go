@@ -19,6 +19,8 @@ const (
 	ErrNotInitialized = errors.Error("service has not been properly initialized")
 	// ErrRelationshipNotFound is returned when an relationship is not available for the given relationship key
 	ErrRelationshipNotFound = errors.Error("relationship was not found")
+	// ErrLookupNotFound is returned when a lookup is not available for the given lookup key
+	ErrLookupNotFound = errors.Error("lookup was not found")
 	// ErrEntryNotFound is returned when an entry is not available for the given ID
 	ErrEntryNotFound = errors.Error("entry was not found")
 	// ErrInvalidNumberOfRelationships is returned when an invalid number of relationships is provided in a New call
@@ -131,7 +133,7 @@ func (c *Core) newEntryValue() (value Value) {
 	return iface.(Value)
 }
 
-func (c *Core) getRelationshipBucket(txn *bolt.Tx, relationship, relationshipID []byte) (bkt *bolt.Bucket, err error) {
+func (c *Core) getRelationshipBucket(txn *bolt.Tx, relationship []byte) (bkt *bolt.Bucket, err error) {
 	var relationshipsBkt *bolt.Bucket
 	if relationshipsBkt = txn.Bucket(relationshipsBktKey); relationshipsBkt == nil {
 		err = ErrNotInitialized
@@ -143,6 +145,17 @@ func (c *Core) getRelationshipBucket(txn *bolt.Tx, relationship, relationshipID 
 		return
 	}
 
+	return
+}
+
+func (c *Core) getLookupBucket(txn *bolt.Tx, lookup []byte) (bkt *bolt.Bucket, err error) {
+	var lookupsBkt *bolt.Bucket
+	if lookupsBkt = txn.Bucket(lookupsBktKey); lookupsBkt == nil {
+		err = ErrNotInitialized
+		return
+	}
+
+	bkt = lookupsBkt.Bucket(lookup)
 	return
 }
 
@@ -165,7 +178,7 @@ func (c *Core) get(txn *bolt.Tx, entryID []byte, val interface{}) (err error) {
 
 func (c *Core) getIDsByRelationship(txn *bolt.Tx, relationship, relationshipID []byte) (entryIDs [][]byte, err error) {
 	var relationshipBkt *bolt.Bucket
-	if relationshipBkt, err = c.getRelationshipBucket(txn, relationship, relationshipID); err != nil {
+	if relationshipBkt, err = c.getRelationshipBucket(txn, relationship); err != nil {
 		return
 	}
 
@@ -184,7 +197,7 @@ func (c *Core) getIDsByRelationship(txn *bolt.Tx, relationship, relationshipID [
 
 func (c *Core) getByRelationship(txn *bolt.Tx, relationship, relationshipID []byte, entries reflect.Value) (err error) {
 	var relationshipBkt *bolt.Bucket
-	if relationshipBkt, err = c.getRelationshipBucket(txn, relationship, relationshipID); err != nil {
+	if relationshipBkt, err = c.getRelationshipBucket(txn, relationship); err != nil {
 		return
 	}
 
@@ -229,7 +242,7 @@ func (c *Core) forEach(txn *bolt.Tx, fn ForEachFn) (err error) {
 
 func (c *Core) forEachRelationship(txn *bolt.Tx, relationship, relationshipID []byte, fn ForEachFn) (err error) {
 	var relationshipBkt *bolt.Bucket
-	if relationshipBkt, err = c.getRelationshipBucket(txn, relationship, relationshipID); err != nil {
+	if relationshipBkt, err = c.getRelationshipBucket(txn, relationship); err != nil {
 		return
 	}
 
@@ -294,7 +307,7 @@ func (c *Core) setRelationship(txn *bolt.Tx, relationship, relationshipID, entry
 	}
 
 	var relationshipBkt *bolt.Bucket
-	if relationshipBkt, err = c.getRelationshipBucket(txn, relationship, relationshipID); err != nil {
+	if relationshipBkt, err = c.getRelationshipBucket(txn, relationship); err != nil {
 		return
 	}
 
@@ -318,8 +331,8 @@ func (c *Core) unsetRelationships(txn *bolt.Tx, relationshipIDs []string, entryI
 
 func (c *Core) unsetRelationship(txn *bolt.Tx, relationship, relationshipID, entryID []byte) (err error) {
 	var relationshipBkt *bolt.Bucket
-	if relationshipBkt = txn.Bucket(relationship); relationshipBkt == nil {
-		return ErrRelationshipNotFound
+	if relationshipBkt, err = c.getRelationshipBucket(txn, relationship); err != nil {
+		return
 	}
 
 	var bkt *bolt.Bucket
@@ -328,6 +341,59 @@ func (c *Core) unsetRelationship(txn *bolt.Tx, relationship, relationshipID, ent
 	}
 
 	return bkt.Delete(entryID)
+}
+
+func (c *Core) setLookup(txn *bolt.Tx, lookup, lookupID, key []byte) (err error) {
+	var lookupsBkt *bolt.Bucket
+	if lookupsBkt = txn.Bucket(lookupsBktKey); lookupsBkt == nil {
+		err = ErrNotInitialized
+		return
+	}
+
+	var lookupBkt *bolt.Bucket
+	if lookupBkt, err = lookupsBkt.CreateBucketIfNotExists(lookup); err != nil {
+		return
+	}
+
+	var bkt *bolt.Bucket
+	if bkt, err = lookupBkt.CreateBucketIfNotExists(lookupID); err != nil {
+		return
+	}
+
+	return bkt.Put(key, nil)
+}
+
+func (c *Core) getLookupKeys(txn *bolt.Tx, lookup, lookupID []byte) (keys []string, err error) {
+	var lookupBkt *bolt.Bucket
+	if lookupBkt, err = c.getLookupBucket(txn, lookup); lookupBkt == nil || err != nil {
+		return
+	}
+
+	var bkt *bolt.Bucket
+	if bkt = lookupBkt.Bucket(lookupID); bkt == nil {
+		return
+	}
+
+	err = bkt.ForEach(func(key, _ []byte) (err error) {
+		keys = append(keys, string(key))
+		return
+	})
+
+	return
+}
+
+func (c *Core) removeLookup(txn *bolt.Tx, lookup, lookupID, key []byte) (err error) {
+	var lookupBkt *bolt.Bucket
+	if lookupBkt, err = c.getLookupBucket(txn, lookup); lookupBkt == nil || err != nil {
+		return
+	}
+
+	var bkt *bolt.Bucket
+	if bkt = lookupBkt.Bucket(lookupID); bkt == nil {
+		return
+	}
+
+	return bkt.Delete(key)
 }
 
 func (c *Core) new(txn *bolt.Tx, val Value) (entryID []byte, err error) {
@@ -464,6 +530,34 @@ func (c *Core) Edit(entryID string, val Value) (err error) {
 func (c *Core) Remove(entryID string) (err error) {
 	err = c.db.Update(func(txn *bolt.Tx) (err error) {
 		return c.remove(txn, []byte(entryID))
+	})
+
+	return
+}
+
+// SetLookup will set a lookup value
+func (c *Core) SetLookup(lookup, lookupID, key string) (err error) {
+	err = c.db.Update(func(txn *bolt.Tx) (err error) {
+		return c.setLookup(txn, []byte(lookup), []byte(lookupID), []byte(key))
+	})
+
+	return
+}
+
+// GetLookup will retrieve the matching lookup keys
+func (c *Core) GetLookup(lookup, lookupID string) (keys []string, err error) {
+	err = c.db.View(func(txn *bolt.Tx) (err error) {
+		keys, err = c.getLookupKeys(txn, []byte(lookup), []byte(lookupID))
+		return
+	})
+
+	return
+}
+
+// RemoveLookup will set a lookup value
+func (c *Core) RemoveLookup(lookup, lookupID, key string) (err error) {
+	err = c.db.Update(func(txn *bolt.Tx) (err error) {
+		return c.removeLookup(txn, []byte(lookup), []byte(lookupID), []byte(key))
 	})
 
 	return

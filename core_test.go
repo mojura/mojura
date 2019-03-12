@@ -284,6 +284,65 @@ func TestCore_ForEachRelationship(t *testing.T) {
 	return
 }
 
+func TestCore_Lookups(t *testing.T) {
+	var (
+		c   *Core
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c)
+
+	if err = c.SetLookup("test_lookup", "test_0", "foo"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = c.SetLookup("test_lookup", "test_0", "bar"); err != nil {
+		t.Fatal(err)
+	}
+
+	var keys []string
+	if keys, err = c.GetLookup("test_lookup", "test_0"); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(keys) != 2 {
+		t.Fatalf("invalid number of keys, expected %d and received %d (%+v)", 2, len(keys), keys)
+	}
+
+	for i, key := range keys {
+		var expected string
+		switch i {
+		case 0:
+			expected = "bar"
+		case 1:
+			expected = "foo"
+		}
+
+		if expected != key {
+			t.Fatalf("invalid key, expected %s and recieved %s", expected, key)
+		}
+	}
+
+	if err = c.RemoveLookup("test_lookup", "test_0", "foo"); err != nil {
+		t.Fatal(err)
+	}
+
+	if keys, err = c.GetLookup("test_lookup", "test_0"); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(keys) != 1 {
+		t.Fatalf("invalid number of keys, expected %d and received %d (%+v)", 1, len(keys), keys)
+	}
+
+	if keys[0] != "bar" {
+		t.Fatalf("invalid key, expected %s and recieved %s", "bar", keys[0])
+	}
+}
+
 func ExampleNew() {
 	var (
 		c   *Core
