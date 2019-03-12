@@ -30,6 +30,11 @@ func (t *Transaction) New(val Value) (entryID string, err error) {
 	return
 }
 
+// Exists will notiy if an entry exists for a given entry ID
+func (t *Transaction) Exists(entryID string) (exists bool, err error) {
+	return t.c.exists(t.txn, []byte(entryID))
+}
+
 // Get will attempt to get an entry by ID
 func (t *Transaction) Get(entryID string, val Value) (err error) {
 	return t.c.get(t.txn, []byte(entryID), val)
