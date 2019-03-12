@@ -64,3 +64,19 @@ func (t *Transaction) Edit(entryID string, val Value) (err error) {
 func (t *Transaction) Remove(entryID string) (err error) {
 	return t.c.remove(t.txn, []byte(entryID))
 }
+
+// SetLookup will set a lookup value
+func (t *Transaction) SetLookup(lookup, lookupID, key string) (err error) {
+	return t.c.setLookup(t.txn, []byte(lookup), []byte(lookupID), []byte(key))
+}
+
+// GetLookup will retrieve the matching lookup keys
+func (t *Transaction) GetLookup(lookup, lookupID string) (keys []string, err error) {
+	keys, err = t.c.getLookupKeys(t.txn, []byte(lookup), []byte(lookupID))
+	return
+}
+
+// RemoveLookup will set a lookup value
+func (t *Transaction) RemoveLookup(lookup, lookupID, key string) (err error) {
+	return t.c.removeLookup(t.txn, []byte(lookup), []byte(lookupID), []byte(key))
+}
