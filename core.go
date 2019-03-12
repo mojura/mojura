@@ -35,6 +35,7 @@ const (
 )
 
 var (
+	entriesBktKey       = []byte("entries")
 	relationshipsBktKey = []byte("relationships")
 	lookupsBktKey       = []byte("lookups")
 )
@@ -75,7 +76,6 @@ type Core struct {
 	// Element type
 	entryType reflect.Type
 
-	name          []byte
 	relationships [][]byte
 
 	// Closed state
@@ -83,7 +83,6 @@ type Core struct {
 }
 
 func (c *Core) init(name, dir string, relationships []string) (err error) {
-	c.name = []byte(name)
 	filename := path.Join(dir, name+".bdb")
 	c.dbu = dbutils.New(8)
 
@@ -96,7 +95,7 @@ func (c *Core) init(name, dir string, relationships []string) (err error) {
 			return
 		}
 
-		if _, err = txn.CreateBucketIfNotExists(c.name); err != nil {
+		if _, err = txn.CreateBucketIfNotExists(entriesBktKey); err != nil {
 			return
 		}
 
@@ -161,7 +160,7 @@ func (c *Core) getLookupBucket(txn *bolt.Tx, lookup []byte) (bkt *bolt.Bucket, e
 
 func (c *Core) get(txn *bolt.Tx, entryID []byte, val interface{}) (err error) {
 	var bkt *bolt.Bucket
-	if bkt = txn.Bucket(c.name); bkt == nil {
+	if bkt = txn.Bucket(entriesBktKey); bkt == nil {
 		err = ErrNotInitialized
 		return
 	}
@@ -221,7 +220,7 @@ func (c *Core) getByRelationship(txn *bolt.Tx, relationship, relationshipID []by
 
 func (c *Core) forEach(txn *bolt.Tx, fn ForEachFn) (err error) {
 	var bkt *bolt.Bucket
-	if bkt = txn.Bucket(c.name); bkt == nil {
+	if bkt = txn.Bucket(entriesBktKey); bkt == nil {
 		err = ErrNotInitialized
 		return
 	}
@@ -267,7 +266,7 @@ func (c *Core) forEachRelationship(txn *bolt.Tx, relationship, relationshipID []
 
 func (c *Core) put(txn *bolt.Tx, entryID []byte, val Value) (err error) {
 	var bkt *bolt.Bucket
-	if bkt = txn.Bucket(c.name); bkt == nil {
+	if bkt = txn.Bucket(entriesBktKey); bkt == nil {
 		return ErrNotInitialized
 	}
 
@@ -283,7 +282,7 @@ func (c *Core) put(txn *bolt.Tx, entryID []byte, val Value) (err error) {
 
 func (c *Core) delete(txn *bolt.Tx, entryID []byte) (err error) {
 	var bkt *bolt.Bucket
-	if bkt = txn.Bucket(c.name); bkt == nil {
+	if bkt = txn.Bucket(entriesBktKey); bkt == nil {
 		return ErrNotInitialized
 	}
 
@@ -397,7 +396,7 @@ func (c *Core) removeLookup(txn *bolt.Tx, lookup, lookupID, key []byte) (err err
 }
 
 func (c *Core) new(txn *bolt.Tx, val Value) (entryID []byte, err error) {
-	if entryID, err = c.dbu.Next(txn, c.name); err != nil {
+	if entryID, err = c.dbu.Next(txn, entriesBktKey); err != nil {
 		return
 	}
 
