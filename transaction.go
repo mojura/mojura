@@ -45,6 +45,16 @@ func (t *Transaction) GetByRelationship(relationship, relationshipID string, ent
 	return t.c.getByRelationship(t.txn, []byte(relationship), []byte(relationshipID), es)
 }
 
+// ForEach will iterate through each of the entries
+func (t *Transaction) ForEach(fn ForEachFn) (err error) {
+	return c.forEach(t.txn, fn)
+}
+
+// ForEachRelationship will iterate through each of the entries for a given relationship and relationship ID
+func (t *Transaction) ForEachRelationship(relationship, relationshipID string, fn ForEachFn) (err error) {
+	return c.forEachRelationship(t.txn, []byte(relationship), []byte(relationshipID), fn)
+}
+
 // Edit will attempt to edit an entry by ID
 func (t *Transaction) Edit(entryID string, val Value) (err error) {
 	return t.c.edit(t.txn, []byte(entryID), val)
