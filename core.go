@@ -2,10 +2,12 @@ package core
 
 import (
 	"encoding/json"
+	"os"
 	"path"
 	"reflect"
 	"time"
 
+	"github.com/Hatch1fy/actions"
 	"github.com/Hatch1fy/errors"
 	"github.com/PathDNA/atoms"
 	"github.com/boltdb/bolt"
@@ -44,6 +46,15 @@ func New(name, dir string, example Value, relationships ...string) (cc *Core, er
 		return
 	}
 
+	logsDir := path.Join(dir, "logs")
+	if err = os.MkdirAll(logsDir, 0744); err != nil {
+		return
+	}
+
+	if c.a, err = actions.New(logsDir, name); err != nil {
+		return
+	}
+
 	cc = &c
 	return
 }
@@ -52,6 +63,7 @@ func New(name, dir string, example Value, relationships ...string) (cc *Core, er
 type Core struct {
 	db  *bolt.DB
 	dbu *dbutils.DBUtils
+	a   *actions.Actions
 
 	// Element type
 	entryType reflect.Type
@@ -300,6 +312,10 @@ func (c *Core) new(txn *bolt.Tx, val Value) (entryID []byte, err error) {
 		return
 	}
 
+	if err = c.a.LogJSON(actions.ActionCreate, []byte(entryID), val); err != nil {
+		return
+	}
+
 	return
 }
 
@@ -313,7 +329,16 @@ func (c *Core) edit(txn *bolt.Tx, entryID []byte, val Value) (err error) {
 	val.SetID(original.GetID())
 	// Ensure the created at timestamp is set as the original created at
 	val.SetCreatedAt(original.GetCreatedAt())
-	return c.put(txn, entryID, val)
+
+	if err = c.put(txn, entryID, val); err != nil {
+		return
+	}
+
+	if err = c.a.LogJSON(actions.ActionEdit, []byte(entryID), val); err != nil {
+		return
+	}
+
+	return
 }
 
 func (c *Core) remove(txn *bolt.Tx, entryID []byte) (err error) {
@@ -327,6 +352,10 @@ func (c *Core) remove(txn *bolt.Tx, entryID []byte) (err error) {
 	}
 
 	if err = c.unsetRelationships(txn, val.GetRelationshipIDs(), entryID); err != nil {
+		return
+	}
+
+	if err = c.a.LogJSON(actions.ActionDelete, []byte(entryID), nil); err != nil {
 		return
 	}
 
@@ -426,5 +455,8 @@ func (c *Core) Close() (err error) {
 		return errors.ErrIsClosed
 	}
 
-	return c.db.Close()
+	var errs errors.ErrorList
+	errs.Push(c.db.Close())
+	errs.Push(c.a.Close())
+	return errs.Err()
 }
