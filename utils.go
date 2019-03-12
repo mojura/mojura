@@ -45,5 +45,19 @@ func isType(v reflect.Value, t reflect.Type) (ok bool) {
 	return e.Elem() == t
 }
 
+func isSliceMatch(a, b []string) (match bool) {
+	if len(a) != len(b) {
+		return
+	}
+
+	for i := range a {
+		if a[i] != b[i] {
+			return
+		}
+	}
+
+	return true
+}
+
 // ForEachFn are called during iteration
 type ForEachFn func(key string, val Value) error

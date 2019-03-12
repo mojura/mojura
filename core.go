@@ -342,6 +342,25 @@ func (c *Core) unsetRelationship(txn *bolt.Tx, relationship, relationshipID, ent
 	return bkt.Delete(entryID)
 }
 
+func (c *Core) updateRelationships(txn *bolt.Tx, entryID []byte, orig, val Value) (err error) {
+	origRelationships := orig.GetRelationshipIDs()
+	newRelationships := val.GetRelationshipIDs()
+	if isSliceMatch(origRelationships, newRelationships) {
+		// Relationships already match, return
+		return
+	}
+
+	if err = c.unsetRelationships(txn, origRelationships, entryID); err != nil {
+		return
+	}
+
+	if err = c.setRelationships(txn, newRelationships, entryID); err != nil {
+		return
+	}
+
+	return
+}
+
 func (c *Core) setLookup(txn *bolt.Tx, lookup, lookupID, key []byte) (err error) {
 	var lookupsBkt *bolt.Bucket
 	if lookupsBkt = txn.Bucket(lookupsBktKey); lookupsBkt == nil {
@@ -418,17 +437,22 @@ func (c *Core) new(txn *bolt.Tx, val Value) (entryID []byte, err error) {
 }
 
 func (c *Core) edit(txn *bolt.Tx, entryID []byte, val Value) (err error) {
-	original := reflect.New(c.entryType).Interface().(Value)
-	if err = c.get(txn, entryID, original); err != nil {
+	orig := reflect.New(c.entryType).Interface().(Value)
+	if err = c.get(txn, entryID, orig); err != nil {
 		return
 	}
 
 	// Ensure the ID is set as the original ID
-	val.SetID(original.GetID())
+	val.SetID(orig.GetID())
 	// Ensure the created at timestamp is set as the original created at
-	val.SetCreatedAt(original.GetCreatedAt())
+	val.SetCreatedAt(orig.GetCreatedAt())
 
 	if err = c.put(txn, entryID, val); err != nil {
+		return
+	}
+
+	// Update relationships (if needed)
+	if err = c.updateRelationships(txn, entryID, orig, val); err != nil {
 		return
 	}
 
