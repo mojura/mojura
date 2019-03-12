@@ -511,6 +511,16 @@ func (c *Core) New(val Value) (entryID string, err error) {
 	return
 }
 
+// Exists will notiy if an entry exists for a given entry ID
+func (c *Core) Exists(entryID string) (exists bool, err error) {
+	err = c.db.View(func(txn *bolt.Tx) (err error) {
+		exists, err = c.exists(txn, []byte(entryID))
+		return
+	})
+
+	return
+}
+
 // Get will attempt to get an entry by ID
 func (c *Core) Get(entryID string, val Value) (err error) {
 	err = c.db.View(func(txn *bolt.Tx) (err error) {
@@ -529,16 +539,6 @@ func (c *Core) GetByRelationship(relationship, relationshipID string, entries in
 
 	err = c.db.View(func(txn *bolt.Tx) (err error) {
 		return c.getByRelationship(txn, []byte(relationship), []byte(relationshipID), es)
-	})
-
-	return
-}
-
-// Exists will notiy if an entry exists for a given entry ID
-func (c *Core) Exists(entryID string) (exists bool, err error) {
-	err = c.db.View(func(txn *bolt.Tx) (err error) {
-		exists, err = c.exists(txn, []byte(entryID))
-		return
 	})
 
 	return
