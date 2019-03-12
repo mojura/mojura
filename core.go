@@ -32,6 +32,11 @@ const (
 	Break = errors.Error("break!")
 )
 
+var (
+	relationshipsBktKey = []byte("relationships")
+	lookupsBktKey       = []byte("lookups")
+)
+
 // New will return a new instance of Core
 func New(name, dir string, example Value, relationships ...string) (cc *Core, err error) {
 	var c Core
@@ -93,9 +98,18 @@ func (c *Core) init(name, dir string, relationships []string) (err error) {
 			return
 		}
 
+		if _, err = txn.CreateBucketIfNotExists(lookupsBktKey); err != nil {
+			return
+		}
+
+		var relationshipsBkt *bolt.Bucket
+		if relationshipsBkt, err = txn.CreateBucketIfNotExists(relationshipsBktKey); err != nil {
+			return
+		}
+
 		for _, relationship := range relationships {
 			rbs := []byte(relationship)
-			if _, err = txn.CreateBucketIfNotExists(rbs); err != nil {
+			if _, err = relationshipsBkt.CreateBucketIfNotExists(rbs); err != nil {
 				return
 			}
 
@@ -118,13 +132,17 @@ func (c *Core) newEntryValue() (value Value) {
 }
 
 func (c *Core) getRelationshipBucket(txn *bolt.Tx, relationship, relationshipID []byte) (bkt *bolt.Bucket, err error) {
-	var relationshipBkt *bolt.Bucket
-	if relationshipBkt = txn.Bucket(relationship); relationshipBkt == nil {
+	var relationshipsBkt *bolt.Bucket
+	if relationshipsBkt = txn.Bucket(relationshipsBktKey); relationshipsBkt == nil {
+		err = ErrNotInitialized
+		return
+	}
+
+	if bkt = relationshipsBkt.Bucket(relationship); bkt == nil {
 		err = ErrRelationshipNotFound
 		return
 	}
 
-	bkt = relationshipBkt.Bucket(relationshipID)
 	return
 }
 
@@ -146,8 +164,13 @@ func (c *Core) get(txn *bolt.Tx, entryID []byte, val interface{}) (err error) {
 }
 
 func (c *Core) getIDsByRelationship(txn *bolt.Tx, relationship, relationshipID []byte) (entryIDs [][]byte, err error) {
+	var relationshipBkt *bolt.Bucket
+	if relationshipBkt, err = c.getRelationshipBucket(txn, relationship, relationshipID); err != nil {
+		return
+	}
+
 	var bkt *bolt.Bucket
-	if bkt, err = c.getRelationshipBucket(txn, relationship, relationshipID); bkt == nil || err != nil {
+	if bkt = relationshipBkt.Bucket(relationshipID); bkt == nil {
 		return
 	}
 
@@ -160,8 +183,13 @@ func (c *Core) getIDsByRelationship(txn *bolt.Tx, relationship, relationshipID [
 }
 
 func (c *Core) getByRelationship(txn *bolt.Tx, relationship, relationshipID []byte, entries reflect.Value) (err error) {
+	var relationshipBkt *bolt.Bucket
+	if relationshipBkt, err = c.getRelationshipBucket(txn, relationship, relationshipID); err != nil {
+		return
+	}
+
 	var bkt *bolt.Bucket
-	if bkt, err = c.getRelationshipBucket(txn, relationship, relationshipID); bkt == nil || err != nil {
+	if bkt = relationshipBkt.Bucket(relationshipID); bkt == nil {
 		return
 	}
 
@@ -200,8 +228,13 @@ func (c *Core) forEach(txn *bolt.Tx, fn ForEachFn) (err error) {
 }
 
 func (c *Core) forEachRelationship(txn *bolt.Tx, relationship, relationshipID []byte, fn ForEachFn) (err error) {
+	var relationshipBkt *bolt.Bucket
+	if relationshipBkt, err = c.getRelationshipBucket(txn, relationship, relationshipID); err != nil {
+		return
+	}
+
 	var bkt *bolt.Bucket
-	if bkt, err = c.getRelationshipBucket(txn, relationship, relationshipID); bkt == nil || err != nil {
+	if bkt = relationshipBkt.Bucket(relationshipID); bkt == nil {
 		return
 	}
 
@@ -261,8 +294,8 @@ func (c *Core) setRelationship(txn *bolt.Tx, relationship, relationshipID, entry
 	}
 
 	var relationshipBkt *bolt.Bucket
-	if relationshipBkt = txn.Bucket(relationship); relationshipBkt == nil {
-		return ErrRelationshipNotFound
+	if relationshipBkt, err = c.getRelationshipBucket(txn, relationship, relationshipID); err != nil {
+		return
 	}
 
 	var bkt *bolt.Bucket
