@@ -230,6 +230,11 @@ func (c *Core) setRelationships(txn *bolt.Tx, relationshipIDs []string, entryID 
 }
 
 func (c *Core) setRelationship(txn *bolt.Tx, relationship, relationshipID, entryID []byte) (err error) {
+	if len(relationshipID) == 0 {
+		// Unset relationship IDs can be ignored
+		return
+	}
+
 	var relationshipBkt *bolt.Bucket
 	if relationshipBkt = txn.Bucket(relationship); relationshipBkt == nil {
 		return ErrRelationshipNotFound
