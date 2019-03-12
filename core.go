@@ -218,6 +218,18 @@ func (c *Core) getByRelationship(txn *bolt.Tx, relationship, relationshipID []by
 	return
 }
 
+func (c *Core) exists(txn *bolt.Tx, entryID []byte) (ok bool, err error) {
+	var bkt *bolt.Bucket
+	if bkt = txn.Bucket(entriesBktKey); bkt == nil {
+		err = ErrNotInitialized
+		return
+	}
+
+	bs := bkt.Get(entryID)
+	ok = len(bs) > 0
+	return
+}
+
 func (c *Core) forEach(txn *bolt.Tx, fn ForEachFn) (err error) {
 	var bkt *bolt.Bucket
 	if bkt = txn.Bucket(entriesBktKey); bkt == nil {
@@ -517,6 +529,16 @@ func (c *Core) GetByRelationship(relationship, relationshipID string, entries in
 
 	err = c.db.View(func(txn *bolt.Tx) (err error) {
 		return c.getByRelationship(txn, []byte(relationship), []byte(relationshipID), es)
+	})
+
+	return
+}
+
+// Exists will notiy if an entry exists for a given entry ID
+func (c *Core) Exists(entryID string) (exists bool, err error) {
+	err = c.db.View(func(txn *bolt.Tx) (err error) {
+		exists, err = c.exists(txn, []byte(entryID))
+		return
 	})
 
 	return
