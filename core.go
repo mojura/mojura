@@ -433,24 +433,6 @@ func (c *Core) GetByRelationship(relationship, relationshipID string, entries in
 	return
 }
 
-// Edit will attempt to edit an entry by ID
-func (c *Core) Edit(entryID string, val Value) (err error) {
-	err = c.db.Update(func(txn *bolt.Tx) (err error) {
-		return c.edit(txn, []byte(entryID), val)
-	})
-
-	return
-}
-
-// Remove will remove a relationship ID and it's related relationship IDs
-func (c *Core) Remove(entryID string) (err error) {
-	err = c.db.Update(func(txn *bolt.Tx) (err error) {
-		return c.remove(txn, []byte(entryID))
-	})
-
-	return
-}
-
 // ForEach will iterate through each of the entries
 func (c *Core) ForEach(fn ForEachFn) (err error) {
 	err = c.db.View(func(txn *bolt.Tx) (err error) {
@@ -464,6 +446,24 @@ func (c *Core) ForEach(fn ForEachFn) (err error) {
 func (c *Core) ForEachRelationship(relationship, relationshipID string, fn ForEachFn) (err error) {
 	err = c.db.View(func(txn *bolt.Tx) (err error) {
 		return c.forEachRelationship(txn, []byte(relationship), []byte(relationshipID), fn)
+	})
+
+	return
+}
+
+// Edit will attempt to edit an entry by ID
+func (c *Core) Edit(entryID string, val Value) (err error) {
+	err = c.db.Update(func(txn *bolt.Tx) (err error) {
+		return c.edit(txn, []byte(entryID), val)
+	})
+
+	return
+}
+
+// Remove will remove a relationship ID and it's related relationship IDs
+func (c *Core) Remove(entryID string) (err error) {
+	err = c.db.Update(func(txn *bolt.Tx) (err error) {
+		return c.remove(txn, []byte(entryID))
 	})
 
 	return
