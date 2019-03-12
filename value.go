@@ -5,6 +5,7 @@ type Value interface {
 	GetID() string
 	GetCreatedAt() int64
 	GetUpdatedAt() int64
+	GetRelationshipIDs() []string
 
 	SetID(string)
 	SetCreatedAt(int64)

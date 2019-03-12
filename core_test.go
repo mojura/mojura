@@ -41,7 +41,7 @@ func TestCore_New(t *testing.T) {
 	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
 
 	var entryID string
-	if entryID, err = c.New(&foobar, foobar.UserID, foobar.ContactID); err != nil {
+	if entryID, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
 	}
 
@@ -64,7 +64,7 @@ func TestCore_Get(t *testing.T) {
 	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
 
 	var entryID string
-	if entryID, err = c.New(&foobar, foobar.UserID, foobar.ContactID); err != nil {
+	if entryID, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
 	}
 
@@ -91,7 +91,7 @@ func TestCore_GetByRelationship_users(t *testing.T) {
 
 	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
 
-	if _, err = c.New(&foobar, foobar.UserID, foobar.ContactID); err != nil {
+	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
 	}
 
@@ -120,7 +120,7 @@ func TestCore_GetByRelationship_contacts(t *testing.T) {
 
 	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
 
-	if _, err = c.New(&foobar, foobar.UserID, foobar.ContactID); err != nil {
+	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
 	}
 
@@ -149,7 +149,7 @@ func TestCore_GetByRelationship_invalid(t *testing.T) {
 
 	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
 
-	if _, err = c.New(&foobar, foobar.UserID, foobar.ContactID); err != nil {
+	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
 	}
 
@@ -173,7 +173,7 @@ func TestCore_Edit(t *testing.T) {
 	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
 
 	var entryID string
-	if entryID, err = c.New(&foobar, foobar.UserID, foobar.ContactID); err != nil {
+	if entryID, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
 	}
 
@@ -206,11 +206,11 @@ func TestCore_ForEach(t *testing.T) {
 
 	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
 
-	if _, err = c.New(&foobar, foobar.UserID, foobar.ContactID); err != nil {
+	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
 	}
 
-	if _, err = c.New(&foobar, foobar.UserID, foobar.ContactID); err != nil {
+	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
 	}
 
@@ -250,14 +250,14 @@ func TestCore_ForEachRelationship(t *testing.T) {
 
 	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
 
-	if _, err = c.New(&foobar, foobar.UserID, foobar.ContactID); err != nil {
+	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
 	}
 
 	foobar.UserID = "user_2"
 	foobar.ContactID = "contact_3"
 
-	if _, err = c.New(&foobar, foobar.UserID, foobar.ContactID); err != nil {
+	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
 	}
 
@@ -307,7 +307,7 @@ func ExampleCore_New() {
 		err     error
 	)
 
-	if entryID, err = c.New(&ts, "user_1", "contact_3"); err != nil {
+	if entryID, err = c.New(&ts); err != nil {
 		return
 	}
 
@@ -463,6 +463,12 @@ func (t *testStruct) GetCreatedAt() (createdAt int64) {
 
 func (t *testStruct) GetID() (id string) {
 	return t.ID
+}
+
+func (t *testStruct) GetRelationshipIDs() (ids []string) {
+	ids = append(ids, t.UserID)
+	ids = append(ids, t.ContactID)
+	return
 }
 
 func (t *testStruct) SetUpdatedAt(updatedAt int64) {

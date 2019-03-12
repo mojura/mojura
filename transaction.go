@@ -20,9 +20,9 @@ type Transaction struct {
 }
 
 // New will insert a new entry with the given value and the associated relationships
-func (t *Transaction) New(val Value, relationshipIDs ...string) (entryID string, err error) {
+func (t *Transaction) New(val Value) (entryID string, err error) {
 	var id []byte
-	if id, err = t.c.new(t.txn, val, relationshipIDs); err != nil {
+	if id, err = t.c.new(t.txn, val); err != nil {
 		return
 	}
 
@@ -51,6 +51,6 @@ func (t *Transaction) Edit(entryID string, val Value) (err error) {
 }
 
 // Remove will remove a relationship ID and it's related relationship IDs
-func (t *Transaction) Remove(entryID string, relationshipIDs ...string) (err error) {
-	return t.c.remove(t.txn, []byte(entryID), relationshipIDs)
+func (t *Transaction) Remove(entryID string) (err error) {
+	return t.c.remove(t.txn, []byte(entryID))
 }

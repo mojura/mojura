@@ -30,7 +30,13 @@ const (
 // New will return a new instance of Core
 func New(name, dir string, example Value, relationships ...string) (cc *Core, err error) {
 	var c Core
+	if len(example.GetRelationshipIDs()) != len(relationships) {
+		err = ErrInvalidNumberOfRelationships
+		return
+	}
+
 	c.entryType = getCoreType(example)
+
 	if err = c.init(name, dir, relationships); err != nil {
 		return
 	}
@@ -272,7 +278,7 @@ func (c *Core) unsetRelationship(txn *bolt.Tx, relationship, relationshipID, ent
 	return bkt.Delete(entryID)
 }
 
-func (c *Core) new(txn *bolt.Tx, val Value, relationshipIDs []string) (entryID []byte, err error) {
+func (c *Core) new(txn *bolt.Tx, val Value) (entryID []byte, err error) {
 	if entryID, err = c.dbu.Next(txn, c.name); err != nil {
 		return
 	}
@@ -283,7 +289,7 @@ func (c *Core) new(txn *bolt.Tx, val Value, relationshipIDs []string) (entryID [
 		return
 	}
 
-	if err = c.setRelationships(txn, relationshipIDs, entryID); err != nil {
+	if err = c.setRelationships(txn, val.GetRelationshipIDs(), entryID); err != nil {
 		return
 	}
 
@@ -303,12 +309,17 @@ func (c *Core) edit(txn *bolt.Tx, entryID []byte, val Value) (err error) {
 	return c.put(txn, entryID, val)
 }
 
-func (c *Core) remove(txn *bolt.Tx, entryID []byte, relationshipIDs []string) (err error) {
+func (c *Core) remove(txn *bolt.Tx, entryID []byte) (err error) {
+	val := c.newEntryValue()
+	if err = c.get(txn, entryID, val); err != nil {
+		return
+	}
+
 	if err = c.delete(txn, entryID); err != nil {
 		return
 	}
 
-	if err = c.unsetRelationships(txn, relationshipIDs, entryID); err != nil {
+	if err = c.unsetRelationships(txn, val.GetRelationshipIDs(), entryID); err != nil {
 		return
 	}
 
@@ -316,10 +327,10 @@ func (c *Core) remove(txn *bolt.Tx, entryID []byte, relationshipIDs []string) (e
 }
 
 // New will insert a new entry with the given value and the associated relationships
-func (c *Core) New(val Value, relationshipIDs ...string) (entryID string, err error) {
+func (c *Core) New(val Value) (entryID string, err error) {
 	err = c.db.Update(func(txn *bolt.Tx) (err error) {
 		var id []byte
-		if id, err = c.new(txn, val, relationshipIDs); err != nil {
+		if id, err = c.new(txn, val); err != nil {
 			return
 		}
 
@@ -363,9 +374,9 @@ func (c *Core) Edit(entryID string, val Value) (err error) {
 }
 
 // Remove will remove a relationship ID and it's related relationship IDs
-func (c *Core) Remove(entryID string, relationshipIDs ...string) (err error) {
+func (c *Core) Remove(entryID string) (err error) {
 	err = c.db.Update(func(txn *bolt.Tx) (err error) {
-		return c.remove(txn, []byte(entryID), relationshipIDs)
+		return c.remove(txn, []byte(entryID))
 	})
 
 	return
