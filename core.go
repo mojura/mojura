@@ -29,6 +29,8 @@ const (
 	ErrInvalidType = errors.Error("invalid type encountered, please check generators")
 	// ErrInvalidEntries is returned when a non-slice is presented to GetByRelationship
 	ErrInvalidEntries = errors.Error("invalid entries, slice expected")
+	// ErrInvalidLogKey is returned when an invalid log key is encountered
+	ErrInvalidLogKey = errors.Error("invalid log key, expecting a single :: delimiter")
 
 	// Break is a non-error which will cause a ForEach loop to break early
 	Break = errors.Error("break!")

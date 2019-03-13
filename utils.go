@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"reflect"
 )
 
@@ -59,11 +60,23 @@ func isSliceMatch(a, b []string) (match bool) {
 	return true
 }
 
-func getLogKey(bucket []byte, key []byte) (logKey []byte) {
+func getLogKey(bucket, key []byte) (logKey []byte) {
 	logKey = make([]byte, 0, len(bucket)+len(key)+2)
 	logKey = append(logKey, bucket...)
 	logKey = append(logKey, "::"...)
 	logKey = append(logKey, key...)
+	return
+}
+
+func parseLogKey(logKey []byte) (bucket, key []byte, err error) {
+	spl := bytes.Split(logKey, []byte("::"))
+	if len(spl) != 2 {
+		err = ErrInvalidLogKey
+		return
+	}
+
+	bucket = spl[0]
+	key = spl[1]
 	return
 }
 
