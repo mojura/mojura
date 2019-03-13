@@ -390,7 +390,16 @@ func (c *Core) setLookup(txn *bolt.Tx, lookup, lookupID, key []byte) (err error)
 		return
 	}
 
-	return bkt.Put(key, nil)
+	if err = bkt.Put(key, nil); err != nil {
+		return
+	}
+
+	logKey := getLogKey(lookupsBktKey, lookupID)
+	if err = c.a.LogJSON(actions.ActionCreate, logKey, key); err != nil {
+		return
+	}
+
+	return
 }
 
 func (c *Core) getLookupKeys(txn *bolt.Tx, lookup, lookupID []byte) (keys []string, err error) {
@@ -423,7 +432,16 @@ func (c *Core) removeLookup(txn *bolt.Tx, lookup, lookupID, key []byte) (err err
 		return
 	}
 
-	return bkt.Delete(key)
+	if err = bkt.Delete(key); err != nil {
+		return
+	}
+
+	logKey := getLogKey(lookupsBktKey, lookupID)
+	if err = c.a.LogJSON(actions.ActionDelete, logKey, key); err != nil {
+		return
+	}
+
+	return
 }
 
 func (c *Core) new(txn *bolt.Tx, val Value) (entryID []byte, err error) {
@@ -432,7 +450,10 @@ func (c *Core) new(txn *bolt.Tx, val Value) (entryID []byte, err error) {
 	}
 
 	val.SetID(string(entryID))
-	val.SetCreatedAt(time.Now().Unix())
+	if val.GetCreatedAt() == 0 {
+		val.SetCreatedAt(time.Now().Unix())
+	}
+
 	if err = c.put(txn, entryID, val); err != nil {
 		return
 	}
@@ -441,7 +462,7 @@ func (c *Core) new(txn *bolt.Tx, val Value) (entryID []byte, err error) {
 		return
 	}
 
-	if err = c.a.LogJSON(actions.ActionCreate, []byte(entryID), val); err != nil {
+	if err = c.a.LogJSON(actions.ActionCreate, getLogKey(entriesBktKey, entryID), val); err != nil {
 		return
 	}
 
@@ -468,7 +489,7 @@ func (c *Core) edit(txn *bolt.Tx, entryID []byte, val Value) (err error) {
 		return
 	}
 
-	if err = c.a.LogJSON(actions.ActionEdit, []byte(entryID), val); err != nil {
+	if err = c.a.LogJSON(actions.ActionEdit, getLogKey(entriesBktKey, entryID), val); err != nil {
 		return
 	}
 
@@ -489,7 +510,7 @@ func (c *Core) remove(txn *bolt.Tx, entryID []byte) (err error) {
 		return
 	}
 
-	if err = c.a.LogJSON(actions.ActionDelete, []byte(entryID), nil); err != nil {
+	if err = c.a.LogJSON(actions.ActionDelete, getLogKey(entriesBktKey, entryID), nil); err != nil {
 		return
 	}
 

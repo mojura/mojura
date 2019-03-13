@@ -59,5 +59,13 @@ func isSliceMatch(a, b []string) (match bool) {
 	return true
 }
 
+func getLogKey(bucket []byte, key []byte) (logKey []byte) {
+	logKey = make([]byte, 0, len(bucket)+len(key)+2)
+	logKey = append(logKey, bucket...)
+	logKey = append(logKey, "::"...)
+	logKey = append(logKey, key...)
+	return
+}
+
 // ForEachFn are called during iteration
 type ForEachFn func(key string, val Value) error
