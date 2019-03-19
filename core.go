@@ -622,6 +622,25 @@ func (c *Core) GetLookup(lookup, lookupID string) (keys []string, err error) {
 	return
 }
 
+// GetLookupKey will retrieve the first lookup key
+func (c *Core) GetLookupKey(lookup, lookupID string) (key string, err error) {
+	err = c.db.View(func(txn *bolt.Tx) (err error) {
+		var keys []string
+		if keys, err = c.getLookupKeys(txn, []byte(lookup), []byte(lookupID)); err != nil {
+			return
+		}
+
+		if len(keys) == 0 {
+			err = ErrEntryNotFound
+			return
+		}
+
+		return
+	})
+
+	return
+}
+
 // RemoveLookup will set a lookup value
 func (c *Core) RemoveLookup(lookup, lookupID, key string) (err error) {
 	err = c.db.Update(func(txn *bolt.Tx) (err error) {

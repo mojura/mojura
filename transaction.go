@@ -81,6 +81,21 @@ func (t *Transaction) GetLookup(lookup, lookupID string) (keys []string, err err
 	return
 }
 
+// GetLookupKey will retrieve the first lookup key
+func (t *Transaction) GetLookupKey(lookup, lookupID string) (key string, err error) {
+	var keys []string
+	if keys, err = t.c.getLookupKeys(t.txn, []byte(lookup), []byte(lookupID)); err != nil {
+		return
+	}
+
+	if len(keys) == 0 {
+		err = ErrEntryNotFound
+		return
+	}
+
+	return
+}
+
 // RemoveLookup will set a lookup value
 func (t *Transaction) RemoveLookup(lookup, lookupID, key string) (err error) {
 	return t.c.removeLookup(t.txn, []byte(lookup), []byte(lookupID), []byte(key))
