@@ -52,12 +52,12 @@ func New(name, dir string, example Value, relationships ...string) (cc *Core, er
 
 	c.entryType = getCoreType(example)
 
-	if err = c.init(name, dir, relationships); err != nil {
+	logsDir := path.Join(dir, "logs")
+	if err = os.MkdirAll(logsDir, 0744); err != nil {
 		return
 	}
 
-	logsDir := path.Join(dir, "logs")
-	if err = os.MkdirAll(logsDir, 0744); err != nil {
+	if err = c.init(name, dir, relationships); err != nil {
 		return
 	}
 
