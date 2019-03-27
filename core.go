@@ -663,6 +663,19 @@ func (c *Core) Transaction(fn func(*Transaction) error) (err error) {
 	return
 }
 
+// ReadTransaction will initialize a read-only transaction
+func (c *Core) ReadTransaction(fn func(*Transaction) error) (err error) {
+	err = c.db.View(func(txn *bolt.Tx) (err error) {
+		t := newTransaction(c, txn)
+		err = fn(&t)
+		t.c = nil
+		t.txn = nil
+		return
+	})
+
+	return
+}
+
 // Close will close the selected instance of Core
 func (c *Core) Close() (err error) {
 	if !c.closed.Set(true) {
