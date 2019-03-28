@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path"
 	"reflect"
@@ -91,7 +92,7 @@ func (c *Core) init(name, dir string, relationships []string) (err error) {
 	c.dbu = dbutils.New(8)
 
 	if c.db, err = bolt.Open(filename, 0644, boltOpts); err != nil {
-		return
+		return fmt.Errorf("error opening db for %s (%s): %v", name, dir, err)
 	}
 
 	err = c.db.Update(func(txn *bolt.Tx) (err error) {
