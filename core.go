@@ -42,6 +42,8 @@ var (
 	lookupsBktKey       = []byte("lookups")
 )
 
+var boltOpts = &bolt.Options{Timeout: 1 * time.Second}
+
 // New will return a new instance of Core
 func New(name, dir string, example Value, relationships ...string) (cc *Core, err error) {
 	var c Core
@@ -88,7 +90,7 @@ func (c *Core) init(name, dir string, relationships []string) (err error) {
 	filename := path.Join(dir, name+".bdb")
 	c.dbu = dbutils.New(8)
 
-	if c.db, err = bolt.Open(filename, 0644, nil); err != nil {
+	if c.db, err = bolt.Open(filename, 0644, boltOpts); err != nil {
 		return
 	}
 
