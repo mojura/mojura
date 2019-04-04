@@ -24,6 +24,8 @@ const (
 	ErrLookupNotFound = errors.Error("lookup was not found")
 	// ErrEntryNotFound is returned when an entry is not available for the given ID
 	ErrEntryNotFound = errors.Error("entry was not found")
+	// ErrEndOfEntries is returned when a cursor has reached the end of entries
+	ErrEndOfEntries = errors.Error("end of entries")
 	// ErrInvalidNumberOfRelationships is returned when an invalid number of relationships is provided in a New call
 	ErrInvalidNumberOfRelationships = errors.Error("invalid number of relationships")
 	// ErrInvalidType is returned when a type which does not match the generator is provided
@@ -235,6 +237,16 @@ func (c *Core) exists(txn *bolt.Tx, entryID []byte) (ok bool, err error) {
 	return
 }
 
+func (c *Core) newValueFromBytes(bs []byte) (val Value, err error) {
+	val = reflect.New(c.entryType).Interface().(Value)
+	if err = json.Unmarshal(bs, val); err != nil {
+		val = nil
+		return
+	}
+
+	return
+}
+
 func (c *Core) forEach(txn *bolt.Tx, fn ForEachFn) (err error) {
 	var bkt *bolt.Bucket
 	if bkt = txn.Bucket(entriesBktKey); bkt == nil {
@@ -243,8 +255,8 @@ func (c *Core) forEach(txn *bolt.Tx, fn ForEachFn) (err error) {
 	}
 
 	if err = bkt.ForEach(func(key, bs []byte) (err error) {
-		val := reflect.New(c.entryType).Interface().(Value)
-		if err = json.Unmarshal(bs, val); err != nil {
+		var val Value
+		if val, err = c.newValueFromBytes(bs); err != nil {
 			return
 		}
 
@@ -275,6 +287,46 @@ func (c *Core) forEachRelationship(txn *bolt.Tx, relationship, relationshipID []
 
 		return fn(string(entryID), val)
 	}); err == Break {
+		err = nil
+	}
+
+	return
+}
+
+func (c *Core) cursor(txn *bolt.Tx, fn CursorFn) (err error) {
+	var bkt *bolt.Bucket
+	if bkt = txn.Bucket(entriesBktKey); bkt == nil {
+		err = ErrNotInitialized
+		return
+	}
+
+	cur := newCursor(c, txn, bkt.Cursor(), false)
+	err = fn(&cur)
+	cur.teardown()
+
+	if err == Break {
+		err = nil
+	}
+
+	return
+}
+
+func (c *Core) cursorRelationship(txn *bolt.Tx, relationship, relationshipID []byte, fn CursorFn) (err error) {
+	var relationshipBkt *bolt.Bucket
+	if relationshipBkt, err = c.getRelationshipBucket(txn, relationship); err != nil {
+		return
+	}
+
+	var bkt *bolt.Bucket
+	if bkt = relationshipBkt.Bucket(relationshipID); bkt == nil {
+		return
+	}
+
+	cur := newCursor(c, txn, bkt.Cursor(), true)
+	err = fn(&cur)
+	cur.teardown()
+
+	if err == Break {
 		err = nil
 	}
 
@@ -583,6 +635,24 @@ func (c *Core) ForEach(fn ForEachFn) (err error) {
 func (c *Core) ForEachRelationship(relationship, relationshipID string, fn ForEachFn) (err error) {
 	err = c.db.View(func(txn *bolt.Tx) (err error) {
 		return c.forEachRelationship(txn, []byte(relationship), []byte(relationshipID), fn)
+	})
+
+	return
+}
+
+// Cursor will return an iterating cursor
+func (c *Core) Cursor(fn CursorFn) (err error) {
+	err = c.db.View(func(txn *bolt.Tx) (err error) {
+		return c.cursor(txn, fn)
+	})
+
+	return
+}
+
+// CursorRelationship will return an iterating cursor for a given relationship and relationship ID
+func (c *Core) CursorRelationship(relationship, relationshipID string, fn CursorFn) (err error) {
+	err = c.db.View(func(txn *bolt.Tx) (err error) {
+		return c.cursorRelationship(txn, []byte(relationship), []byte(relationshipID), fn)
 	})
 
 	return
