@@ -82,3 +82,6 @@ func parseLogKey(logKey []byte) (bucket, key []byte, err error) {
 
 // ForEachFn are called during iteration
 type ForEachFn func(key string, val Value) error
+
+// CursorFn is called during cursor iteration
+type CursorFn func(*Cursor) error

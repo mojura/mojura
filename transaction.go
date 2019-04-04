@@ -60,6 +60,16 @@ func (t *Transaction) ForEachRelationship(relationship, relationshipID string, f
 	return t.c.forEachRelationship(t.txn, []byte(relationship), []byte(relationshipID), fn)
 }
 
+// Cursor will return an iterating cursor
+func (t *Transaction) Cursor(fn CursorFn) (err error) {
+	return t.c.cursor(t.txn, fn)
+}
+
+// CursorRelationship will return an iterating cursor for a given relationship and relationship ID
+func (t *Transaction) CursorRelationship(relationship, relationshipID string, fn CursorFn) (err error) {
+	return t.c.cursorRelationship(t.txn, []byte(relationship), []byte(relationshipID), fn)
+}
+
 // Edit will attempt to edit an entry by ID
 func (t *Transaction) Edit(entryID string, val Value) (err error) {
 	return t.c.edit(t.txn, []byte(entryID), val)

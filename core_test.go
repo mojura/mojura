@@ -332,6 +332,251 @@ func TestCore_ForEachRelationship(t *testing.T) {
 	return
 }
 
+func TestCore_Cursor(t *testing.T) {
+	var (
+		c   *Core
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c)
+
+	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+
+	if _, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	var cnt int
+	if err = c.Cursor(func(cursor *Cursor) (err error) {
+		var v Value
+		for _, v, err = cursor.Seek(""); err == nil; _, v, err = cursor.Next() {
+			fb := v.(*testStruct)
+			// We are not checking ID correctness in this test
+			foobar.ID = fb.ID
+
+			if err = testCheck(&foobar, fb); err != nil {
+				break
+			}
+
+			cnt++
+		}
+
+		if err == ErrEndOfEntries {
+			err = nil
+		}
+
+		return
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if cnt != 2 {
+		t.Fatalf("invalid number of entries, expected %d and received %d", 2, cnt)
+	}
+
+	return
+}
+
+func TestCore_Cursor_First(t *testing.T) {
+	var (
+		c   *Core
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c)
+
+	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+
+	if _, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = c.Cursor(func(cursor *Cursor) (err error) {
+		var v Value
+		if _, v, err = cursor.First(); err != nil {
+			return
+		}
+
+		fb := v.(*testStruct)
+		if fb.ID != "00000000" {
+			return fmt.Errorf("invalid ID, expected \"%s\" and recieved \"%s\"", "00000000", fb.ID)
+		}
+
+		foobar.ID = fb.ID
+
+		if err = testCheck(&foobar, fb); err != nil {
+			t.Fatal(err)
+		}
+
+		return
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	return
+}
+
+func TestCore_Cursor_Last(t *testing.T) {
+	var (
+		c   *Core
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c)
+
+	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+
+	if _, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = c.Cursor(func(cursor *Cursor) (err error) {
+		var v Value
+		if _, v, err = cursor.Last(); err != nil {
+			return
+		}
+
+		fb := v.(*testStruct)
+		if fb.ID != "00000001" {
+			return fmt.Errorf("invalid ID, expected \"%s\" and recieved \"%s\"", "00000001", fb.ID)
+		}
+
+		foobar.ID = fb.ID
+
+		if err = testCheck(&foobar, fb); err != nil {
+			t.Fatal(err)
+		}
+
+		return
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	return
+}
+
+func TestCore_Cursor_Seek(t *testing.T) {
+	var (
+		c   *Core
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c)
+
+	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+
+	if _, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = c.Cursor(func(cursor *Cursor) (err error) {
+		var v Value
+		if _, v, err = cursor.Seek("00000001"); err != nil {
+			return
+		}
+
+		fb := v.(*testStruct)
+		if fb.ID != "00000001" {
+			return fmt.Errorf("invalid ID, expected \"%s\" and recieved \"%s\"", "00000001", fb.ID)
+		}
+
+		foobar.ID = fb.ID
+
+		if err = testCheck(&foobar, fb); err != nil {
+			t.Fatal(err)
+		}
+
+		return
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	return
+}
+
+func TestCore_CursorRelationship(t *testing.T) {
+	var (
+		c   *Core
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c)
+
+	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+
+	if _, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	foobar.UserID = "user_2"
+	foobar.ContactID = "contact_3"
+
+	if _, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	var cnt int
+	if err = c.CursorRelationship("contacts", foobar.ContactID, func(cursor *Cursor) (err error) {
+		var v Value
+		for _, v, err = cursor.Seek(""); err == nil; _, v, err = cursor.Next() {
+			fb := v.(*testStruct)
+			// We are not checking ID correctness in this test
+			foobar.ID = fb.ID
+
+			if err = testCheck(&foobar, fb); err != nil {
+				t.Fatal(err)
+			}
+
+			cnt++
+		}
+
+		if err == ErrEndOfEntries {
+			err = nil
+		}
+
+		return
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if cnt != 1 {
+		t.Fatalf("invalid number of entries, expected %d and received %d", 1, cnt)
+	}
+
+	return
+}
+
 func TestCore_Lookups(t *testing.T) {
 	var (
 		c   *Core
