@@ -52,7 +52,7 @@ func (t *Transaction) GetByRelationship(relationship, relationshipID string, ent
 
 // GetFirstByRelationship will attempt to get the first entry associated with a given relationship and relationship ID
 func (t *Transaction) GetFirstByRelationship(relationship, relationshipID string, val Value) (err error) {
-	err = t.c.cursorRelationship(t.txn, []byte(relationship), []byte(relationship), func(cur *Cursor) (err error) {
+	err = t.c.cursorRelationship(t.txn, []byte(relationship), []byte(relationshipID), func(cur *Cursor) (err error) {
 		return cur.First(val)
 	})
 
@@ -61,7 +61,7 @@ func (t *Transaction) GetFirstByRelationship(relationship, relationshipID string
 
 // GetLastByRelationship will attempt to get the last entry associated with a given relationship and relationship ID
 func (t *Transaction) GetLastByRelationship(relationship, relationshipID string, val Value) (err error) {
-	err = t.c.cursorRelationship(t.txn, []byte(relationship), []byte(relationship), func(cur *Cursor) (err error) {
+	err = t.c.cursorRelationship(t.txn, []byte(relationship), []byte(relationshipID), func(cur *Cursor) (err error) {
 		return cur.Last(val)
 	})
 
