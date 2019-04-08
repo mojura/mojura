@@ -622,6 +622,24 @@ func (c *Core) GetByRelationship(relationship, relationshipID string, entries in
 	return
 }
 
+// GetFirstByRelationship will attempt to get the first entry associated with a given relationship and relationship ID
+func (c *Core) GetFirstByRelationship(relationship, relationshipID string, val Value) (err error) {
+	err = c.CursorRelationship(relationship, relationshipID, func(cur *Cursor) (err error) {
+		return cur.First(val)
+	})
+
+	return
+}
+
+// GetLastByRelationship will attempt to get the last entry associated with a given relationship and relationship ID
+func (c *Core) GetLastByRelationship(relationship, relationshipID string, val Value) (err error) {
+	err = c.CursorRelationship(relationship, relationshipID, func(cur *Cursor) (err error) {
+		return cur.Last(val)
+	})
+
+	return
+}
+
 // ForEach will iterate through each of the entries
 func (c *Core) ForEach(fn ForEachFn) (err error) {
 	err = c.db.View(func(txn *bolt.Tx) (err error) {
