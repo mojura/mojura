@@ -46,7 +46,7 @@ func (c *Cursor) teardown() {
 func (c *Cursor) Seek(id string, val Value) (err error) {
 	k, v := c.cur.Seek([]byte(id))
 	if k == nil && v == nil {
-		err = ErrEndOfEntries
+		err = Break
 		return
 	}
 
@@ -61,7 +61,7 @@ func (c *Cursor) Seek(id string, val Value) (err error) {
 func (c *Cursor) First(val Value) (err error) {
 	k, v := c.cur.First()
 	if k == nil && v == nil {
-		err = ErrEndOfEntries
+		err = Break
 		return
 	}
 
@@ -76,7 +76,7 @@ func (c *Cursor) First(val Value) (err error) {
 func (c *Cursor) Last(val Value) (err error) {
 	k, v := c.cur.Last()
 	if k == nil && v == nil {
-		err = ErrEndOfEntries
+		err = Break
 		return
 	}
 
@@ -91,7 +91,7 @@ func (c *Cursor) Last(val Value) (err error) {
 func (c *Cursor) Next(val Value) (err error) {
 	k, v := c.cur.Next()
 	if k == nil && v == nil {
-		err = ErrEndOfEntries
+		err = Break
 		return
 	}
 
@@ -106,7 +106,7 @@ func (c *Cursor) Next(val Value) (err error) {
 func (c *Cursor) Prev(val Value) (err error) {
 	k, v := c.cur.Prev()
 	if k == nil && v == nil {
-		err = ErrEndOfEntries
+		err = Break
 		return
 	}
 

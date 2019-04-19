@@ -660,18 +660,22 @@ func (c *Core) ForEachRelationship(relationship, relationshipID string, fn ForEa
 
 // Cursor will return an iterating cursor
 func (c *Core) Cursor(fn CursorFn) (err error) {
-	err = c.db.View(func(txn *bolt.Tx) (err error) {
+	if err = c.db.View(func(txn *bolt.Tx) (err error) {
 		return c.cursor(txn, fn)
-	})
+	}); err == Break {
+		err = nil
+	}
 
 	return
 }
 
 // CursorRelationship will return an iterating cursor for a given relationship and relationship ID
 func (c *Core) CursorRelationship(relationship, relationshipID string, fn CursorFn) (err error) {
-	err = c.db.View(func(txn *bolt.Tx) (err error) {
+	if err = c.db.View(func(txn *bolt.Tx) (err error) {
 		return c.cursorRelationship(txn, []byte(relationship), []byte(relationshipID), fn)
-	})
+	}); err == Break {
+		err = nil
+	}
 
 	return
 }
