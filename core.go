@@ -625,7 +625,12 @@ func (c *Core) GetByRelationship(relationship, relationshipID string, entries in
 // GetFirstByRelationship will attempt to get the first entry associated with a given relationship and relationship ID
 func (c *Core) GetFirstByRelationship(relationship, relationshipID string, val Value) (err error) {
 	err = c.CursorRelationship(relationship, relationshipID, func(cur *Cursor) (err error) {
-		return cur.First(val)
+		if err = cur.First(val); err == Break {
+			err = ErrEntryNotFound
+			return
+		}
+
+		return
 	})
 
 	return
@@ -634,7 +639,12 @@ func (c *Core) GetFirstByRelationship(relationship, relationshipID string, val V
 // GetLastByRelationship will attempt to get the last entry associated with a given relationship and relationship ID
 func (c *Core) GetLastByRelationship(relationship, relationshipID string, val Value) (err error) {
 	err = c.CursorRelationship(relationship, relationshipID, func(cur *Cursor) (err error) {
-		return cur.Last(val)
+		if err = cur.Last(val); err == Break {
+			err = ErrEntryNotFound
+			return
+		}
+
+		return
 	})
 
 	return
