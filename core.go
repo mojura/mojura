@@ -430,6 +430,48 @@ func (c *Core) updateRelationships(txn *bolt.Tx, entryID []byte, orig, val Value
 	return
 }
 
+func (c *Core) getFirstByRelationship(txn *bolt.Tx, relationship, relationshipID []byte, val Value) (err error) {
+	var match bool
+	if err = c.cursorRelationship(txn, relationship, relationshipID, func(cur *Cursor) (err error) {
+		if err = cur.First(val); err == Break {
+			err = ErrEntryNotFound
+			return
+		}
+
+		match = true
+		return
+	}); err != nil {
+		return
+	}
+
+	if !match {
+		err = ErrEntryNotFound
+	}
+
+	return
+}
+
+func (c *Core) getLastByRelationship(txn *bolt.Tx, relationship, relationshipID []byte, val Value) (err error) {
+	var match bool
+	if err = c.cursorRelationship(txn, relationship, relationshipID, func(cur *Cursor) (err error) {
+		if err = cur.Last(val); err == Break {
+			err = ErrEntryNotFound
+			return
+		}
+
+		match = true
+		return
+	}); err != nil {
+		return
+	}
+
+	if !match {
+		err = ErrEntryNotFound
+	}
+
+	return
+}
+
 func (c *Core) setLookup(txn *bolt.Tx, lookup, lookupID, key []byte) (err error) {
 	var lookupsBkt *bolt.Bucket
 	if lookupsBkt = txn.Bucket(lookupsBktKey); lookupsBkt == nil {
@@ -624,28 +666,22 @@ func (c *Core) GetByRelationship(relationship, relationshipID string, entries in
 
 // GetFirstByRelationship will attempt to get the first entry associated with a given relationship and relationship ID
 func (c *Core) GetFirstByRelationship(relationship, relationshipID string, val Value) (err error) {
-	err = c.CursorRelationship(relationship, relationshipID, func(cur *Cursor) (err error) {
-		if err = cur.First(val); err == Break {
-			err = ErrEntryNotFound
-			return
-		}
-
+	if err = c.db.View(func(txn *bolt.Tx) (err error) {
+		return c.getFirstByRelationship(txn, []byte(relationship), []byte(relationshipID), val)
+	}); err != nil {
 		return
-	})
+	}
 
 	return
 }
 
 // GetLastByRelationship will attempt to get the last entry associated with a given relationship and relationship ID
 func (c *Core) GetLastByRelationship(relationship, relationshipID string, val Value) (err error) {
-	err = c.CursorRelationship(relationship, relationshipID, func(cur *Cursor) (err error) {
-		if err = cur.Last(val); err == Break {
-			err = ErrEntryNotFound
-			return
-		}
-
+	if err = c.db.View(func(txn *bolt.Tx) (err error) {
+		return c.getFirstByRelationship(txn, []byte(relationship), []byte(relationshipID), val)
+	}); err != nil {
 		return
-	})
+	}
 
 	return
 }
