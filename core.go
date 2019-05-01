@@ -678,7 +678,7 @@ func (c *Core) GetFirstByRelationship(relationship, relationshipID string, val V
 // GetLastByRelationship will attempt to get the last entry associated with a given relationship and relationship ID
 func (c *Core) GetLastByRelationship(relationship, relationshipID string, val Value) (err error) {
 	if err = c.db.View(func(txn *bolt.Tx) (err error) {
-		return c.getFirstByRelationship(txn, []byte(relationship), []byte(relationshipID), val)
+		return c.getLastByRelationship(txn, []byte(relationship), []byte(relationshipID), val)
 	}); err != nil {
 		return
 	}
