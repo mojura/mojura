@@ -3,9 +3,11 @@ package core
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"reflect"
+	"strconv"
 	"time"
 
 	"github.com/Hatch1fy/actions"
@@ -126,6 +128,43 @@ func (c *Core) init(name, dir string, relationships []string) (err error) {
 
 		return
 	})
+
+	return
+}
+
+func (c *Core) mergeLine(txn *bolt.Tx, a actions.Action, key, value []byte) (err error) {
+	var bktKey []byte
+	if bktKey, key, err = parseLogKey(key); err != nil {
+		return
+	}
+
+	var bkt *bolt.Bucket
+	if bkt = txn.Bucket(bktKey); bkt == nil {
+		return ErrNotInitialized
+	}
+
+	switch a {
+	case actions.ActionCreate:
+		if err = bkt.Put(key, value); err != nil {
+			return
+		}
+
+		var index uint64
+		if index, err = strconv.ParseUint(string(key), 10, 64); err != nil {
+			return
+		}
+
+		return c.dbu.Set(txn, entriesBktKey, index)
+
+	case actions.ActionEdit:
+		return bkt.Put(key, value)
+
+	case actions.ActionDelete:
+		return bkt.Delete(key)
+
+	default:
+		log.Printf("Unexpected action encountered: \"%v\"", a)
+	}
 
 	return
 }
@@ -505,6 +544,10 @@ func (c *Core) setLookup(txn *bolt.Tx, atxn *actions.Transaction, lookup, lookup
 		return
 	}
 
+	if atxn == nil {
+		return
+	}
+
 	logKey := getLogKey(lookupsBktKey, lookupID)
 	if err = atxn.LogJSON(actions.ActionCreate, logKey, key); err != nil {
 		return
@@ -547,6 +590,10 @@ func (c *Core) removeLookup(txn *bolt.Tx, atxn *actions.Transaction, lookup, loo
 		return
 	}
 
+	if atxn == nil {
+		return
+	}
+
 	logKey := getLogKey(lookupsBktKey, lookupID)
 	if err = atxn.LogJSON(actions.ActionDelete, logKey, key); err != nil {
 		return
@@ -573,7 +620,12 @@ func (c *Core) new(txn *bolt.Tx, atxn *actions.Transaction, val Value) (entryID 
 		return
 	}
 
-	if err = atxn.LogJSON(actions.ActionCreate, getLogKey(entriesBktKey, entryID), val); err != nil {
+	if atxn == nil {
+		return
+	}
+
+	logKey := getLogKey(entriesBktKey, entryID)
+	if err = atxn.LogJSON(actions.ActionCreate, logKey, val); err != nil {
 		return
 	}
 
@@ -600,7 +652,12 @@ func (c *Core) edit(txn *bolt.Tx, atxn *actions.Transaction, entryID []byte, val
 		return
 	}
 
-	if err = atxn.LogJSON(actions.ActionEdit, getLogKey(entriesBktKey, entryID), val); err != nil {
+	if atxn == nil {
+		return
+	}
+
+	logKey := getLogKey(entriesBktKey, entryID)
+	if err = atxn.LogJSON(actions.ActionEdit, logKey, val); err != nil {
 		return
 	}
 
@@ -621,7 +678,12 @@ func (c *Core) remove(txn *bolt.Tx, atxn *actions.Transaction, entryID []byte) (
 		return
 	}
 
-	if err = atxn.LogJSON(actions.ActionDelete, getLogKey(entriesBktKey, entryID), nil); err != nil {
+	if atxn == nil {
+		return
+	}
+
+	logKey := getLogKey(entriesBktKey, entryID)
+	if err = atxn.LogJSON(actions.ActionDelete, logKey, nil); err != nil {
 		return
 	}
 
@@ -823,6 +885,26 @@ func (c *Core) ReadTransaction(fn func(*Transaction) error) (err error) {
 		err = fn(&t)
 		t.c = nil
 		t.txn = nil
+		return
+	})
+
+	return
+}
+
+// Merge will merge a logFile into the database
+// Note: Logs will not be generated from these actions
+func (c *Core) Merge(logFile string) (err error) {
+	var rdr *actions.Reader
+	if rdr, err = actions.NewReader(logFile); err != nil {
+		return
+	}
+	defer rdr.Close()
+
+	err = c.db.Update(func(txn *bolt.Tx) (err error) {
+		err = rdr.ForEach(0, func(ts time.Time, a actions.Action, key, value []byte) (err error) {
+			return c.mergeLine(txn, a, key, value)
+		})
+
 		return
 	})
 
