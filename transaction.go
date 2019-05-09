@@ -3,12 +3,14 @@ package core
 import (
 	"reflect"
 
+	"github.com/Hatch1fy/actions"
 	"github.com/boltdb/bolt"
 )
 
-func newTransaction(c *Core, txn *bolt.Tx) (t Transaction) {
+func newTransaction(c *Core, txn *bolt.Tx, atxn *actions.Transaction) (t Transaction) {
 	t.c = c
 	t.txn = txn
+	t.atxn = atxn
 	return
 }
 
@@ -16,13 +18,14 @@ func newTransaction(c *Core, txn *bolt.Tx) (t Transaction) {
 type Transaction struct {
 	c *Core
 
-	txn *bolt.Tx
+	txn  *bolt.Tx
+	atxn *actions.Transaction
 }
 
 // New will insert a new entry with the given value and the associated relationships
 func (t *Transaction) New(val Value) (entryID string, err error) {
 	var id []byte
-	if id, err = t.c.new(t.txn, val); err != nil {
+	if id, err = t.c.new(t.txn, t.atxn, val); err != nil {
 		return
 	}
 
@@ -90,17 +93,17 @@ func (t *Transaction) CursorRelationship(relationship, relationshipID string, fn
 
 // Edit will attempt to edit an entry by ID
 func (t *Transaction) Edit(entryID string, val Value) (err error) {
-	return t.c.edit(t.txn, []byte(entryID), val)
+	return t.c.edit(t.txn, t.atxn, []byte(entryID), val)
 }
 
 // Remove will remove a relationship ID and it's related relationship IDs
 func (t *Transaction) Remove(entryID string) (err error) {
-	return t.c.remove(t.txn, []byte(entryID))
+	return t.c.remove(t.txn, t.atxn, []byte(entryID))
 }
 
 // SetLookup will set a lookup value
 func (t *Transaction) SetLookup(lookup, lookupID, key string) (err error) {
-	return t.c.setLookup(t.txn, []byte(lookup), []byte(lookupID), []byte(key))
+	return t.c.setLookup(t.txn, t.atxn, []byte(lookup), []byte(lookupID), []byte(key))
 }
 
 // GetLookup will retrieve the matching lookup keys
@@ -126,5 +129,5 @@ func (t *Transaction) GetLookupKey(lookup, lookupID string) (key string, err err
 
 // RemoveLookup will set a lookup value
 func (t *Transaction) RemoveLookup(lookup, lookupID, key string) (err error) {
-	return t.c.removeLookup(t.txn, []byte(lookup), []byte(lookupID), []byte(key))
+	return t.c.removeLookup(t.txn, t.atxn, []byte(lookup), []byte(lookupID), []byte(key))
 }

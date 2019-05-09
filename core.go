@@ -130,6 +130,18 @@ func (c *Core) init(name, dir string, relationships []string) (err error) {
 	return
 }
 
+func (c *Core) transaction(fn func(*bolt.Tx, *actions.Transaction) error) (err error) {
+	err = c.db.Update(func(txn *bolt.Tx) (err error) {
+		err = c.a.Transaction(func(atxn *actions.Transaction) (err error) {
+			return fn(txn, atxn)
+		})
+
+		return
+	})
+
+	return
+}
+
 func (c *Core) newEntryValue() (value Value) {
 	// Zero value of the entry type
 	zero := reflect.New(c.entryType)
@@ -472,7 +484,7 @@ func (c *Core) getLastByRelationship(txn *bolt.Tx, relationship, relationshipID 
 	return
 }
 
-func (c *Core) setLookup(txn *bolt.Tx, lookup, lookupID, key []byte) (err error) {
+func (c *Core) setLookup(txn *bolt.Tx, atxn *actions.Transaction, lookup, lookupID, key []byte) (err error) {
 	var lookupsBkt *bolt.Bucket
 	if lookupsBkt = txn.Bucket(lookupsBktKey); lookupsBkt == nil {
 		err = ErrNotInitialized
@@ -494,7 +506,7 @@ func (c *Core) setLookup(txn *bolt.Tx, lookup, lookupID, key []byte) (err error)
 	}
 
 	logKey := getLogKey(lookupsBktKey, lookupID)
-	if err = c.a.LogJSON(actions.ActionCreate, logKey, key); err != nil {
+	if err = atxn.LogJSON(actions.ActionCreate, logKey, key); err != nil {
 		return
 	}
 
@@ -520,7 +532,7 @@ func (c *Core) getLookupKeys(txn *bolt.Tx, lookup, lookupID []byte) (keys []stri
 	return
 }
 
-func (c *Core) removeLookup(txn *bolt.Tx, lookup, lookupID, key []byte) (err error) {
+func (c *Core) removeLookup(txn *bolt.Tx, atxn *actions.Transaction, lookup, lookupID, key []byte) (err error) {
 	var lookupBkt *bolt.Bucket
 	if lookupBkt, err = c.getLookupBucket(txn, lookup); lookupBkt == nil || err != nil {
 		return
@@ -536,14 +548,14 @@ func (c *Core) removeLookup(txn *bolt.Tx, lookup, lookupID, key []byte) (err err
 	}
 
 	logKey := getLogKey(lookupsBktKey, lookupID)
-	if err = c.a.LogJSON(actions.ActionDelete, logKey, key); err != nil {
+	if err = atxn.LogJSON(actions.ActionDelete, logKey, key); err != nil {
 		return
 	}
 
 	return
 }
 
-func (c *Core) new(txn *bolt.Tx, val Value) (entryID []byte, err error) {
+func (c *Core) new(txn *bolt.Tx, atxn *actions.Transaction, val Value) (entryID []byte, err error) {
 	if entryID, err = c.dbu.Next(txn, entriesBktKey); err != nil {
 		return
 	}
@@ -561,14 +573,14 @@ func (c *Core) new(txn *bolt.Tx, val Value) (entryID []byte, err error) {
 		return
 	}
 
-	if err = c.a.LogJSON(actions.ActionCreate, getLogKey(entriesBktKey, entryID), val); err != nil {
+	if err = atxn.LogJSON(actions.ActionCreate, getLogKey(entriesBktKey, entryID), val); err != nil {
 		return
 	}
 
 	return
 }
 
-func (c *Core) edit(txn *bolt.Tx, entryID []byte, val Value) (err error) {
+func (c *Core) edit(txn *bolt.Tx, atxn *actions.Transaction, entryID []byte, val Value) (err error) {
 	orig := reflect.New(c.entryType).Interface().(Value)
 	if err = c.get(txn, entryID, orig); err != nil {
 		return
@@ -588,14 +600,14 @@ func (c *Core) edit(txn *bolt.Tx, entryID []byte, val Value) (err error) {
 		return
 	}
 
-	if err = c.a.LogJSON(actions.ActionEdit, getLogKey(entriesBktKey, entryID), val); err != nil {
+	if err = atxn.LogJSON(actions.ActionEdit, getLogKey(entriesBktKey, entryID), val); err != nil {
 		return
 	}
 
 	return
 }
 
-func (c *Core) remove(txn *bolt.Tx, entryID []byte) (err error) {
+func (c *Core) remove(txn *bolt.Tx, atxn *actions.Transaction, entryID []byte) (err error) {
 	val := c.newEntryValue()
 	if err = c.get(txn, entryID, val); err != nil {
 		return
@@ -609,7 +621,7 @@ func (c *Core) remove(txn *bolt.Tx, entryID []byte) (err error) {
 		return
 	}
 
-	if err = c.a.LogJSON(actions.ActionDelete, getLogKey(entriesBktKey, entryID), nil); err != nil {
+	if err = atxn.LogJSON(actions.ActionDelete, getLogKey(entriesBktKey, entryID), nil); err != nil {
 		return
 	}
 
@@ -618,9 +630,9 @@ func (c *Core) remove(txn *bolt.Tx, entryID []byte) (err error) {
 
 // New will insert a new entry with the given value and the associated relationships
 func (c *Core) New(val Value) (entryID string, err error) {
-	err = c.db.Update(func(txn *bolt.Tx) (err error) {
+	err = c.transaction(func(txn *bolt.Tx, atxn *actions.Transaction) (err error) {
 		var id []byte
-		if id, err = c.new(txn, val); err != nil {
+		if id, err = c.new(txn, atxn, val); err != nil {
 			return
 		}
 
@@ -728,8 +740,8 @@ func (c *Core) CursorRelationship(relationship, relationshipID string, fn Cursor
 
 // Edit will attempt to edit an entry by ID
 func (c *Core) Edit(entryID string, val Value) (err error) {
-	err = c.db.Update(func(txn *bolt.Tx) (err error) {
-		return c.edit(txn, []byte(entryID), val)
+	err = c.transaction(func(txn *bolt.Tx, atxn *actions.Transaction) (err error) {
+		return c.edit(txn, atxn, []byte(entryID), val)
 	})
 
 	return
@@ -737,8 +749,8 @@ func (c *Core) Edit(entryID string, val Value) (err error) {
 
 // Remove will remove a relationship ID and it's related relationship IDs
 func (c *Core) Remove(entryID string) (err error) {
-	err = c.db.Update(func(txn *bolt.Tx) (err error) {
-		return c.remove(txn, []byte(entryID))
+	err = c.transaction(func(txn *bolt.Tx, atxn *actions.Transaction) (err error) {
+		return c.remove(txn, atxn, []byte(entryID))
 	})
 
 	return
@@ -746,8 +758,8 @@ func (c *Core) Remove(entryID string) (err error) {
 
 // SetLookup will set a lookup value
 func (c *Core) SetLookup(lookup, lookupID, key string) (err error) {
-	err = c.db.Update(func(txn *bolt.Tx) (err error) {
-		return c.setLookup(txn, []byte(lookup), []byte(lookupID), []byte(key))
+	err = c.transaction(func(txn *bolt.Tx, atxn *actions.Transaction) (err error) {
+		return c.setLookup(txn, atxn, []byte(lookup), []byte(lookupID), []byte(key))
 	})
 
 	return
@@ -784,8 +796,8 @@ func (c *Core) GetLookupKey(lookup, lookupID string) (key string, err error) {
 
 // RemoveLookup will set a lookup value
 func (c *Core) RemoveLookup(lookup, lookupID, key string) (err error) {
-	err = c.db.Update(func(txn *bolt.Tx) (err error) {
-		return c.removeLookup(txn, []byte(lookup), []byte(lookupID), []byte(key))
+	err = c.transaction(func(txn *bolt.Tx, atxn *actions.Transaction) (err error) {
+		return c.removeLookup(txn, atxn, []byte(lookup), []byte(lookupID), []byte(key))
 	})
 
 	return
@@ -793,8 +805,8 @@ func (c *Core) RemoveLookup(lookup, lookupID, key string) (err error) {
 
 // Transaction will initialize a transaction
 func (c *Core) Transaction(fn func(*Transaction) error) (err error) {
-	err = c.db.Update(func(txn *bolt.Tx) (err error) {
-		t := newTransaction(c, txn)
+	err = c.transaction(func(txn *bolt.Tx, atxn *actions.Transaction) (err error) {
+		t := newTransaction(c, txn, atxn)
 		err = fn(&t)
 		t.c = nil
 		t.txn = nil
@@ -807,7 +819,7 @@ func (c *Core) Transaction(fn func(*Transaction) error) (err error) {
 // ReadTransaction will initialize a read-only transaction
 func (c *Core) ReadTransaction(fn func(*Transaction) error) (err error) {
 	err = c.db.View(func(txn *bolt.Tx) (err error) {
-		t := newTransaction(c, txn)
+		t := newTransaction(c, txn, nil)
 		err = fn(&t)
 		t.c = nil
 		t.txn = nil
