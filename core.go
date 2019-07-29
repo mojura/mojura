@@ -6,14 +6,18 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"time"
+
+	"github.com/Hatch1fy/cron"
 
 	"github.com/Hatch1fy/actions"
 	"github.com/Hatch1fy/errors"
 	"github.com/PathDNA/atoms"
 	"github.com/boltdb/bolt"
+	"github.com/missionMeteora/journaler"
 	"gitlab.com/itsMontoya/dbutils"
 )
 
@@ -58,9 +62,10 @@ func New(name, dir string, example Value, relationships ...string) (cc *Core, er
 	}
 
 	c.entryType = getCoreType(example)
+	c.dir = dir
+	c.logsDir = path.Join(dir, "logs")
 
-	logsDir := path.Join(dir, "logs")
-	if err = os.MkdirAll(logsDir, 0744); err != nil {
+	if err = os.MkdirAll(c.logsDir, 0744); err != nil {
 		return
 	}
 
@@ -68,10 +73,11 @@ func New(name, dir string, example Value, relationships ...string) (cc *Core, er
 		return
 	}
 
-	if c.a, err = actions.New(logsDir, name); err != nil {
+	if c.a, err = actions.New(c.logsDir, name); err != nil {
 		return
 	}
 
+	c.out = journaler.New("Core", name)
 	cc = &c
 	return
 }
@@ -81,11 +87,18 @@ type Core struct {
 	db  *bolt.DB
 	dbu *dbutils.DBUtils
 	a   *actions.Actions
+	out *journaler.Journaler
+
+	dir     string
+	logsDir string
 
 	// Element type
 	entryType reflect.Type
 
 	relationships [][]byte
+
+	// Slave state (slaves are readOnly)
+	slave bool
 
 	// Closed state
 	closed atoms.Bool
@@ -907,6 +920,38 @@ func (c *Core) Merge(logFile string) (err error) {
 
 		return
 	})
+
+	return
+}
+
+// SetSlave will set the slave state
+// Note: This is not thread-safe, please set this before service actions begin
+func (c *Core) SetSlave(interval time.Duration) {
+	if interval == 0 {
+		// Unset interval will default to one minute
+		interval = time.Minute
+	}
+
+	cron.New(c.mergeLogs).Every(interval)
+}
+
+func (c *Core) mergeLogs() {
+	var err error
+	if err = filepath.Walk(c.logsDir, func(filekey string, info os.FileInfo, ierr error) (err error) {
+		if ierr != nil {
+			return ierr
+		}
+
+		if info.IsDir() {
+			return
+		}
+
+		fmt.Println("File!", filekey)
+		return
+	}); err != nil {
+		c.out.Error("Error walking files: %v", err)
+		return
+	}
 
 	return
 }
