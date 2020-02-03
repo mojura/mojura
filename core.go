@@ -3,6 +3,7 @@ package core
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"reflect"
@@ -71,6 +72,9 @@ func New(name, dir string, example Value, relationships ...string) (cc *Core, er
 	}
 
 	c.a.SetRotateFn(c.handleLogRotation)
+	c.a.SetRotateInterval(time.Minute)
+	// Set maximum number of lines to 10,000
+	c.a.SetNumLines(100000)
 	cc = &c
 	return
 }
@@ -639,11 +643,13 @@ func (c *Core) handleLogRotation(filename string) {
 
 	if err = os.MkdirAll(archiveDir, 0744); err != nil {
 		// TODO: Add error logging here after we implement output interface to core
+		log.Printf("error creating archive directory: %v\n", err)
 		return
 	}
 
 	if err = os.Rename(filename, destination); err != nil {
 		// TODO: Add error logging here after we implement output interface to core
+		log.Printf("error renaming file: %v\n", err)
 		return
 	}
 
