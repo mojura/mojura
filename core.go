@@ -56,9 +56,9 @@ func New(name, dir string, example Value, relationships ...string) (cc *Core, er
 	}
 
 	c.entryType = getCoreType(example)
+	c.logsDir = path.Join(dir, "logs")
 
-	logsDir := path.Join(dir, "logs")
-	if err = os.MkdirAll(logsDir, 0744); err != nil {
+	if err = os.MkdirAll(c.logsDir, 0744); err != nil {
 		return
 	}
 
@@ -66,10 +66,11 @@ func New(name, dir string, example Value, relationships ...string) (cc *Core, er
 		return
 	}
 
-	if c.a, err = actions.New(logsDir, name); err != nil {
+	if c.a, err = actions.New(c.logsDir, name); err != nil {
 		return
 	}
 
+	c.a.SetRotateFn(c.handleLogRotation)
 	cc = &c
 	return
 }
@@ -79,6 +80,8 @@ type Core struct {
 	db  *bolt.DB
 	dbu *dbutils.DBUtils
 	a   *actions.Actions
+
+	logsDir string
 
 	// Element type
 	entryType reflect.Type
@@ -622,6 +625,25 @@ func (c *Core) remove(txn *bolt.Tx, atxn *actions.Transaction, entryID []byte) (
 	}
 
 	if err = atxn.LogJSON(actions.ActionDelete, getLogKey(entriesBktKey, entryID), nil); err != nil {
+		return
+	}
+
+	return
+}
+
+func (c *Core) handleLogRotation(filename string) {
+	var err error
+	archiveDir := path.Join(c.logsDir, "archived")
+	name := path.Base(filename)
+	destination := path.Join(archiveDir, name)
+
+	if err = os.MkdirAll(archiveDir, 0744); err != nil {
+		// TODO: Add error logging here after we implement output interface to core
+		return
+	}
+
+	if err = os.Rename(filename, destination); err != nil {
+		// TODO: Add error logging here after we implement output interface to core
 		return
 	}
 
