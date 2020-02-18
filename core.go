@@ -11,7 +11,7 @@ import (
 
 	"github.com/Hatch1fy/actions"
 	"github.com/Hatch1fy/errors"
-	"github.com/PathDNA/atoms"
+	"github.com/hatchify/atoms"
 	"github.com/boltdb/bolt"
 	"gitlab.com/itsMontoya/dbutils"
 )
