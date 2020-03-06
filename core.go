@@ -10,10 +10,12 @@ import (
 	"time"
 
 	"github.com/Hatch1fy/actions"
+	"github.com/Hatch1fy/dbutils"
 	"github.com/Hatch1fy/errors"
+
 	"github.com/hatchify/atoms"
+
 	"github.com/boltdb/bolt"
-	"gitlab.com/itsMontoya/dbutils"
 )
 
 const (
