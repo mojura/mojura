@@ -131,3 +131,6 @@ func (t *Transaction) GetLookupKey(lookup, lookupID string) (key string, err err
 func (t *Transaction) RemoveLookup(lookup, lookupID, key string) (err error) {
 	return t.c.removeLookup(t.txn, t.atxn, []byte(lookup), []byte(lookupID), []byte(key))
 }
+
+// TransactionFn represents a transaction function
+type TransactionFn func(*Transaction) error

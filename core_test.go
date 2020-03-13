@@ -711,6 +711,167 @@ func TestCore_Lookups(t *testing.T) {
 	}
 }
 
+func TestCore_Batch(t *testing.T) {
+	var (
+		c   *Core
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c)
+
+	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+
+	var entryID string
+	if err = c.Batch(func(txn *Transaction) (err error) {
+		entryID, err = txn.New(&foobar)
+		return
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = c.Batch(func(txn *Transaction) (err error) {
+		foobar.Foo = "foo"
+		foobar.Bar = "bar"
+		err = txn.Edit(entryID, &foobar)
+		return
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	var val testStruct
+	if err = c.Get(entryID, &val); err != nil {
+		t.Fatal(err)
+	}
+
+	if val.Foo != "foo" {
+		t.Fatalf("invalid value for Foo, expected \"%s\" and received \"%s\"", foobar.Foo, val.Foo)
+	}
+
+	if val.Bar != "bar" {
+		t.Fatalf("invalid value for Bar, expected \"%s\" and received \"%s\"", foobar.Bar, val.Bar)
+	}
+
+	return
+}
+
+func BenchmarkCore_New_2(b *testing.B) {
+	benchmarkCoreNew(b, 2)
+	return
+}
+
+func BenchmarkCore_New_4(b *testing.B) {
+	benchmarkCoreNew(b, 4)
+	return
+}
+
+func BenchmarkCore_New_8(b *testing.B) {
+	benchmarkCoreNew(b, 8)
+	return
+}
+
+func BenchmarkCore_New_16(b *testing.B) {
+	benchmarkCoreNew(b, 16)
+	return
+}
+
+func BenchmarkCore_New_32(b *testing.B) {
+	benchmarkCoreNew(b, 32)
+	return
+}
+
+func BenchmarkCore_New_64(b *testing.B) {
+	benchmarkCoreNew(b, 64)
+	return
+}
+
+func BenchmarkCore_Batch_2(b *testing.B) {
+	benchmarkCoreBatch(b, 2)
+	return
+}
+
+func BenchmarkCore_Batch_4(b *testing.B) {
+	benchmarkCoreBatch(b, 4)
+	return
+}
+
+func BenchmarkCore_Batch_8(b *testing.B) {
+	benchmarkCoreBatch(b, 8)
+	return
+}
+
+func BenchmarkCore_Batch_16(b *testing.B) {
+	benchmarkCoreBatch(b, 16)
+	return
+}
+
+func BenchmarkCore_Batch_32(b *testing.B) {
+	benchmarkCoreBatch(b, 32)
+	return
+}
+
+func BenchmarkCore_Batch_64(b *testing.B) {
+	benchmarkCoreBatch(b, 64)
+	return
+}
+
+func benchmarkCoreNew(b *testing.B, threads int) {
+	var (
+		c   *Core
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		b.Fatal(err)
+	}
+	defer testTeardown(c)
+
+	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+
+	b.SetParallelism(threads)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if _, err = c.New(&foobar); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+
+	b.ReportAllocs()
+	return
+}
+
+func benchmarkCoreBatch(b *testing.B, threads int) {
+	var (
+		c   *Core
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		b.Fatal(err)
+	}
+	defer testTeardown(c)
+
+	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+
+	b.SetParallelism(threads)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if err = c.Batch(func(txn *Transaction) (err error) {
+				_, err = txn.New(&foobar)
+				return
+			}); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+
+	b.ReportAllocs()
+	return
+}
+
 func ExampleNew() {
 	var (
 		c   *Core
