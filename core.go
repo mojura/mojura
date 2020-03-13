@@ -868,8 +868,7 @@ func (c *Core) ReadTransaction(fn func(*Transaction) error) (err error) {
 
 // Batch will initialize a batch
 func (c *Core) Batch(fn func(*Transaction) error) (err error) {
-	<-c.b.Append(fn)
-	return
+	return <-c.b.Append(fn)
 }
 
 // Close will close the selected instance of Core
