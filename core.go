@@ -50,6 +50,11 @@ var boltOpts = &bolt.Options{Timeout: 1 * time.Second}
 
 // New will return a new instance of Core
 func New(name, dir string, example Value, relationships ...string) (cc *Core, err error) {
+	return NewWithOpts(name, dir, example, defaultOpts, relationships...)
+}
+
+// NewWithOpts will return a new instance of Core
+func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...string) (cc *Core, err error) {
 	var c Core
 	if len(example.GetRelationshipIDs()) != len(relationships) {
 		err = ErrInvalidNumberOfRelationships
@@ -75,6 +80,9 @@ func New(name, dir string, example Value, relationships ...string) (cc *Core, er
 	c.a.SetRotateInterval(time.Minute)
 	// Set maximum number of lines to 10,000
 	c.a.SetNumLines(100000)
+	// Initialize new batcher
+	c.b = newBatcher(&c, &opts)
+	// Set return pointer
 	cc = &c
 	return
 }
@@ -84,6 +92,7 @@ type Core struct {
 	db  *bolt.DB
 	dbu *dbutils.DBUtils
 	a   *actions.Actions
+	b   *batcher
 
 	logsDir string
 
@@ -854,6 +863,12 @@ func (c *Core) ReadTransaction(fn func(*Transaction) error) (err error) {
 		return
 	})
 
+	return
+}
+
+// Batch will initialize a batch
+func (c *Core) Batch(fn func(*Transaction) error) (err error) {
+	<-c.b.Append(fn)
 	return
 }
 
