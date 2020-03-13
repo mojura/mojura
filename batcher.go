@@ -115,12 +115,16 @@ func (b *batcher) flush() {
 	b.calls = b.calls[:0]
 }
 
-func (b *batcher) Append(calls ...call) {
+func (b *batcher) Append(fn TransactionFn) (errC chan error) {
 	b.mux.Lock()
 	defer b.mux.Unlock()
 
+	var c call
+	c.fn = fn
+	c.errC = make(chan error)
+
 	// Append calls to calls buffer
-	b.calls = append(b.calls, calls...)
+	b.calls = append(b.calls, c)
 
 	// If length of calls equals or exceeds MaxBatchCalls, run the current calls
 	if len(b.calls) >= b.opts.MaxBatchCalls {
@@ -136,6 +140,8 @@ func (b *batcher) Append(calls ...call) {
 
 	// Set func to run after MaxBatchDuration
 	b.timer = time.AfterFunc(b.opts.MaxBatchDuration, b.Run)
+
+	return c.errC
 }
 
 // Run triggers the current set of calls to be ran
