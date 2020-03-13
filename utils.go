@@ -81,7 +81,7 @@ func parseLogKey(logKey []byte) (bucket, key []byte, err error) {
 	return
 }
 
-func safelyCall(txn *Transaction, fn TransactionFn) (err error) {
+func recoverCall(txn *Transaction, fn TransactionFn) (err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			err = fmt.Errorf("panic caught: %v", err)

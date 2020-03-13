@@ -28,7 +28,7 @@ type batcher struct {
 func (b *batcher) performCalls(txn *Transaction, cs calls) (failIndex int, err error) {
 	failIndex = -1
 	for i, c := range cs {
-		if err = safelyCall(txn, c.fn); err != nil {
+		if err = recoverCall(txn, c.fn); err != nil {
 			failIndex = i
 			return
 		}
