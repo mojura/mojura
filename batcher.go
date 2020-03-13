@@ -25,9 +25,9 @@ type batcher struct {
 	calls []call
 }
 
-func (b *batcher) performCalls(txn *Transaction) (failIndex int, err error) {
+func (b *batcher) performCalls(txn *Transaction, cs calls) (failIndex int, err error) {
 	failIndex = -1
-	for i, c := range b.calls {
+	for i, c := range cs {
 		if err = safelyCall(txn, c.fn); err != nil {
 			failIndex = i
 			return
@@ -52,14 +52,14 @@ func (b *batcher) clearTimer() {
 // run performs the transactions in the batch and communicates results
 // back to DB.Batch.
 func (b *batcher) run(cs calls) {
-	if len(b.calls) == 0 {
+	if len(cs) == 0 {
 		// We have no calls to run, bail out
 		return
 	}
 
 	var failIndex int
 	err := b.core.Transaction(func(txn *Transaction) (err error) {
-		failIndex, err = b.performCalls(txn)
+		failIndex, err = b.performCalls(txn, cs)
 		return
 	})
 
@@ -121,7 +121,7 @@ func (b *batcher) Append(fn TransactionFn) (errC chan error) {
 
 	var c call
 	c.fn = fn
-	c.errC = make(chan error)
+	c.errC = make(chan error, 1)
 
 	// Append calls to calls buffer
 	b.calls = append(b.calls, c)
@@ -133,13 +133,10 @@ func (b *batcher) Append(fn TransactionFn) (errC chan error) {
 		return
 	}
 
-	if b.timer != nil {
-		// Timer is already set, bail out
-		return
+	if b.timer == nil {
+		// Set func to run after MaxBatchDuration
+		b.timer = time.AfterFunc(b.opts.MaxBatchDuration, b.Run)
 	}
-
-	// Set func to run after MaxBatchDuration
-	b.timer = time.AfterFunc(b.opts.MaxBatchDuration, b.Run)
 
 	return c.errC
 }
