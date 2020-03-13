@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"fmt"
 	"reflect"
 )
 
@@ -78,6 +79,16 @@ func parseLogKey(logKey []byte) (bucket, key []byte, err error) {
 	bucket = spl[0]
 	key = spl[1]
 	return
+}
+
+func safelyCall(txn *Transaction, fn TransactionFn) (err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			err = fmt.Errorf("panic caught: %v", err)
+		}
+	}()
+
+	return fn(txn)
 }
 
 // ForEachFn are called during iteration
