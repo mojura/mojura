@@ -4,8 +4,8 @@ github.com/Hatch1fy/actions v0.3.9 h1:TTqpHKsLAHkgwO3G/9k02VYFM9+0e6ejve3lq8aZI7
 github.com/Hatch1fy/actions v0.3.9/go.mod h1:ilscpXqgeHsR7ULVFrRE90oxai0tN9xMM1tslX8uNfI=
 github.com/Hatch1fy/cron v0.3.0 h1:WLoEbsXoz/sK9h/90AK1kRYjn88k/1F488/1G/q9hXU=
 github.com/Hatch1fy/cron v0.3.0/go.mod h1:srziZhU5rAzVXoUSkVkzq3iZOk+u+Y7pV3nL+dXN9L4=
-github.com/Hatch1fy/dbutils v0.3.2 h1:0qguCT5rmFvTcvcMO5g3+zNo2Ti580j8rLVHlevgG6g=
-github.com/Hatch1fy/dbutils v0.3.2/go.mod h1:GybukyDUqSlNSRl0sZZP5TzDgcC+N3zGwH1DmAjogdQ=
+github.com/Hatch1fy/dbutils v0.3.3 h1:nceYyKtoRqEJ7HByqISCJ50ihe8MjfZqGHfe0R2JS/Y=
+github.com/Hatch1fy/dbutils v0.3.3/go.mod h1:Tj7Y+rwUf5+3rtGz68XWMZVrhzy0qSPTKim754BOBPw=
 github.com/Hatch1fy/errors v0.3.0 h1:KylivctV7WFButh5rYOSHJUTi2gcalRgsGkAfFk1FsY=
 github.com/Hatch1fy/errors v0.3.0/go.mod h1:SJFCeScmERvwtYMG7EU24Fe0KfXmiIs7tNlcIl0STKk=
 github.com/Hatch1fy/logger v0.3.4 h1:PzNp1WJb2BP/YH3ujwAwx3cIcWjgWclNjD1ln/kXsOg=
@@ -42,8 +42,8 @@ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACk
 golang.org/x/net v0.0.0-20200202094626-16171245cfb2 h1:CCH4IOTTfewWjGOlSp+zGcjutRKlBEZQ6wTn8ozI/nI=
 golang.org/x/net v0.0.0-20200202094626-16171245cfb2/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
 golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
-golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527 h1:uYVVQ9WP/Ds2ROhcaGPeIdVq0RIXVLwsHlnvJ+cT1So=
-golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+golang.org/x/sys v0.0.0-20200316230553-a7d97aace0b0 h1:4Khi5GeNOkZS5DqSBRn4Sy7BE6GuxwOqARPqfurkdNk=
+golang.org/x/sys v0.0.0-20200316230553-a7d97aace0b0/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/text v0.3.0 h1:g61tztE5qeGQ89tm6NTjjM9VPIm088od1l6aSorWRWg=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=

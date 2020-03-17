@@ -4,7 +4,7 @@ go 1.14
 
 require (
 	github.com/Hatch1fy/actions v0.3.9
-	github.com/Hatch1fy/dbutils v0.3.2
+	github.com/Hatch1fy/dbutils v0.3.3
 	github.com/Hatch1fy/errors v0.3.0
 	github.com/boltdb/bolt v1.3.1
 	github.com/hatchify/atoms v0.3.0
