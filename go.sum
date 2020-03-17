@@ -4,9 +4,8 @@ github.com/Hatch1fy/actions v0.3.12 h1:7pF6dmJ3gh+QegVsshVMAUaOLrx5xq67KyIiZTlCv
 github.com/Hatch1fy/actions v0.3.12/go.mod h1:9VYMqUG6Q8su/tD1s36W3bV0a2DL/a7LY0gtRAOv83w=
 github.com/Hatch1fy/cron v0.3.4 h1:f2XJe0Ga0UOVWaEnzA4suVRxHfpNxLuHBSfHr062oDA=
 github.com/Hatch1fy/cron v0.3.4/go.mod h1:srziZhU5rAzVXoUSkVkzq3iZOk+u+Y7pV3nL+dXN9L4=
-github.com/Hatch1fy/dbutils v0.3.3 h1:nceYyKtoRqEJ7HByqISCJ50ihe8MjfZqGHfe0R2JS/Y=
-github.com/Hatch1fy/dbutils v0.3.3/go.mod h1:Tj7Y+rwUf5+3rtGz68XWMZVrhzy0qSPTKim754BOBPw=
-github.com/Hatch1fy/errors v0.3.0/go.mod h1:SJFCeScmERvwtYMG7EU24Fe0KfXmiIs7tNlcIl0STKk=
+github.com/Hatch1fy/dbutils v0.3.4 h1:9bEqJnfY6th+eG6ovJwDfis16oUwt9oPnrsxidlfyE4=
+github.com/Hatch1fy/dbutils v0.3.4/go.mod h1:Il4qP8585+mvvunS36QH5116Z6qKbio94kBnW98Gusg=
 github.com/Hatch1fy/errors v0.3.3 h1:VgJbpt/pPVY8sPN1sRbRhYyKHg2Xgt93DY1sIPYBRHk=
 github.com/Hatch1fy/errors v0.3.3/go.mod h1:SJFCeScmERvwtYMG7EU24Fe0KfXmiIs7tNlcIl0STKk=
 github.com/Hatch1fy/logger v0.3.7 h1:pze+tWhII/0hJjuPrNSJA+1c9mk1EnDlooO7ULGGKko=
