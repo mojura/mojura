@@ -8,6 +8,8 @@ github.com/Hatch1fy/dbutils v0.3.3 h1:nceYyKtoRqEJ7HByqISCJ50ihe8MjfZqGHfe0R2JS/
 github.com/Hatch1fy/dbutils v0.3.3/go.mod h1:Tj7Y+rwUf5+3rtGz68XWMZVrhzy0qSPTKim754BOBPw=
 github.com/Hatch1fy/errors v0.3.0 h1:KylivctV7WFButh5rYOSHJUTi2gcalRgsGkAfFk1FsY=
 github.com/Hatch1fy/errors v0.3.0/go.mod h1:SJFCeScmERvwtYMG7EU24Fe0KfXmiIs7tNlcIl0STKk=
+github.com/Hatch1fy/errors v0.3.3 h1:VgJbpt/pPVY8sPN1sRbRhYyKHg2Xgt93DY1sIPYBRHk=
+github.com/Hatch1fy/errors v0.3.3/go.mod h1:SJFCeScmERvwtYMG7EU24Fe0KfXmiIs7tNlcIl0STKk=
 github.com/Hatch1fy/logger v0.3.4 h1:PzNp1WJb2BP/YH3ujwAwx3cIcWjgWclNjD1ln/kXsOg=
 github.com/Hatch1fy/logger v0.3.4/go.mod h1:KL4lgXyxWKMSTqj/EGGXVMSw+DGMkqkF5q7Eli1mgMg=
 github.com/Hatch1fy/pgutils v0.3.1 h1:Scaaz+0a5JpEcj1Sa5WaHHCGyCv8/+AuCSHiGFzf6sw=
