@@ -2,6 +2,8 @@ github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/Hatch1fy/actions v0.4.78 h1:gBjr7aprUYJbuAer4gv7QDzw2ppPr3wBn8BUuVpZLPo=
 github.com/Hatch1fy/actions v0.4.78/go.mod h1:9GPHq/qCi+NaRkUFMzy1TAWaFpmn97pfbRWgjKJgE9Q=
+github.com/Hatch1fy/actions v0.4.79 h1:aJup7UVjKP2Harvce4M2ANHXAXsIaBsitqu6A9AKd/E=
+github.com/Hatch1fy/actions v0.4.79/go.mod h1:9GPHq/qCi+NaRkUFMzy1TAWaFpmn97pfbRWgjKJgE9Q=
 github.com/Hatch1fy/cron v0.4.76 h1:i9MluLOkCuFNX2F8tjcr7tE4ZKhlmi93v7kIqLy2StY=
 github.com/Hatch1fy/cron v0.4.76/go.mod h1:qTM34B/bZEHUopeeyEIbvRGaZ9OcI0h5JfpLfI19rrU=
 github.com/Hatch1fy/dbutils v0.4.77 h1:qo3nrLL2PTzHGFJ2WxmG9TWgHoPDBJM6bYdEnWjgiZo=
