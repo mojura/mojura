@@ -2,6 +2,8 @@ github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/Hatch1fy/actions v0.4.80 h1:BUrx0I2PoOV7WskjxiDRK9lBLbVMsSHUpiYkb2+rga4=
 github.com/Hatch1fy/actions v0.4.80/go.mod h1:+8N6U7HDj6M9OeA15TLAXUjJk4CWvIUBhHDv5jjSA7A=
+github.com/Hatch1fy/actions v0.4.81 h1:xIh7vKokIDNADYQlBnWjH3A4wBnidgYOXc03W4kjwDA=
+github.com/Hatch1fy/actions v0.4.81/go.mod h1:ruSQOj7mT+znh5SNbEjK/9/zuhKwZ1lrt1MqJxFWC5M=
 github.com/Hatch1fy/cron v0.4.77 h1:VmORottzpTEA9gMITt0EUAaIupAYH4hMgXFAhz7APUY=
 github.com/Hatch1fy/cron v0.4.77/go.mod h1:qTM34B/bZEHUopeeyEIbvRGaZ9OcI0h5JfpLfI19rrU=
 github.com/Hatch1fy/dbutils v0.4.79 h1:84E+j8mneCcvybWMvoCUNNf4W2KaVBLVN5oWmZgqc/o=
@@ -10,10 +12,14 @@ github.com/Hatch1fy/errors v0.4.77 h1:0Z2S/nbd+hga+CydwpX5BonUVa338+XPkTSMeZSxhn
 github.com/Hatch1fy/errors v0.4.77/go.mod h1:LPnug0nWT7I99nYl62NfYjxNMCCEx3lBV5YWIco+H0w=
 github.com/Hatch1fy/logger v0.4.80 h1:YiOnn/tCl048J0+U443Or/7D0EQewt+WR3JuGMnb4zI=
 github.com/Hatch1fy/logger v0.4.80/go.mod h1:FWhvKBzkv6vuF84W8myWRwvqwWHA/OS97aVkO45rzvA=
+github.com/Hatch1fy/logger v0.4.81 h1:ImjnbBEFy0oLu5X4iJUZsmyGSHnLfNTGHmj2+mKBCAU=
+github.com/Hatch1fy/logger v0.4.81/go.mod h1:T+zOS//ETjnmqe4YLDOjyA11/gqRIzTzkdU2Gr4TUfk=
 github.com/Hatch1fy/pgutils v0.4.78 h1:F10Coq0GtwVPN4x35Vqa8Wdf1RLG+2g/hCvZRq1bTX0=
 github.com/Hatch1fy/pgutils v0.4.78/go.mod h1:26t+daF1M9kKyXVhx/O6V+A6tB2KjgvrzWjucyy92Ag=
 github.com/Hatch1fy/snapshotter v0.4.80 h1:XPMnkGdysJ8Pz/3w8kUGCMnbA+liu2PiWOnsopz6t4Y=
 github.com/Hatch1fy/snapshotter v0.4.80/go.mod h1:P3ycma2sdXIptbR+rlmdKv+6wGupljrQgKSuOd1kcI8=
+github.com/Hatch1fy/snapshotter v0.4.81 h1:2G7IvyshuPFIgEN3VaK2IPdwS2V9IO/ieeNpTEfvFok=
+github.com/Hatch1fy/snapshotter v0.4.81/go.mod h1:P3ycma2sdXIptbR+rlmdKv+6wGupljrQgKSuOd1kcI8=
 github.com/aws/aws-sdk-go v1.29.32 h1:o4I8Qc+h9ht8NXvTHeXZH3EmtSUZ/PC0bg9Wawr+aTA=
 github.com/aws/aws-sdk-go v1.29.32/go.mod h1:1KvfttTE3SPKMpo8g2c6jL3ZKfXtFvKscTgahTma5Xg=
 github.com/boltdb/bolt v1.3.1 h1:JQmyP4ZBrce+ZQu0dY660FMfatumYDLun9hBCUVIkF4=
