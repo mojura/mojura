@@ -12,6 +12,7 @@ func newContext(ctx context.Context, duration time.Duration) *Context {
 	c.duration = duration
 	c.timer = time.NewTimer(duration)
 	go c.closeOnExpire()
+	go c.stopTimerOnDone()
 	return &c
 }
 
@@ -19,17 +20,30 @@ func newContext(ctx context.Context, duration time.Duration) *Context {
 type Context struct {
 	context.Context
 
-	mux sync.Mutex
+	mux sync.RWMutex
 
 	duration time.Duration
 
 	timer  *time.Timer
 	cancel context.CancelFunc
+	err    error
 }
 
 func (c *Context) closeOnExpire() {
 	<-c.timer.C
+
+	c.mux.Lock()
+	defer c.mux.Unlock()
+	c.err = ErrTransactionTimedOut
 	c.cancel()
+}
+
+func (c *Context) stopTimerOnDone() {
+	<-c.Done()
+
+	c.mux.Lock()
+	defer c.mux.Unlock()
+	c.timer.Stop()
 }
 
 func (c *Context) isDone() (done bool) {
@@ -55,4 +69,15 @@ func (c *Context) Touch() (ok bool) {
 	// Reset timer with context duration
 	c.timer.Reset(c.duration)
 	return true
+}
+
+// Err will return the underlying error
+func (c *Context) Err() (err error) {
+	c.mux.RLock()
+	defer c.mux.RUnlock()
+	if err = c.err; err != nil {
+		return
+	}
+
+	return ErrContextCancelled
 }
