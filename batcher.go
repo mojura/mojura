@@ -8,10 +8,9 @@ import (
 	"github.com/Hatch1fy/errors"
 )
 
-func newBatcher(core *Core, opts *Opts) *batcher {
+func newBatcher(core *Core) *batcher {
 	var b batcher
 	b.core = core
-	b.opts = opts
 	return &b
 }
 
@@ -19,7 +18,6 @@ type batcher struct {
 	mux sync.Mutex
 
 	core *Core
-	opts *Opts
 
 	timer *time.Timer
 	calls []call
@@ -92,7 +90,7 @@ func (b *batcher) run(cs calls) {
 }
 
 func (b *batcher) retry(cs calls, err error) {
-	if b.opts.RetryBatchFail {
+	if b.core.opts.RetryBatchFail {
 		// Re-run the successful portion
 		// Note: This is expected to pass
 		b.run(cs)
@@ -127,7 +125,7 @@ func (b *batcher) Append(fn TransactionFn) (errC chan error) {
 	b.calls = append(b.calls, c)
 
 	// If length of calls equals or exceeds MaxBatchCalls, run the current calls
-	if len(b.calls) >= b.opts.MaxBatchCalls {
+	if len(b.calls) >= b.core.opts.MaxBatchCalls {
 		// Since we've matched or exceeded our MaxBatchCalls, manually flush the calls buffer and return
 		b.flush()
 		return
@@ -135,7 +133,7 @@ func (b *batcher) Append(fn TransactionFn) (errC chan error) {
 
 	if b.timer == nil {
 		// Set func to run after MaxBatchDuration
-		b.timer = time.AfterFunc(b.opts.MaxBatchDuration, b.Run)
+		b.timer = time.AfterFunc(b.core.opts.MaxBatchDuration, b.Run)
 	}
 
 	return c.errC

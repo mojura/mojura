@@ -63,6 +63,7 @@ func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...st
 		return
 	}
 
+	c.opts = &opts
 	c.entryType = getCoreType(example)
 	c.logsDir = path.Join(dir, "logs")
 
@@ -83,7 +84,7 @@ func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...st
 	// Set maximum number of lines to 10,000
 	c.a.SetNumLines(100000)
 	// Initialize new batcher
-	c.b = newBatcher(&c, &opts)
+	c.b = newBatcher(&c)
 	// Set return pointer
 	cc = &c
 	return
@@ -96,6 +97,7 @@ type Core struct {
 	a   *actions.Actions
 	b   *batcher
 
+	opts    *Opts
 	logsDir string
 
 	// Element type
