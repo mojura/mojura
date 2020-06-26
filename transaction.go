@@ -1,14 +1,16 @@
 package core
 
 import (
+	"context"
 	"reflect"
 
 	"github.com/Hatch1fy/actions"
 	"github.com/boltdb/bolt"
 )
 
-func newTransaction(c *Core, txn *bolt.Tx, atxn *actions.Transaction) (t Transaction) {
+func newTransaction(ctx context.Context, c *Core, txn *bolt.Tx, atxn *actions.Transaction) (t Transaction) {
 	t.c = c
+	t.ctx = newContext(context.Background(), c.opts.TimeoutDuration)
 	t.txn = txn
 	t.atxn = atxn
 	return
@@ -17,6 +19,8 @@ func newTransaction(c *Core, txn *bolt.Tx, atxn *actions.Transaction) (t Transac
 // Transaction manages a core transaction
 type Transaction struct {
 	c *Core
+
+	ctx *Context
 
 	txn  *bolt.Tx
 	atxn *actions.Transaction
