@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 )
 
 const (
@@ -75,6 +76,56 @@ func TestCore_Get(t *testing.T) {
 
 	if err = testCheck(&foobar, &fb); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestCore_Get_context(t *testing.T) {
+	var (
+		c   *Core
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c)
+
+	c.opts.TimeoutDuration = time.Millisecond * 200
+	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+
+	var entryID string
+	if entryID, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	type testcase struct {
+		iterations int
+		timeout    time.Duration
+		err        error
+	}
+
+	tcs := []testcase{
+		{iterations: 1, timeout: time.Millisecond * 200, err: ErrTransactionTimedOut},
+		{iterations: 5, timeout: time.Millisecond * 100, err: nil},
+		{iterations: 10, timeout: time.Millisecond * 180, err: nil},
+		{iterations: 3, timeout: time.Millisecond * 500, err: ErrTransactionTimedOut},
+	}
+
+	for _, tc := range tcs {
+		if err = c.ReadTransaction(func(txn *Transaction) (err error) {
+			var fb testStruct
+			for i := 0; i < tc.iterations; i++ {
+				time.Sleep(tc.timeout)
+
+				if err = txn.Get(entryID, &fb); err != nil {
+					return
+				}
+			}
+
+			return
+		}); err != tc.err {
+			t.Fatalf("invalid error, expected %v and received %v [test case %+v]", tc.err, err, tc)
+		}
 	}
 }
 
