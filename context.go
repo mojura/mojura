@@ -4,6 +4,8 @@ import (
 	"context"
 	"sync"
 	"time"
+
+	"github.com/hatchify/atoms"
 )
 
 func newContext(ctx context.Context, duration time.Duration) *Context {
@@ -26,15 +28,16 @@ type Context struct {
 
 	timer  *time.Timer
 	cancel context.CancelFunc
-	err    error
+
+	timedOut atoms.Bool
+	err      error
 }
 
 func (c *Context) closeOnExpire() {
 	<-c.timer.C
-
+	c.timedOut.Set(true)
 	c.mux.Lock()
 	defer c.mux.Unlock()
-	c.err = ErrTransactionTimedOut
 	c.cancel()
 }
 
@@ -62,6 +65,7 @@ func (c *Context) Touch() (ok bool) {
 
 	// Attempt to stop the timer
 	if !c.timer.Stop() {
+		c.timedOut.Set(true)
 		// Timer has already been stopped or expired, return
 		return false
 	}
@@ -75,9 +79,18 @@ func (c *Context) Touch() (ok bool) {
 func (c *Context) Err() (err error) {
 	c.mux.RLock()
 	defer c.mux.RUnlock()
-	if err = c.err; err != nil {
+	// Check to see if context timed out
+	if c.timedOut.Get() {
+		// Context timed out, return time out error
+		return ErrTransactionTimedOut
+	}
+
+	// Get error from context
+	if err = c.Context.Err(); err != nil {
+		// Error exists, return
 		return
 	}
 
+	// Context does not have an error associated, return a generic context cancelled error
 	return ErrContextCancelled
 }
