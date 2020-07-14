@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/Hatch1fy/actions"
 	"github.com/boltdb/bolt"
+	"github.com/gdbu/actions"
 )
 
 func newTransaction(ctx context.Context, c *Core, txn *bolt.Tx, atxn *actions.Transaction) (t Transaction) {
