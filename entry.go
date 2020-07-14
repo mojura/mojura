@@ -1,7 +1,7 @@
 package core
 
-// Entry is a base entry type for service core Entries. This type contains all
-// the base methods required by service core. This struct can be included to decrease
+// Entry is a base entry type for dbl Entries. This type contains all
+// the base methods required by dbl. This struct can be included to decrease
 // the time of initial integration
 type Entry struct {
 	// Entry ID

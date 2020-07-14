@@ -1,5 +1,5 @@
-# Service core
-Service core is a service helper library for core ancillary methods
+# DBL (Database layer)
+DBL (Database layer) is a service helper library for core ancillary methods
 
 ## Usage
 

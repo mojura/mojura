@@ -20,7 +20,7 @@ var defaultOpts = Opts{
 	TimeoutDuration:  DefaultTimeoutDuration,
 }
 
-// Opts represent service core options
+// Opts represent dbl options
 type Opts struct {
 	MaxBatchCalls    int
 	MaxBatchDuration time.Duration
