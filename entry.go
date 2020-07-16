@@ -1,4 +1,4 @@
-package core
+package dbl
 
 // Entry is a base entry type for dbl Entries. This type contains all
 // the base methods required by dbl. This struct can be included to decrease

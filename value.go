@@ -1,4 +1,4 @@
-package core
+package dbl
 
 // Value represents an entry value
 type Value interface {
