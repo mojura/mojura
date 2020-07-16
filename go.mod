@@ -1,4 +1,4 @@
-module github.com/gdbu/dbl
+module github.com/Hatch1fy/service-core
 
 go 1.14
 
@@ -9,5 +9,3 @@ require (
 	github.com/gdbu/dbutils v0.4.80
 	github.com/hatchify/atoms v0.4.77
 )
-
-// *** Separate Local Deps *** \\
