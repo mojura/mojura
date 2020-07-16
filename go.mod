@@ -1,4 +1,4 @@
-module github.com/Hatch1fy/service-core
+module github.com/gdbu/dbl
 
 go 1.14
 
