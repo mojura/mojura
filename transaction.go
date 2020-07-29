@@ -173,6 +173,9 @@ func (t *Transaction) forEach(fn ForEachFn) (err error) {
 			return
 		}
 
+		// Touch context so it doesn't expire
+		t.ctx.Touch()
+
 		errCh := make(chan error)
 		go func() {
 			errCh <- fn(string(key), val)
