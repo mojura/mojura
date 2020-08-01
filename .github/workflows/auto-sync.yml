@@ -13,5 +13,5 @@ jobs:
       env:
         TAG: ${GITHUB_REF#refs/tags/}
         TOKEN: ${{ secrets.gomu }}
-      run: curl -d '' https://gomu.usehatchapp.com/api/sync/github.com/${{ github.repository }}
+      run: curl -d '{}' https://gomu.usehatchapp.com/api/sync/github.com/${{ github.repository }}
 
