@@ -1,0 +1,17 @@
+name: Sync
+
+on:
+  push:
+    tags:
+    - 'v*.*.*'
+
+jobs:
+  curl:
+    runs-on: ubuntu-latest
+    steps:
+    - name: curl
+      env:
+        TAG: ${GITHUB_REF#refs/tags/}
+        TOKEN: ${{ secrets.gomu }}
+      run: curl -d '' https://gomu.usehatchapp.com/api/sync/github.com/${{ github.repository }}
+
