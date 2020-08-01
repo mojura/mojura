@@ -1,0 +1,14 @@
+name: Tag
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  curl:
+    runs-on: ubuntu-latest
+    steps:
+    - name: curl
+      env:
+        TOKEN: ${{ secrets.gomu }}
+      run: curl -d '{}' https://gomu.usehatchapp.com/api/tag/github.com/${{ github.repository }}
