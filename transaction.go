@@ -628,6 +628,11 @@ func (t *Transaction) remove(entryID []byte) (err error) {
 	return
 }
 
+func (t *Transaction) teardown() {
+	t.txn = nil
+	t.c = nil
+}
+
 // New will insert a new entry with the given value and the associated relationships
 func (t *Transaction) New(val Value) (entryID string, err error) {
 	var id []byte
