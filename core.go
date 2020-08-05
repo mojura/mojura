@@ -209,6 +209,7 @@ func (c *Core) transaction(fn func(*bolt.Tx, *actions.Transaction) error) (err e
 
 func (c *Core) runTransaction(ctx context.Context, txn *bolt.Tx, atxn *actions.Transaction, fn TransactionFn) (err error) {
 	t := newTransaction(ctx, c, txn, atxn)
+	defer t.teardown()
 	errCh := make(chan error)
 
 	// Call function from within goroutine
@@ -228,8 +229,6 @@ func (c *Core) runTransaction(ctx context.Context, txn *bolt.Tx, atxn *actions.T
 		err = ErrContextCancelled
 	}
 
-	t.c = nil
-	t.txn = nil
 	return
 }
 
