@@ -8,7 +8,8 @@ import (
 	"github.com/hatchify/atoms"
 )
 
-func newContext(ctx context.Context, duration time.Duration) *Context {
+// NewContext will create a new timeout touch context
+func NewContext(ctx context.Context, duration time.Duration) *Context {
 	var c Context
 	c.Context, c.cancel = context.WithCancel(ctx)
 	c.duration = duration
@@ -47,15 +48,6 @@ func (c *Context) stopTimerOnDone() {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 	c.timer.Stop()
-}
-
-func (c *Context) isDone() (done bool) {
-	select {
-	case <-c.Done():
-		done = true
-	}
-
-	return
 }
 
 // Touch will refesh the context timer

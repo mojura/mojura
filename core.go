@@ -234,7 +234,7 @@ func (c *Core) runTransaction(ctx context.Context, txn *bolt.Tx, atxn *actions.T
 
 // New will insert a new entry with the given value and the associated relationships
 func (c *Core) New(val Value) (entryID string, err error) {
-	err = c.Transaction(func(txn *Transaction) (err error) {
+	err = c.Transaction(context.Background(), func(txn *Transaction) (err error) {
 		var id []byte
 		if id, err = txn.new(val); err != nil {
 			return
@@ -249,7 +249,7 @@ func (c *Core) New(val Value) (entryID string, err error) {
 
 // Exists will notiy if an entry exists for a given entry ID
 func (c *Core) Exists(entryID string) (exists bool, err error) {
-	err = c.ReadTransaction(func(txn *Transaction) (err error) {
+	err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		exists, err = txn.exists([]byte(entryID))
 		return
 	})
@@ -259,7 +259,7 @@ func (c *Core) Exists(entryID string) (exists bool, err error) {
 
 // Get will attempt to get an entry by ID
 func (c *Core) Get(entryID string, val Value) (err error) {
-	err = c.ReadTransaction(func(txn *Transaction) (err error) {
+	err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.get([]byte(entryID), val)
 	})
 
@@ -273,7 +273,7 @@ func (c *Core) GetByRelationship(relationship, relationshipID string, entries in
 		return
 	}
 
-	err = c.ReadTransaction(func(txn *Transaction) (err error) {
+	err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.getByRelationship([]byte(relationship), []byte(relationshipID), es)
 	})
 
@@ -282,7 +282,7 @@ func (c *Core) GetByRelationship(relationship, relationshipID string, entries in
 
 // GetFirstByRelationship will attempt to get the first entry associated with a given relationship and relationship ID
 func (c *Core) GetFirstByRelationship(relationship, relationshipID string, val Value) (err error) {
-	if err = c.ReadTransaction(func(txn *Transaction) (err error) {
+	if err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.getFirstByRelationship([]byte(relationship), []byte(relationshipID), val)
 	}); err != nil {
 		return
@@ -293,7 +293,7 @@ func (c *Core) GetFirstByRelationship(relationship, relationshipID string, val V
 
 // GetLastByRelationship will attempt to get the last entry associated with a given relationship and relationship ID
 func (c *Core) GetLastByRelationship(relationship, relationshipID string, val Value) (err error) {
-	if err = c.ReadTransaction(func(txn *Transaction) (err error) {
+	if err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.getLastByRelationship([]byte(relationship), []byte(relationshipID), val)
 	}); err != nil {
 		return
@@ -304,7 +304,7 @@ func (c *Core) GetLastByRelationship(relationship, relationshipID string, val Va
 
 // ForEach will iterate through each of the entries
 func (c *Core) ForEach(fn ForEachFn) (err error) {
-	err = c.ReadTransaction(func(txn *Transaction) (err error) {
+	err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.forEach(fn)
 	})
 
@@ -313,7 +313,7 @@ func (c *Core) ForEach(fn ForEachFn) (err error) {
 
 // ForEachRelationship will iterate through each of the entries for a given relationship and relationship ID
 func (c *Core) ForEachRelationship(relationship, relationshipID string, fn ForEachFn) (err error) {
-	err = c.ReadTransaction(func(txn *Transaction) (err error) {
+	err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.forEachRelationship([]byte(relationship), []byte(relationshipID), fn)
 	})
 
@@ -322,7 +322,7 @@ func (c *Core) ForEachRelationship(relationship, relationshipID string, fn ForEa
 
 // Cursor will return an iterating cursor
 func (c *Core) Cursor(fn CursorFn) (err error) {
-	if err = c.ReadTransaction(func(txn *Transaction) (err error) {
+	if err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.cursor(fn)
 	}); err == Break {
 		err = nil
@@ -333,7 +333,7 @@ func (c *Core) Cursor(fn CursorFn) (err error) {
 
 // CursorRelationship will return an iterating cursor for a given relationship and relationship ID
 func (c *Core) CursorRelationship(relationship, relationshipID string, fn CursorFn) (err error) {
-	if err = c.ReadTransaction(func(txn *Transaction) (err error) {
+	if err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.cursorRelationship([]byte(relationship), []byte(relationshipID), fn)
 	}); err == Break {
 		err = nil
@@ -344,7 +344,7 @@ func (c *Core) CursorRelationship(relationship, relationshipID string, fn Cursor
 
 // Edit will attempt to edit an entry by ID
 func (c *Core) Edit(entryID string, val Value) (err error) {
-	err = c.Transaction(func(txn *Transaction) (err error) {
+	err = c.Transaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.edit([]byte(entryID), val)
 	})
 
@@ -353,7 +353,7 @@ func (c *Core) Edit(entryID string, val Value) (err error) {
 
 // Remove will remove a relationship ID and it's related relationship IDs
 func (c *Core) Remove(entryID string) (err error) {
-	err = c.Transaction(func(txn *Transaction) (err error) {
+	err = c.Transaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.remove([]byte(entryID))
 	})
 
@@ -362,7 +362,7 @@ func (c *Core) Remove(entryID string) (err error) {
 
 // SetLookup will set a lookup value
 func (c *Core) SetLookup(lookup, lookupID, key string) (err error) {
-	err = c.Transaction(func(txn *Transaction) (err error) {
+	err = c.Transaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.setLookup([]byte(lookup), []byte(lookupID), []byte(key))
 	})
 
@@ -371,7 +371,7 @@ func (c *Core) SetLookup(lookup, lookupID, key string) (err error) {
 
 // GetLookup will retrieve the matching lookup keys
 func (c *Core) GetLookup(lookup, lookupID string) (keys []string, err error) {
-	err = c.ReadTransaction(func(txn *Transaction) (err error) {
+	err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		keys, err = txn.getLookupKeys([]byte(lookup), []byte(lookupID))
 		return
 	})
@@ -381,7 +381,7 @@ func (c *Core) GetLookup(lookup, lookupID string) (keys []string, err error) {
 
 // GetLookupKey will retrieve the first lookup key
 func (c *Core) GetLookupKey(lookup, lookupID string) (key string, err error) {
-	err = c.ReadTransaction(func(txn *Transaction) (err error) {
+	err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		var keys []string
 		if keys, err = txn.getLookupKeys([]byte(lookup), []byte(lookupID)); err != nil {
 			return
@@ -400,7 +400,7 @@ func (c *Core) GetLookupKey(lookup, lookupID string) (key string, err error) {
 
 // RemoveLookup will set a lookup value
 func (c *Core) RemoveLookup(lookup, lookupID, key string) (err error) {
-	err = c.Transaction(func(txn *Transaction) (err error) {
+	err = c.Transaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.removeLookup([]byte(lookup), []byte(lookupID), []byte(key))
 	})
 
@@ -408,12 +408,7 @@ func (c *Core) RemoveLookup(lookup, lookupID, key string) (err error) {
 }
 
 // Transaction will initialize a transaction
-func (c *Core) Transaction(fn func(*Transaction) error) (err error) {
-	return c.TransactionWithContext(context.Background(), fn)
-}
-
-// TransactionWithContext will initialize a transaction with a context
-func (c *Core) TransactionWithContext(ctx context.Context, fn func(*Transaction) error) (err error) {
+func (c *Core) Transaction(ctx context.Context, fn func(*Transaction) error) (err error) {
 	err = c.transaction(func(txn *bolt.Tx, atxn *actions.Transaction) (err error) {
 		return c.runTransaction(ctx, txn, atxn, fn)
 	})
@@ -422,12 +417,7 @@ func (c *Core) TransactionWithContext(ctx context.Context, fn func(*Transaction)
 }
 
 // ReadTransaction will initialize a read-only transaction
-func (c *Core) ReadTransaction(fn func(*Transaction) error) (err error) {
-	return c.ReadTransactionWithContext(context.Background(), fn)
-}
-
-// ReadTransactionWithContext will initialize a read-only transaction with a context
-func (c *Core) ReadTransactionWithContext(ctx context.Context, fn func(*Transaction) error) (err error) {
+func (c *Core) ReadTransaction(ctx context.Context, fn func(*Transaction) error) (err error) {
 	err = c.db.View(func(txn *bolt.Tx) (err error) {
 		return c.runTransaction(ctx, txn, nil, fn)
 	})
