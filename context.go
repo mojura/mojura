@@ -58,7 +58,7 @@ func (c *Context) isDone() (done bool) {
 	return
 }
 
-// Touch will refesh the context timer
+// Touch will refresh the context timer
 func (c *Context) Touch() (ok bool) {
 	c.mux.Lock()
 	defer c.mux.Unlock()

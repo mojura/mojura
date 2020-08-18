@@ -126,15 +126,15 @@ func (t *Transaction) getByRelationship(relationship, relationshipID []byte, ent
 		return
 	}
 
-	err = bkt.ForEach(func(entryID, _ []byte) (err error) {
+	c := bkt.Cursor()
+	for k, _ := c.First(); k != nil; k, _ = c.Next() {
 		val := reflect.New(t.c.entryType)
-		if err = t.get(entryID, val.Interface()); err != nil {
+		if err = t.get(k, val.Interface()); err != nil {
 			return
 		}
 
 		entries.Set(reflect.Append(entries, val))
-		return
-	})
+	}
 
 	return
 }
