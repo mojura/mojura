@@ -112,7 +112,7 @@ func TestCore_Get_context(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		ctx := NewContext(context.Background(), time.Millisecond*200)
+		ctx := NewTouchContext(context.Background(), time.Millisecond*200)
 		if err = c.ReadTransaction(ctx, func(txn *Transaction) (err error) {
 			var fb testStruct
 			for i := 0; i < tc.iterations; i++ {
