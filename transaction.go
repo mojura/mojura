@@ -198,8 +198,26 @@ func (t *Transaction) forEach(fn ForEachFn) (err error) {
 }
 
 func (t *Transaction) forEachRelationship(relationship, relationshipID []byte, fn ForEachFn) (err error) {
+	err = t.forEachRelationshipEntryID(relationship, relationshipID, func(entryID []byte) (err error) {
+		val := t.c.newEntryValue()
+		if err = t.get(entryID, val); err != nil {
+			return
+		}
+
+		if err = fn(string(entryID), val); err != nil {
+			return
+		}
+
+		return
+	})
+
+	return
+}
+
+func (t *Transaction) forEachRelationshipEntryID(relationship, relationshipID []byte, fn func(entryID []byte) error) (err error) {
 	if isDone(t.ctx) {
-		return t.ctx.Err()
+		err = t.ctx.Err()
+		return
 	}
 
 	var relationshipBkt *bolt.Bucket
@@ -212,26 +230,12 @@ func (t *Transaction) forEachRelationship(relationship, relationshipID []byte, f
 		return
 	}
 
-	if err = bkt.ForEach(func(entryID, _ []byte) (err error) {
-		val := t.c.newEntryValue()
-		if err = t.get(entryID, val); err != nil {
+	c := bkt.Cursor()
+
+	for k, _ := c.First(); k != nil; k, _ = c.Next() {
+		if err = fn(k); err != nil {
 			return
 		}
-
-		errCh := make(chan error)
-		go func() {
-			errCh <- fn(string(entryID), val)
-		}()
-
-		select {
-		case err = <-errCh:
-		case <-t.ctx.Done():
-			err = t.ctx.Err()
-		}
-
-		return
-	}); err == Break {
-		err = nil
 	}
 
 	return
