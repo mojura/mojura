@@ -1,6 +1,7 @@
 package dbl
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"reflect"
@@ -156,6 +157,46 @@ func (t *Transaction) exists(entryID []byte) (ok bool, err error) {
 	return
 }
 
+func (t *Transaction) matchesAllPairs(rps []RelationshipPair, entryID []byte) (isMatch bool, err error) {
+	eid := []byte(entryID)
+	for _, pair := range rps {
+		isMatch, err = t.isPairMatch(&pair, eid)
+		switch {
+		case err != nil:
+			return
+		case !isMatch:
+			return
+		}
+
+	}
+
+	// We've made it through all the pairs without failing, entry is a match
+	return
+}
+
+func (t *Transaction) isPairMatch(pair *RelationshipPair, entryID []byte) (isMatch bool, err error) {
+	if isDone(t.ctx) {
+		err = t.ctx.Err()
+		return
+	}
+
+	var relationshipBkt *bolt.Bucket
+	if relationshipBkt, err = t.getRelationshipBucket(pair.relationship()); err != nil {
+		return
+	}
+
+	var bkt *bolt.Bucket
+	if bkt = relationshipBkt.Bucket(pair.id()); bkt == nil {
+		return
+	}
+
+	bkt.Get(entryID)
+	c := bkt.Cursor()
+	firstKey, _ := c.Seek(entryID)
+	isMatch = bytes.Compare(entryID, firstKey) == 0
+	return
+}
+
 func (t *Transaction) forEach(fn ForEachFn) (err error) {
 	if isDone(t.ctx) {
 		return t.ctx.Err()
@@ -238,6 +279,32 @@ func (t *Transaction) forEachRelationshipEntryID(relationship, relationshipID []
 		}
 	}
 
+	return
+}
+
+func (t *Transaction) forEachFilter(rps []RelationshipPair, fn ForEachFn) (err error) {
+	if len(rps) == 0 {
+		err = ErrEmptyRelationshipPairs
+		return
+	}
+
+	// Set primary as the first entry
+	primary := rps[0]
+	// Set remaining values
+	remaining := rps[1:]
+	// Declare iterating function
+	iteratingFn := func(entryID string, val Value) (err error) {
+		var isMatch bool
+		eid := []byte(entryID)
+		if isMatch, err = t.matchesAllPairs(remaining, eid); !isMatch || err != nil {
+			return
+		}
+
+		return fn(entryID, val)
+	}
+
+	// Iterate through each relationship item
+	err = t.forEachRelationship(primary.relationship(), primary.id(), iteratingFn)
 	return
 }
 
