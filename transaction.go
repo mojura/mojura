@@ -29,7 +29,7 @@ type Transaction struct {
 	atxn *actions.Transaction
 }
 
-func (t *Transaction) getRelationshipsBucket(relationship []byte) (bkt *bolt.Bucket, err error) {
+func (t *Transaction) getRelationshipBucket(relationship []byte) (bkt *bolt.Bucket, err error) {
 	if isDone(t.ctx) {
 		err = t.ctx.Err()
 		return
@@ -51,7 +51,7 @@ func (t *Transaction) getRelationshipsBucket(relationship []byte) (bkt *bolt.Buc
 
 func (t *Transaction) getRelationshipIDBucket(relationship, relationshipID []byte) (bkt *bolt.Bucket, ok bool, err error) {
 	var relationshipBkt *bolt.Bucket
-	if relationshipBkt, err = t.getRelationshipsBucket(relationship); err != nil {
+	if relationshipBkt, err = t.getRelationshipBucket(relationship); err != nil {
 		return
 	}
 
@@ -108,7 +108,7 @@ func (t *Transaction) getIDsByRelationship(relationship, relationshipID []byte) 
 	}
 
 	var relationshipBkt *bolt.Bucket
-	if relationshipBkt, err = t.getRelationshipsBucket(relationship); err != nil {
+	if relationshipBkt, err = t.getRelationshipBucket(relationship); err != nil {
 		return
 	}
 
@@ -132,7 +132,7 @@ func (t *Transaction) getByRelationship(relationship, relationshipID []byte, ent
 	}
 
 	var relationshipBkt *bolt.Bucket
-	if relationshipBkt, err = t.getRelationshipsBucket(relationship); err != nil {
+	if relationshipBkt, err = t.getRelationshipBucket(relationship); err != nil {
 		return
 	}
 
@@ -195,7 +195,7 @@ func (t *Transaction) isPairMatch(pair *RelationshipPair, entryID []byte) (isMat
 	}
 
 	var relationshipBkt *bolt.Bucket
-	if relationshipBkt, err = t.getRelationshipsBucket(pair.relationship()); err != nil {
+	if relationshipBkt, err = t.getRelationshipBucket(pair.relationship()); err != nil {
 		return
 	}
 
@@ -352,7 +352,7 @@ func (t *Transaction) cursorRelationship(relationship, relationshipID []byte, fn
 	}
 
 	var relationshipBkt *bolt.Bucket
-	if relationshipBkt, err = t.getRelationshipsBucket(relationship); err != nil {
+	if relationshipBkt, err = t.getRelationshipBucket(relationship); err != nil {
 		return
 	}
 
@@ -430,7 +430,7 @@ func (t *Transaction) setRelationship(relationship, relationshipID, entryID []by
 	}
 
 	var relationshipBkt *bolt.Bucket
-	if relationshipBkt, err = t.getRelationshipsBucket(relationship); err != nil {
+	if relationshipBkt, err = t.getRelationshipBucket(relationship); err != nil {
 		return
 	}
 
@@ -462,7 +462,7 @@ func (t *Transaction) unsetRelationship(relationship, relationshipID, entryID []
 	}
 
 	var relationshipBkt *bolt.Bucket
-	if relationshipBkt, err = t.getRelationshipsBucket(relationship); err != nil {
+	if relationshipBkt, err = t.getRelationshipBucket(relationship); err != nil {
 		return
 	}
 
