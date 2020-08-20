@@ -38,6 +38,8 @@ const (
 	ErrInvalidEntries = errors.Error("invalid entries, slice expected")
 	// ErrInvalidLogKey is returned when an invalid log key is encountered
 	ErrInvalidLogKey = errors.Error("invalid log key, expecting a single :: delimiter")
+	// ErrEmptyRelationshipPairs is returned when relationship pairs are empty for a filter or joined request
+	ErrEmptyRelationshipPairs = errors.Error("invalid relationship pairs, cannot be empty")
 	// ErrContextCancelled is returned when a transaction ends early from context
 	ErrContextCancelled = errors.Error("context cancelled")
 	// ErrTransactionTimedOut is returned when a transaction times out
