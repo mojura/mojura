@@ -12,7 +12,7 @@ import (
 
 func newTransaction(ctx context.Context, c *Core, txn *bolt.Tx, atxn *actions.Transaction) (t Transaction) {
 	t.c = c
-	t.ctx = newContext(context.Background(), t.c.opts.TimeoutDuration)
+	t.ctx = ctx
 	t.txn = txn
 	t.atxn = atxn
 	return
@@ -22,14 +22,14 @@ func newTransaction(ctx context.Context, c *Core, txn *bolt.Tx, atxn *actions.Tr
 type Transaction struct {
 	c *Core
 
-	ctx *Context
+	ctx context.Context
 
 	txn  *bolt.Tx
 	atxn *actions.Transaction
 }
 
 func (t *Transaction) getRelationshipBucket(relationship []byte) (bkt *bolt.Bucket, err error) {
-	if !t.ctx.Touch() {
+	if isDone(t.ctx) {
 		err = t.ctx.Err()
 		return
 	}
@@ -49,7 +49,7 @@ func (t *Transaction) getRelationshipBucket(relationship []byte) (bkt *bolt.Buck
 }
 
 func (t *Transaction) getLookupBucket(lookup []byte) (bkt *bolt.Bucket, err error) {
-	if !t.ctx.Touch() {
+	if isDone(t.ctx) {
 		err = t.ctx.Err()
 		return
 	}
@@ -65,7 +65,7 @@ func (t *Transaction) getLookupBucket(lookup []byte) (bkt *bolt.Bucket, err erro
 }
 
 func (t *Transaction) get(entryID []byte, val interface{}) (err error) {
-	if !t.ctx.Touch() {
+	if isDone(t.ctx) {
 		err = t.ctx.Err()
 		return
 	}
@@ -87,7 +87,7 @@ func (t *Transaction) get(entryID []byte, val interface{}) (err error) {
 }
 
 func (t *Transaction) getIDsByRelationship(relationship, relationshipID []byte) (entryIDs [][]byte, err error) {
-	if !t.ctx.Touch() {
+	if isDone(t.ctx) {
 		err = t.ctx.Err()
 		return
 	}
@@ -111,7 +111,7 @@ func (t *Transaction) getIDsByRelationship(relationship, relationshipID []byte) 
 }
 
 func (t *Transaction) getByRelationship(relationship, relationshipID []byte, entries reflect.Value) (err error) {
-	if !t.ctx.Touch() {
+	if isDone(t.ctx) {
 		err = t.ctx.Err()
 		return
 	}
@@ -140,7 +140,7 @@ func (t *Transaction) getByRelationship(relationship, relationshipID []byte, ent
 }
 
 func (t *Transaction) exists(entryID []byte) (ok bool, err error) {
-	if !t.ctx.Touch() {
+	if isDone(t.ctx) {
 		err = t.ctx.Err()
 		return
 	}
@@ -157,7 +157,7 @@ func (t *Transaction) exists(entryID []byte) (ok bool, err error) {
 }
 
 func (t *Transaction) forEach(fn ForEachFn) (err error) {
-	if !t.ctx.Touch() {
+	if isDone(t.ctx) {
 		return t.ctx.Err()
 	}
 
@@ -173,8 +173,10 @@ func (t *Transaction) forEach(fn ForEachFn) (err error) {
 			return
 		}
 
-		// Touch context so it doesn't expire
-		t.ctx.Touch()
+		// Check to see if context has expired
+		if isDone(t.ctx) {
+			return t.ctx.Err()
+		}
 
 		errCh := make(chan error)
 		go func() {
@@ -196,7 +198,7 @@ func (t *Transaction) forEach(fn ForEachFn) (err error) {
 }
 
 func (t *Transaction) forEachRelationship(relationship, relationshipID []byte, fn ForEachFn) (err error) {
-	if !t.ctx.Touch() {
+	if isDone(t.ctx) {
 		return t.ctx.Err()
 	}
 
@@ -236,7 +238,7 @@ func (t *Transaction) forEachRelationship(relationship, relationshipID []byte, f
 }
 
 func (t *Transaction) cursor(fn CursorFn) (err error) {
-	if !t.ctx.Touch() {
+	if isDone(t.ctx) {
 		return t.ctx.Err()
 	}
 
@@ -258,7 +260,7 @@ func (t *Transaction) cursor(fn CursorFn) (err error) {
 }
 
 func (t *Transaction) cursorRelationship(relationship, relationshipID []byte, fn CursorFn) (err error) {
-	if !t.ctx.Touch() {
+	if isDone(t.ctx) {
 		return t.ctx.Err()
 	}
 
@@ -284,7 +286,7 @@ func (t *Transaction) cursorRelationship(relationship, relationshipID []byte, fn
 }
 
 func (t *Transaction) put(entryID []byte, val Value) (err error) {
-	if !t.ctx.Touch() {
+	if isDone(t.ctx) {
 		return t.ctx.Err()
 	}
 
@@ -304,7 +306,7 @@ func (t *Transaction) put(entryID []byte, val Value) (err error) {
 }
 
 func (t *Transaction) delete(entryID []byte) (err error) {
-	if !t.ctx.Touch() {
+	if isDone(t.ctx) {
 		return t.ctx.Err()
 	}
 
@@ -317,7 +319,7 @@ func (t *Transaction) delete(entryID []byte) (err error) {
 }
 
 func (t *Transaction) setRelationships(relationshipIDs []string, entryID []byte) (err error) {
-	if !t.ctx.Touch() {
+	if isDone(t.ctx) {
 		return t.ctx.Err()
 	}
 
@@ -331,7 +333,7 @@ func (t *Transaction) setRelationships(relationshipIDs []string, entryID []byte)
 }
 
 func (t *Transaction) setRelationship(relationship, relationshipID, entryID []byte) (err error) {
-	if !t.ctx.Touch() {
+	if isDone(t.ctx) {
 		return t.ctx.Err()
 	}
 
@@ -354,7 +356,7 @@ func (t *Transaction) setRelationship(relationship, relationshipID, entryID []by
 }
 
 func (t *Transaction) unsetRelationships(relationshipIDs []string, entryID []byte) (err error) {
-	if !t.ctx.Touch() {
+	if isDone(t.ctx) {
 		return t.ctx.Err()
 	}
 
@@ -368,7 +370,7 @@ func (t *Transaction) unsetRelationships(relationshipIDs []string, entryID []byt
 }
 
 func (t *Transaction) unsetRelationship(relationship, relationshipID, entryID []byte) (err error) {
-	if !t.ctx.Touch() {
+	if isDone(t.ctx) {
 		return t.ctx.Err()
 	}
 
@@ -386,7 +388,7 @@ func (t *Transaction) unsetRelationship(relationship, relationshipID, entryID []
 }
 
 func (t *Transaction) updateRelationships(entryID []byte, orig, val Value) (err error) {
-	if !t.ctx.Touch() {
+	if isDone(t.ctx) {
 		return t.ctx.Err()
 	}
 
@@ -409,7 +411,7 @@ func (t *Transaction) updateRelationships(entryID []byte, orig, val Value) (err 
 }
 
 func (t *Transaction) getFirstByRelationship(relationship, relationshipID []byte, val Value) (err error) {
-	if !t.ctx.Touch() {
+	if isDone(t.ctx) {
 		return t.ctx.Err()
 	}
 
@@ -434,7 +436,7 @@ func (t *Transaction) getFirstByRelationship(relationship, relationshipID []byte
 }
 
 func (t *Transaction) getLastByRelationship(relationship, relationshipID []byte, val Value) (err error) {
-	if !t.ctx.Touch() {
+	if isDone(t.ctx) {
 		return t.ctx.Err()
 	}
 
@@ -459,7 +461,7 @@ func (t *Transaction) getLastByRelationship(relationship, relationshipID []byte,
 }
 
 func (t *Transaction) setLookup(lookup, lookupID, key []byte) (err error) {
-	if !t.ctx.Touch() {
+	if isDone(t.ctx) {
 		return t.ctx.Err()
 	}
 
@@ -492,7 +494,7 @@ func (t *Transaction) setLookup(lookup, lookupID, key []byte) (err error) {
 }
 
 func (t *Transaction) getLookupKeys(lookup, lookupID []byte) (keys []string, err error) {
-	if !t.ctx.Touch() {
+	if isDone(t.ctx) {
 		err = t.ctx.Err()
 		return
 	}
@@ -516,7 +518,7 @@ func (t *Transaction) getLookupKeys(lookup, lookupID []byte) (keys []string, err
 }
 
 func (t *Transaction) removeLookup(lookup, lookupID, key []byte) (err error) {
-	if !t.ctx.Touch() {
+	if isDone(t.ctx) {
 		return t.ctx.Err()
 	}
 
@@ -543,7 +545,7 @@ func (t *Transaction) removeLookup(lookup, lookupID, key []byte) (err error) {
 }
 
 func (t *Transaction) new(val Value) (entryID []byte, err error) {
-	if !t.ctx.Touch() {
+	if isDone(t.ctx) {
 		err = t.ctx.Err()
 		return
 	}
@@ -573,7 +575,7 @@ func (t *Transaction) new(val Value) (entryID []byte, err error) {
 }
 
 func (t *Transaction) edit(entryID []byte, val Value) (err error) {
-	if !t.ctx.Touch() {
+	if isDone(t.ctx) {
 		return t.ctx.Err()
 	}
 
@@ -604,7 +606,7 @@ func (t *Transaction) edit(entryID []byte, val Value) (err error) {
 }
 
 func (t *Transaction) remove(entryID []byte) (err error) {
-	if !t.ctx.Touch() {
+	if isDone(t.ctx) {
 		return t.ctx.Err()
 	}
 

@@ -8,8 +8,9 @@ import (
 	"github.com/hatchify/atoms"
 )
 
-func newContext(ctx context.Context, duration time.Duration) *Context {
-	var c Context
+// NewTouchContext will create a new timeout touch context
+func NewTouchContext(ctx context.Context, duration time.Duration) *TouchContext {
+	var c TouchContext
 	c.Context, c.cancel = context.WithCancel(ctx)
 	c.duration = duration
 	c.timer = time.NewTimer(duration)
@@ -18,8 +19,8 @@ func newContext(ctx context.Context, duration time.Duration) *Context {
 	return &c
 }
 
-// Context represents an expiring context that can be refreshed by Touching
-type Context struct {
+// TouchContext represents an expiring context that can be refreshed by Touching
+type TouchContext struct {
 	context.Context
 
 	mux sync.RWMutex
@@ -33,7 +34,7 @@ type Context struct {
 	err      error
 }
 
-func (c *Context) closeOnExpire() {
+func (c *TouchContext) closeOnExpire() {
 	<-c.timer.C
 	c.timedOut.Set(true)
 	c.mux.Lock()
@@ -41,7 +42,7 @@ func (c *Context) closeOnExpire() {
 	c.cancel()
 }
 
-func (c *Context) stopTimerOnDone() {
+func (c *TouchContext) stopTimerOnDone() {
 	<-c.Done()
 
 	c.mux.Lock()
@@ -49,17 +50,8 @@ func (c *Context) stopTimerOnDone() {
 	c.timer.Stop()
 }
 
-func (c *Context) isDone() (done bool) {
-	select {
-	case <-c.Done():
-		done = true
-	}
-
-	return
-}
-
-// Touch will refresh the context timer
-func (c *Context) Touch() (ok bool) {
+// Touch will refesh the context timer
+func (c *TouchContext) Touch() (ok bool) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
@@ -76,7 +68,7 @@ func (c *Context) Touch() (ok bool) {
 }
 
 // Err will return the underlying error
-func (c *Context) Err() (err error) {
+func (c *TouchContext) Err() (err error) {
 	c.mux.RLock()
 	defer c.mux.RUnlock()
 	// Check to see if context timed out
