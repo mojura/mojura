@@ -314,9 +314,9 @@ func (c *Core) ForEach(fn ForEachFn) (err error) {
 }
 
 // ForEachRelationship will iterate through each of the entries for a given relationship and relationship ID
-func (c *Core) ForEachRelationship(relationship, relationshipID string, fn ForEachFn) (err error) {
+func (c *Core) ForEachRelationship(seekTo, relationship, relationshipID string, fn ForEachFn) (err error) {
 	err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		return txn.forEachRelationship([]byte(relationship), []byte(relationshipID), fn)
+		return txn.ForEachRelationship(seekTo, relationship, relationshipID, fn)
 	})
 
 	return
@@ -336,7 +336,7 @@ func (c *Core) Cursor(fn CursorFn) (err error) {
 // CursorRelationship will return an iterating cursor for a given relationship and relationship ID
 func (c *Core) CursorRelationship(relationship, relationshipID string, fn CursorFn) (err error) {
 	if err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		return txn.cursorRelationship([]byte(relationship), []byte(relationshipID), fn)
+		return txn.CursorRelationship(relationship, relationshipID, fn)
 	}); err == Break {
 		err = nil
 	}
