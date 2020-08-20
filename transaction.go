@@ -769,6 +769,11 @@ func (t *Transaction) ForEachRelationship(seekTo, relationship, relationshipID s
 	return t.forEachRelationship([]byte(seekTo), []byte(relationship), []byte(relationshipID), fn)
 }
 
+// ForEachFilter will iterate through each of the entries who match all relationship pairs
+func (t *Transaction) ForEachFilter(seekTo string, rps []RelationshipPair, fn ForEachFn) (err error) {
+	return t.forEachFilter([]byte(seekTo), rps, fn)
+}
+
 // Cursor will return an iterating cursor
 func (t *Transaction) Cursor(fn CursorFn) (err error) {
 	if err = t.cursor(fn); err == Break {

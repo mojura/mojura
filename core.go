@@ -322,6 +322,15 @@ func (c *Core) ForEachRelationship(seekTo, relationship, relationshipID string, 
 	return
 }
 
+// ForEachFilter will iterate through each of the entries who match all relationship pairs
+func (c *Core) ForEachFilter(seekTo string, rps []RelationshipPair, fn ForEachFn) (err error) {
+	err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
+		return txn.ForEachFilter(seekTo, rps, fn)
+	})
+
+	return
+}
+
 // Cursor will return an iterating cursor
 func (c *Core) Cursor(fn CursorFn) (err error) {
 	if err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
