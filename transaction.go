@@ -256,6 +256,10 @@ func (t *Transaction) forEachRelationship(relationship, relationshipID []byte, f
 }
 
 func (t *Transaction) forEachRelationshipEntryID(relationship, relationshipID []byte, fn func(entryID []byte) error) (err error) {
+	return t.cursorRelationshipEntryID(nil, relationship, relationshipID, fn)
+}
+
+func (t *Transaction) cursorRelationshipEntryID(seekTo, relationship, relationshipID []byte, fn func(entryID []byte) error) (err error) {
 	if isDone(t.ctx) {
 		err = t.ctx.Err()
 		return
@@ -273,7 +277,7 @@ func (t *Transaction) forEachRelationshipEntryID(relationship, relationshipID []
 
 	c := bkt.Cursor()
 
-	for k, _ := c.First(); k != nil; k, _ = c.Next() {
+	for k, _ := c.Seek(seekTo); k != nil; k, _ = c.Next() {
 		if err = fn(k); err != nil {
 			return
 		}
