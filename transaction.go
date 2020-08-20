@@ -49,6 +49,20 @@ func (t *Transaction) getRelationshipsBucket(relationship []byte) (bkt *bolt.Buc
 	return
 }
 
+func (t *Transaction) getRelationshipIDBucket(relationship, relationshipID []byte) (bkt *bolt.Bucket, ok bool, err error) {
+	var relationshipBkt *bolt.Bucket
+	if relationshipBkt, err = t.getRelationshipsBucket(relationship); err != nil {
+		return
+	}
+
+	if bkt = relationshipBkt.Bucket(relationshipID); bkt == nil {
+		return
+	}
+
+	ok = true
+	return
+}
+
 func (t *Transaction) getLookupBucket(lookup []byte) (bkt *bolt.Bucket, err error) {
 	if isDone(t.ctx) {
 		err = t.ctx.Err()
@@ -265,18 +279,16 @@ func (t *Transaction) cursorRelationshipEntryID(seekTo, relationship, relationsh
 		return
 	}
 
-	var relationshipBkt *bolt.Bucket
-	if relationshipBkt, err = t.getRelationshipsBucket(relationship); err != nil {
-		return
-	}
+	var (
+		bkt *bolt.Bucket
+		ok  bool
+	)
 
-	var bkt *bolt.Bucket
-	if bkt = relationshipBkt.Bucket(relationshipID); bkt == nil {
+	if bkt, ok, err = t.getRelationshipIDBucket(relationship, relationshipID); !ok || err != nil {
 		return
 	}
 
 	c := bkt.Cursor()
-
 	for k, _ := c.Seek(seekTo); k != nil; k, _ = c.Next() {
 		if err = fn(k); err != nil {
 			return
