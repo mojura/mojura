@@ -171,9 +171,9 @@ func (t *Transaction) exists(entryID []byte) (ok bool, err error) {
 	return
 }
 
-func (t *Transaction) matchesAllPairs(rps []RelationshipPair, entryID []byte) (isMatch bool, err error) {
+func (t *Transaction) matchesAllPairs(fs []Filter, entryID []byte) (isMatch bool, err error) {
 	eid := []byte(entryID)
-	for _, pair := range rps {
+	for _, pair := range fs {
 		isMatch, err = t.isPairMatch(&pair, eid)
 		switch {
 		case err != nil:
@@ -188,7 +188,7 @@ func (t *Transaction) matchesAllPairs(rps []RelationshipPair, entryID []byte) (i
 	return
 }
 
-func (t *Transaction) isPairMatch(pair *RelationshipPair, entryID []byte) (isMatch bool, err error) {
+func (t *Transaction) isPairMatch(pair *Filter, entryID []byte) (isMatch bool, err error) {
 	if isDone(t.ctx) {
 		err = t.ctx.Err()
 		return
@@ -316,16 +316,16 @@ func (t *Transaction) forEachEntryIDByRelationship(seekTo, relationship, relatio
 	return
 }
 
-func (t *Transaction) forEachWithFilter(seekTo []byte, rps []RelationshipPair, fn ForEachFn) (err error) {
-	if len(rps) == 0 {
-		err = ErrEmptyRelationshipPairs
+func (t *Transaction) forEachWithFilter(seekTo []byte, fs []Filter, fn ForEachFn) (err error) {
+	if len(fs) == 0 {
+		err = ErrEmptyFilters
 		return
 	}
 
 	// Set primary as the first entry
-	primary := rps[0]
+	primary := fs[0]
 	// Set remaining values
-	remaining := rps[1:]
+	remaining := fs[1:]
 	// Declare iterating function
 	iteratingFn := func(entryID string, val Value) (err error) {
 		var isMatch bool
@@ -802,14 +802,14 @@ func (t *Transaction) ForEachEntryIDByRelationship(seekTo, relationship, relatio
 }
 
 // ForEachWithFilter will iterate through each of the entries who match all relationship pairs
-func (t *Transaction) ForEachWithFilter(seekTo string, rps []RelationshipPair, fn ForEachFn) (err error) {
-	return t.forEachWithFilter([]byte(seekTo), rps, fn)
+func (t *Transaction) ForEachWithFilter(seekTo string, fs []Filter, fn ForEachFn) (err error) {
+	return t.forEachWithFilter([]byte(seekTo), fs, fn)
 }
 
 // ForEachEntryIDWithFilter will iterate through each of the entry IDs who match all relationship pairs
-func (t *Transaction) ForEachEntryIDWithFilter(seekTo string, rps []RelationshipPair, fn ForEachEntryIDFn) (err error) {
+func (t *Transaction) ForEachEntryIDWithFilter(seekTo string, fs []Filter, fn ForEachEntryIDFn) (err error) {
 	return
-	//	return t.forEachEntryIDWithFilter([]byte(seekTo), rps, fn)
+	//	return t.forEachEntryIDWithFilter([]byte(seekTo), fs, fn)
 }
 
 // Cursor will return an iterating cursor

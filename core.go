@@ -38,8 +38,8 @@ const (
 	ErrInvalidEntries = errors.Error("invalid entries, slice expected")
 	// ErrInvalidLogKey is returned when an invalid log key is encountered
 	ErrInvalidLogKey = errors.Error("invalid log key, expecting a single :: delimiter")
-	// ErrEmptyRelationshipPairs is returned when relationship pairs are empty for a filter or joined request
-	ErrEmptyRelationshipPairs = errors.Error("invalid relationship pairs, cannot be empty")
+	// ErrEmptyFilters is returned when relationship pairs are empty for a filter or joined request
+	ErrEmptyFilters = errors.Error("invalid relationship pairs, cannot be empty")
 	// ErrContextCancelled is returned when a transaction ends early from context
 	ErrContextCancelled = errors.Error("context cancelled")
 	// ErrTransactionTimedOut is returned when a transaction times out
@@ -323,9 +323,9 @@ func (c *Core) ForEachByRelationship(seekTo, relationship, relationshipID string
 }
 
 // ForEachWithFilter will iterate through each of the entries who match all relationship pairs
-func (c *Core) ForEachWithFilter(seekTo string, rps []RelationshipPair, fn ForEachFn) (err error) {
+func (c *Core) ForEachWithFilter(seekTo string, fs []Filter, fn ForEachFn) (err error) {
 	err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		return txn.ForEachWithFilter(seekTo, rps, fn)
+		return txn.ForEachWithFilter(seekTo, fs, fn)
 	})
 
 	return
