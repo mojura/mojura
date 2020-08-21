@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Hatch1fy/errors"
+	"github.com/hatchify/errors"
 )
 
 func newBatcher(core *Core) *batcher {
