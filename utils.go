@@ -108,8 +108,19 @@ func isDone(ctx context.Context) (done bool) {
 	return
 }
 
-// ForEachFn are called during iteration
+// ForEachFn is called during iteration
 type ForEachFn func(key string, val Value) error
+
+// ForEachEntryIDFn is called during iteration
+type ForEachEntryIDFn func(entryID string) error
 
 // CursorFn is called during cursor iteration
 type CursorFn func(*Cursor) error
+
+type forEachEntryIDBytesFn func(entryID []byte) error
+
+func toForEachEntryIDBytesFn(fn ForEachEntryIDFn) forEachEntryIDBytesFn {
+	return func(entryID []byte) (err error) {
+		return fn(string(entryID))
+	}
+}
