@@ -426,8 +426,8 @@ func (c *Core) ReadTransaction(ctx context.Context, fn func(*Transaction) error)
 }
 
 // Batch will initialize a batch
-func (c *Core) Batch(fn func(*Transaction) error) (err error) {
-	return <-c.b.Append(fn)
+func (c *Core) Batch(ctx context.Context, fn func(*Transaction) error) (err error) {
+	return <-c.b.Append(ctx, fn)
 }
 
 // Close will close the selected instance of Core

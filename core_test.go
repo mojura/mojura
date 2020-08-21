@@ -777,14 +777,14 @@ func TestCore_Batch(t *testing.T) {
 	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
 
 	var entryID string
-	if err = c.Batch(func(txn *Transaction) (err error) {
+	if err = c.Batch(context.Background(), func(txn *Transaction) (err error) {
 		entryID, err = txn.New(&foobar)
 		return
 	}); err != nil {
 		t.Fatal(err)
 	}
 
-	if err = c.Batch(func(txn *Transaction) (err error) {
+	if err = c.Batch(context.Background(), func(txn *Transaction) (err error) {
 		foobar.Foo = "foo"
 		foobar.Bar = "bar"
 		err = txn.Edit(entryID, &foobar)
@@ -911,7 +911,7 @@ func benchmarkCoreBatch(b *testing.B, threads int) {
 	b.SetParallelism(threads)
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			if err = c.Batch(func(txn *Transaction) (err error) {
+			if err = c.Batch(context.Background(), func(txn *Transaction) (err error) {
 				_, err = txn.New(&foobar)
 				return
 			}); err != nil {

@@ -50,7 +50,7 @@ func (b *batcher) clearTimer() {
 
 // run performs the transactions in the batch and communicates results
 // back to DB.Batch.
-func (b *batcher) run(cs calls) {
+func (b *batcher) run(ctx context.Context, cs calls) {
 	if len(cs) == 0 {
 		// We have no calls to run, bail out
 		return
@@ -78,7 +78,7 @@ func (b *batcher) run(cs calls) {
 	successful := cs[:failIndex]
 
 	// Attempt to retry the successful group before the failing call
-	b.retry(successful, err)
+	b.retry(ctx, successful, err)
 
 	// Send error down error channel to call who caused issue
 	cs[failIndex].errC <- err
@@ -87,14 +87,14 @@ func (b *batcher) run(cs calls) {
 	remaining := cs[failIndex+1:]
 
 	// Run the remaining calls
-	b.run(remaining)
+	b.run(ctx, remaining)
 }
 
-func (b *batcher) retry(cs calls, err error) {
+func (b *batcher) retry(ctx context.Context, cs calls, err error) {
 	if b.core.opts.RetryBatchFail {
 		// Re-run the successful portion
 		// Note: This is expected to pass
-		b.run(cs)
+		b.run(ctx, cs)
 		return
 	}
 
@@ -103,18 +103,18 @@ func (b *batcher) retry(cs calls, err error) {
 	cs.notifyAll(groupErr)
 }
 
-func (b *batcher) flush() {
+func (b *batcher) flush(ctx context.Context) {
 	// Clear the timer
 	b.clearTimer()
 
 	// Run the batcher
-	b.run(b.calls)
+	b.run(ctx, b.calls)
 
 	// Reset calls buffer
 	b.calls = b.calls[:0]
 }
 
-func (b *batcher) Append(fn TransactionFn) (errC chan error) {
+func (b *batcher) Append(ctx context.Context, fn TransactionFn) (errC chan error) {
 	b.mux.Lock()
 	defer b.mux.Unlock()
 
@@ -128,23 +128,25 @@ func (b *batcher) Append(fn TransactionFn) (errC chan error) {
 	// If length of calls equals or exceeds MaxBatchCalls, run the current calls
 	if len(b.calls) >= b.core.opts.MaxBatchCalls {
 		// Since we've matched or exceeded our MaxBatchCalls, manually flush the calls buffer and return
-		b.flush()
+		b.flush(ctx)
 		return
 	}
 
 	if b.timer == nil {
 		// Set func to run after MaxBatchDuration
-		b.timer = time.AfterFunc(b.core.opts.MaxBatchDuration, b.Run)
+		b.timer = time.AfterFunc(b.core.opts.MaxBatchDuration, func() {
+			b.Run(ctx)
+		})
 	}
 
 	return c.errC
 }
 
 // Run triggers the current set of calls to be ran
-func (b *batcher) Run() {
+func (b *batcher) Run(ctx context.Context) {
 	b.mux.Lock()
 	defer b.mux.Unlock()
 
 	// Flush the calls buffer
-	b.flush()
+	b.flush(ctx)
 }
