@@ -313,19 +313,19 @@ func (c *Core) ForEach(fn ForEachFn) (err error) {
 	return
 }
 
-// ForEachRelationship will iterate through each of the entries for a given relationship and relationship ID
-func (c *Core) ForEachRelationship(seekTo, relationship, relationshipID string, fn ForEachFn) (err error) {
+// ForEachByRelationship will iterate through each of the entries for a given relationship and relationship ID
+func (c *Core) ForEachByRelationship(seekTo, relationship, relationshipID string, fn ForEachFn) (err error) {
 	err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		return txn.ForEachRelationship(seekTo, relationship, relationshipID, fn)
+		return txn.ForEachByRelationship(seekTo, relationship, relationshipID, fn)
 	})
 
 	return
 }
 
-// ForEachFilter will iterate through each of the entries who match all relationship pairs
-func (c *Core) ForEachFilter(seekTo string, rps []RelationshipPair, fn ForEachFn) (err error) {
+// ForEachWithFilter will iterate through each of the entries who match all relationship pairs
+func (c *Core) ForEachWithFilter(seekTo string, rps []RelationshipPair, fn ForEachFn) (err error) {
 	err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		return txn.ForEachFilter(seekTo, rps, fn)
+		return txn.ForEachWithFilter(seekTo, rps, fn)
 	})
 
 	return

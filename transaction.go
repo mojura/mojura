@@ -252,8 +252,8 @@ func (t *Transaction) forEach(fn ForEachFn) (err error) {
 	return
 }
 
-func (t *Transaction) forEachRelationship(seekTo, relationship, relationshipID []byte, fn ForEachFn) (err error) {
-	err = t.forEachRelationshipEntryID(seekTo, relationship, relationshipID, func(entryID []byte) (err error) {
+func (t *Transaction) forEachByRelationship(seekTo, relationship, relationshipID []byte, fn ForEachFn) (err error) {
+	err = t.forEachEntryIDByRelationship(seekTo, relationship, relationshipID, func(entryID []byte) (err error) {
 		val := t.c.newEntryValue()
 		if err = t.get(entryID, val); err != nil {
 			return
@@ -269,7 +269,7 @@ func (t *Transaction) forEachRelationship(seekTo, relationship, relationshipID [
 	return
 }
 
-func (t *Transaction) forEachRelationshipEntryID(seekTo, relationship, relationshipID []byte, fn func(entryID []byte) error) (err error) {
+func (t *Transaction) forEachEntryIDByRelationship(seekTo, relationship, relationshipID []byte, fn func(entryID []byte) error) (err error) {
 	if isDone(t.ctx) {
 		err = t.ctx.Err()
 		return
@@ -294,7 +294,7 @@ func (t *Transaction) forEachRelationshipEntryID(seekTo, relationship, relations
 	return
 }
 
-func (t *Transaction) forEachFilter(seekTo []byte, rps []RelationshipPair, fn ForEachFn) (err error) {
+func (t *Transaction) forEachWithFilter(seekTo []byte, rps []RelationshipPair, fn ForEachFn) (err error) {
 	if len(rps) == 0 {
 		err = ErrEmptyRelationshipPairs
 		return
@@ -316,7 +316,7 @@ func (t *Transaction) forEachFilter(seekTo []byte, rps []RelationshipPair, fn Fo
 	}
 
 	// Iterate through each relationship item
-	err = t.forEachRelationship(seekTo, primary.relationship(), primary.id(), iteratingFn)
+	err = t.forEachByRelationship(seekTo, primary.relationship(), primary.id(), iteratingFn)
 	return
 }
 
@@ -764,14 +764,14 @@ func (t *Transaction) ForEach(fn ForEachFn) (err error) {
 	return t.forEach(fn)
 }
 
-// ForEachRelationship will iterate through each of the entries for a given relationship and relationship ID
-func (t *Transaction) ForEachRelationship(seekTo, relationship, relationshipID string, fn ForEachFn) (err error) {
-	return t.forEachRelationship([]byte(seekTo), []byte(relationship), []byte(relationshipID), fn)
+// ForEachByRelationship will iterate through each of the entries for a given relationship and relationship ID
+func (t *Transaction) ForEachByRelationship(seekTo, relationship, relationshipID string, fn ForEachFn) (err error) {
+	return t.forEachByRelationship([]byte(seekTo), []byte(relationship), []byte(relationshipID), fn)
 }
 
-// ForEachFilter will iterate through each of the entries who match all relationship pairs
-func (t *Transaction) ForEachFilter(seekTo string, rps []RelationshipPair, fn ForEachFn) (err error) {
-	return t.forEachFilter([]byte(seekTo), rps, fn)
+// ForEachWithFilter will iterate through each of the entries who match all relationship pairs
+func (t *Transaction) ForEachWithFilter(seekTo string, rps []RelationshipPair, fn ForEachFn) (err error) {
+	return t.forEachWithFilter([]byte(seekTo), rps, fn)
 }
 
 // Cursor will return an iterating cursor

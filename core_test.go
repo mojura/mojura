@@ -440,7 +440,7 @@ func TestCore_ForEachRelationship(t *testing.T) {
 	}
 
 	var cnt int
-	if err = c.ForEachRelationship("", "contacts", foobar.ContactID, func(key string, v Value) (err error) {
+	if err = c.ForEachByRelationship("", "contacts", foobar.ContactID, func(key string, v Value) (err error) {
 		fb := v.(*testStruct)
 		// We are not checking ID correctness in this test
 		foobar.ID = fb.ID
@@ -992,9 +992,9 @@ func ExampleCore_ForEach() {
 	}
 }
 
-func ExampleCore_ForEachRelationship() {
+func ExampleCore_ForEachByRelationship() {
 	var err error
-	if err = c.ForEachRelationship("", "users", "user_1", func(key string, val Value) (err error) {
+	if err = c.ForEachByRelationship("", "users", "user_1", func(key string, val Value) (err error) {
 		fmt.Printf("Iterating entry (%s)! %+v\n", key, val)
 		return
 	}); err != nil {
