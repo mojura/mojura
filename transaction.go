@@ -212,10 +212,21 @@ func (t *Transaction) isPairMatch(pair *Filter, entryID []byte) (isMatch bool, e
 		return
 	}
 
-	bkt.Get(entryID)
+	// Initialize new cursor
 	c := bkt.Cursor()
+
+	// Get the first key matching entryID (will get next key if entryID does not exist)
 	firstKey, _ := c.Seek(entryID)
+
+	// Check to see if the entry exists within the relationship
 	isMatch = bytes.Compare(entryID, firstKey) == 0
+
+	// Check for an inverse comparison
+	if pair.InverseComparison {
+		// Inverse comparison exists, invert the match
+		isMatch = !isMatch
+	}
+
 	return
 }
 
