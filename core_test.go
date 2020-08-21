@@ -6,6 +6,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/hatchify/stringset"
 )
 
 const (
@@ -40,7 +42,7 @@ func TestCore_New(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	var entryID string
 	if entryID, err = c.New(&foobar); err != nil {
@@ -63,7 +65,7 @@ func TestCore_Get(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	var entryID string
 	if entryID, err = c.New(&foobar); err != nil {
@@ -91,7 +93,7 @@ func TestCore_Get_context(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	var entryID string
 	if entryID, err = c.New(&foobar); err != nil {
@@ -141,7 +143,7 @@ func TestCore_GetByRelationship_users(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
@@ -170,7 +172,7 @@ func TestCore_GetByRelationship_contacts(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
@@ -199,7 +201,7 @@ func TestCore_GetByRelationship_invalid(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
@@ -222,7 +224,7 @@ func TestCore_GetByRelationship_update(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	var entryID string
 	if entryID, err = c.New(&foobar); err != nil {
@@ -270,7 +272,7 @@ func TestCore_GetFirstByRelationship(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
@@ -309,7 +311,7 @@ func TestCore_GetLastByRelationship(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
@@ -348,14 +350,14 @@ func TestCore_Edit(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	var entryID string
 	if entryID, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
 	}
 
-	foobar.Foo = "HELLO"
+	foobar.Value = "FOO FOO"
 
 	if err = c.Edit(entryID, &foobar); err != nil {
 		t.Fatal(err)
@@ -382,7 +384,7 @@ func TestCore_ForEach(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
@@ -426,7 +428,7 @@ func TestCore_ForEach_with_filter(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
@@ -464,6 +466,137 @@ func TestCore_ForEach_with_filter(t *testing.T) {
 	return
 }
 
+func TestCore_ForEach_with_multiple_filters(t *testing.T) {
+	var (
+		c   *Core
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c)
+
+	user1 := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+	user2 := newTestStruct("user_2", "contact_1", "group_1", "bunny bar bar")
+	user3 := newTestStruct("user_3", "contact_2", "group_1", "baz")
+	user4 := newTestStruct("user_4", "contact_2", "group_1", "yep")
+
+	if _, err = c.New(&user1); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err = c.New(&user2); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err = c.New(&user3); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err = c.New(&user4); err != nil {
+		t.Fatal(err)
+	}
+
+	type testcase struct {
+		filters     []Filter
+		expectedIDs []string
+	}
+
+	tcs := []testcase{
+		{
+			filters: []Filter{
+				MakeFilter("contacts", "contact_1", false),
+			},
+			expectedIDs: []string{"00000000", "00000001"},
+		},
+		{
+			filters: []Filter{
+				MakeFilter("contacts", "contact_2", false),
+			},
+			expectedIDs: []string{"00000002", "00000003"},
+		},
+		{
+			filters: []Filter{
+				MakeFilter("contacts", "contact_1", false),
+				MakeFilter("groups", "group_1", false),
+			},
+			expectedIDs: []string{"00000000", "00000001"},
+		},
+		{
+			filters: []Filter{
+				MakeFilter("contacts", "contact_2", false),
+				MakeFilter("groups", "group_1", false),
+			},
+			expectedIDs: []string{"00000002", "00000003"},
+		},
+		{
+			filters: []Filter{
+				MakeFilter("contacts", "contact_1", false),
+				MakeFilter("users", "user_1", false),
+			},
+			expectedIDs: []string{"00000000"},
+		},
+		{
+			filters: []Filter{
+				MakeFilter("contacts", "contact_2", false),
+				MakeFilter("users", "user_2", false),
+			},
+			expectedIDs: []string{},
+		},
+		{
+			filters: []Filter{
+				MakeFilter("contacts", "contact_1", false),
+				MakeFilter("users", "user_1", false),
+				MakeFilter("groups", "group_1", false),
+			},
+			expectedIDs: []string{"00000000"},
+		},
+		{
+			filters: []Filter{
+				MakeFilter("contacts", "contact_2", false),
+				MakeFilter("users", "user_2", false),
+				MakeFilter("groups", "group_1", false),
+			},
+			expectedIDs: []string{},
+		},
+		{
+			filters: []Filter{
+				MakeFilter("groups", "group_1", false),
+				MakeFilter("contacts", "contact_1", true),
+			},
+			expectedIDs: []string{"00000002", "00000003"},
+		},
+		{
+			filters: []Filter{
+				MakeFilter("groups", "group_1", false),
+				MakeFilter("contacts", "contact_2", true),
+			},
+			expectedIDs: []string{"00000000", "00000001"},
+		},
+	}
+
+	for _, tc := range tcs {
+		ss := stringset.New()
+		fn := func(key string, v Value) (err error) {
+			ss.Set(key)
+			return
+		}
+
+		if err = c.ForEach("", fn, tc.filters...); err != nil {
+			t.Fatal(err)
+		}
+
+		for _, expectedID := range tc.expectedIDs {
+			if !ss.Has(expectedID) {
+				t.Fatalf("expected ID of %s was not found", expectedID)
+			}
+		}
+	}
+
+	return
+}
+
 func TestCore_Cursor(t *testing.T) {
 	var (
 		c   *Core
@@ -475,7 +608,7 @@ func TestCore_Cursor(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
@@ -527,7 +660,7 @@ func TestCore_Cursor_First(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
@@ -572,7 +705,7 @@ func TestCore_Cursor_Last(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
@@ -617,7 +750,7 @@ func TestCore_Cursor_Seek(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
@@ -662,7 +795,7 @@ func TestCore_CursorRelationship(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
@@ -776,7 +909,7 @@ func TestCore_Batch(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	var entryID string
 	if err = c.Batch(func(txn *Transaction) (err error) {
@@ -787,8 +920,7 @@ func TestCore_Batch(t *testing.T) {
 	}
 
 	if err = c.Batch(func(txn *Transaction) (err error) {
-		foobar.Foo = "foo"
-		foobar.Bar = "bar"
+		foobar.Value = "foo bar baz"
 		err = txn.Edit(entryID, &foobar)
 		return
 	}); err != nil {
@@ -800,12 +932,8 @@ func TestCore_Batch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if val.Foo != "foo" {
-		t.Fatalf("invalid value for Foo, expected \"%s\" and received \"%s\"", foobar.Foo, val.Foo)
-	}
-
-	if val.Bar != "bar" {
-		t.Fatalf("invalid value for Bar, expected \"%s\" and received \"%s\"", foobar.Bar, val.Bar)
+	if val.Value != "foo bar baz" {
+		t.Fatalf("invalid value for Value, expected \"%s\" and received \"%s\"", foobar.Value, val.Value)
 	}
 
 	return
@@ -882,7 +1010,7 @@ func benchmarkCoreNew(b *testing.B, threads int) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	b.SetParallelism(threads)
 	b.RunParallel(func(pb *testing.PB) {
@@ -908,7 +1036,7 @@ func benchmarkCoreBatch(b *testing.B, threads int) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
+	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	b.SetParallelism(threads)
 	b.RunParallel(func(pb *testing.PB) {
@@ -932,7 +1060,7 @@ func ExampleNew() {
 		err error
 	)
 
-	if c, err = New("example", "./data", &testStruct{}, "users", "contacts"); err != nil {
+	if c, err = New("example", "./data", &testStruct{}, "users", "contacts", "groups"); err != nil {
 		return
 	}
 
@@ -941,8 +1069,7 @@ func ExampleNew() {
 
 func ExampleCore_New() {
 	var ts testStruct
-	ts.Foo = "Foo foo"
-	ts.Bar = "Bar bar"
+	ts.Value = "Foo bar"
 
 	var (
 		entryID string
@@ -1014,8 +1141,8 @@ func ExampleCore_Edit() {
 
 	// We will pretend the test struct is already populated
 
-	// Let's update the Foo field to "New foo value"
-	ts.Foo = "New foo value"
+	// Let's update the Value field to "New foo value"
+	ts.Value = "New foo value"
 
 	if err = c.Edit("00000000", ts); err != nil {
 		return
@@ -1038,7 +1165,7 @@ func testInit() (c *Core, err error) {
 		return
 	}
 
-	return New("test", testDir, &testStruct{}, "users", "contacts")
+	return New("test", testDir, &testStruct{}, "users", "contacts", "groups")
 }
 
 func testTeardown(c *Core) (err error) {
@@ -1062,22 +1189,18 @@ func testCheck(a, b *testStruct) (err error) {
 		return fmt.Errorf("invalid contact id, expected %s and received %s", a.ContactID, b.ContactID)
 	}
 
-	if a.Foo != b.Foo {
-		return fmt.Errorf("invalid foo, expected %s and received %s", a.Foo, b.Foo)
-	}
-
-	if a.Bar != b.Bar {
-		return fmt.Errorf("invalid bar, expected %s and received %s", a.Bar, b.Bar)
+	if a.Value != b.Value {
+		return fmt.Errorf("invalid Value, expected %s and received %s", a.Value, b.Value)
 	}
 
 	return
 }
 
-func newTestStruct(userID, contactID, foo, bar string) (t testStruct) {
+func newTestStruct(userID, contactID, groupID, value string) (t testStruct) {
 	t.UserID = userID
 	t.ContactID = contactID
-	t.Foo = foo
-	t.Bar = bar
+	t.GroupID = groupID
+	t.Value = value
 	return
 }
 
@@ -1085,9 +1208,9 @@ type testStruct struct {
 	ID        string `json:"id"`
 	UserID    string `json:"userID"`
 	ContactID string `json:"contactID"`
+	GroupID   string `json:"groupID"`
 
-	Foo string `json:"foo"`
-	Bar string `json:"bar"`
+	Value string `json:"value"`
 
 	UpdatedAt int64 `json:"updatedAt"`
 	CreatedAt int64 `json:"createdAt"`
@@ -1112,6 +1235,7 @@ func (t *testStruct) GetID() (id string) {
 func (t *testStruct) GetRelationshipIDs() (ids []string) {
 	ids = append(ids, t.UserID)
 	ids = append(ids, t.ContactID)
+	ids = append(ids, t.GroupID)
 	return
 }
 
