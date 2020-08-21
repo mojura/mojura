@@ -2,8 +2,8 @@ github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/Hatch1fy/cron v0.4.80 h1:4/qX1Y7xGaN0EyrjZN9Z3MpJMfsOrgsgPz4iQsXEwiY=
 github.com/Hatch1fy/cron v0.4.80/go.mod h1:srziZhU5rAzVXoUSkVkzq3iZOk+u+Y7pV3nL+dXN9L4=
-github.com/Hatch1fy/errors v0.4.80 h1:LBr5Elytx6npBlF/36KTamC6I7h6VqkOVkRkbIdj3xY=
-github.com/Hatch1fy/errors v0.4.80/go.mod h1:SJFCeScmERvwtYMG7EU24Fe0KfXmiIs7tNlcIl0STKk=
+github.com/hatchify/errors v0.4.82 h1:LBr5Elytx6npBlF/36KTamC6I7h6VqkOVkRkbIdj3xY=
+github.com/hatchify/errors v0.4.82/go.mod h1:SJFCeScmERvwtYMG7EU24Fe0KfXmiIs7tNlcIl0STKk=
 github.com/Hatch1fy/pgutils v0.4.83 h1:CRIQV7AdjDW9TlB+1i1T+tLjweaHVKG6NMN2YmqgHOg=
 github.com/Hatch1fy/pgutils v0.4.83/go.mod h1:lV5aQi+t3fVsPyWj1dTyHJ4uX/vtf901A9yf5pNa3So=
 github.com/aws/aws-sdk-go v1.33.6 h1:YLoUeMSx05kHwhS+HLDSpdYYpPzJMyp6hn1cWsJ6a+U=

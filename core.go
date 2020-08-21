@@ -10,9 +10,9 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/Hatch1fy/errors"
 	"github.com/gdbu/actions"
 	"github.com/gdbu/dbutils"
+	"github.com/hatchify/errors"
 
 	"github.com/hatchify/atoms"
 
