@@ -114,9 +114,12 @@ func (b *batcher) flush(ctx context.Context) {
 	b.calls = b.calls[:0]
 }
 
-func (b *batcher) Append(ctx context.Context, fn TransactionFn) (errC chan error) {
+func (b *batcher) Append(fn TransactionFn) (errC chan error) {
 	b.mux.Lock()
 	defer b.mux.Unlock()
+
+	// TODO: discuss implementation of context on Batch
+	ctx := context.Background()
 
 	var c call
 	c.fn = fn
