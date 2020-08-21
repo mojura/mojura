@@ -111,6 +111,23 @@ func isDone(ctx context.Context) (done bool) {
 // ForEachFn is called during iteration
 type ForEachFn func(key string, val Value) error
 
+func (f ForEachFn) toEntryIteratingFn(txn *Transaction) entryIteratingFn {
+	return func(entryID, entryValue []byte) (err error) {
+		var val Value
+		if val, err = txn.c.newValueFromBytes(entryValue); err != nil {
+			return
+		}
+
+		return f(string(entryID), val)
+	}
+}
+
+func (f ForEachEntryIDFn) toIDIteratingFn() idIteratingFn {
+	return func(entryID []byte) (err error) {
+		return f(string(entryID))
+	}
+}
+
 // ForEachEntryIDFn is called during iteration
 type ForEachEntryIDFn func(entryID string) error
 
@@ -123,4 +140,70 @@ func toForEachEntryIDBytesFn(fn ForEachEntryIDFn) forEachEntryIDBytesFn {
 	return func(entryID []byte) (err error) {
 		return fn(string(entryID))
 	}
+}
+
+func newEntryIteratingFn(fn entryIteratingFn, t *Transaction, fs []Filter) entryIteratingFn {
+	if len(fs) == 0 {
+		// No additional filters exist, no wrapping is necessary
+		return fn
+	}
+
+	return func(entryID, entryValue []byte) (err error) {
+		var isMatch bool
+		if isMatch, err = t.matchesAllPairs(fs, entryID); !isMatch || err != nil {
+			return
+		}
+
+		return fn(entryID, entryValue)
+	}
+}
+
+type entryIteratingFn func(entryID, entryValue []byte) (err error)
+
+func (e entryIteratingFn) toIDIteratingFn(txn *Transaction) idIteratingFn {
+	return func(entryID []byte) (err error) {
+		var entryValue []byte
+		if entryValue, err = txn.getBytes(entryID); err != nil {
+			return
+		}
+
+		return e(entryID, entryValue)
+	}
+}
+
+func newIDIteratingFn(fn idIteratingFn, t *Transaction, fs []Filter) idIteratingFn {
+	if len(fs) == 0 {
+		// No additional filters exist, no wrapping is necessary
+		return fn
+	}
+
+	return func(entryID []byte) (err error) {
+		var isMatch bool
+		if isMatch, err = t.matchesAllPairs(fs, entryID); !isMatch || err != nil {
+			return
+		}
+
+		return fn(entryID)
+	}
+}
+
+type idIteratingFn func(entryID []byte) (err error)
+
+func (i idIteratingFn) toEntryIteratingFn() entryIteratingFn {
+	return func(entryID, _ []byte) (err error) {
+		return i(entryID)
+	}
+}
+
+func getPartedFilters(fs []Filter) (primary Filter, remaining []Filter, err error) {
+	// Set primary as the first entry
+	if primary = fs[0]; primary.InverseComparison {
+		// Primary filter cannot be set as an inverse comparison, return error
+		err = ErrInversePrimaryFilter
+		return
+	}
+
+	// Set remaining values
+	remaining = fs[1:]
+	return
 }

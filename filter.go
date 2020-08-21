@@ -1,12 +1,11 @@
 package dbl
 
-// NewFilter will return a new relationship pair
-func NewFilter(relationship, relationshipID string, inverseComparison bool) *Filter {
-	var f Filter
-	f.Relationship = relationshipID
+// MakeFilter create a relationship pair
+func MakeFilter(relationship, relationshipID string, inverseComparison bool) (f Filter) {
+	f.Relationship = relationship
 	f.RelationshipID = relationshipID
 	f.InverseComparison = inverseComparison
-	return &f
+	return
 }
 
 // Filter represents a relationship key and ID

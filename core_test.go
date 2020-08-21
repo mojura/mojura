@@ -393,7 +393,7 @@ func TestCore_ForEach(t *testing.T) {
 	}
 
 	var cnt int
-	if err = c.ForEach(func(key string, v Value) (err error) {
+	if err = c.ForEach("", func(key string, v Value) (err error) {
 		fb := v.(*testStruct)
 		// We are not checking ID correctness in this test
 		foobar.ID = fb.ID
@@ -415,7 +415,7 @@ func TestCore_ForEach(t *testing.T) {
 	return
 }
 
-func TestCore_ForEachRelationship(t *testing.T) {
+func TestCore_ForEach_with_filter(t *testing.T) {
 	var (
 		c   *Core
 		err error
@@ -440,7 +440,7 @@ func TestCore_ForEachRelationship(t *testing.T) {
 	}
 
 	var cnt int
-	if err = c.ForEachByRelationship("", "contacts", foobar.ContactID, func(key string, v Value) (err error) {
+	fn := func(key string, v Value) (err error) {
 		fb := v.(*testStruct)
 		// We are not checking ID correctness in this test
 		foobar.ID = fb.ID
@@ -451,7 +451,9 @@ func TestCore_ForEachRelationship(t *testing.T) {
 
 		cnt++
 		return
-	}); err != nil {
+	}
+
+	if err = c.ForEach("", fn, MakeFilter("contacts", foobar.ContactID, false)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -984,7 +986,7 @@ func ExampleCore_GetByRelationship() {
 
 func ExampleCore_ForEach() {
 	var err error
-	if err = c.ForEach(func(key string, val Value) (err error) {
+	if err = c.ForEach("", func(key string, val Value) (err error) {
 		fmt.Printf("Iterating entry (%s)! %+v\n", key, val)
 		return
 	}); err != nil {
@@ -992,12 +994,14 @@ func ExampleCore_ForEach() {
 	}
 }
 
-func ExampleCore_ForEachByRelationship() {
+func ExampleCore_ForEach_with_filter() {
 	var err error
-	if err = c.ForEachByRelationship("", "users", "user_1", func(key string, val Value) (err error) {
+	fn := func(key string, val Value) (err error) {
 		fmt.Printf("Iterating entry (%s)! %+v\n", key, val)
 		return
-	}); err != nil {
+	}
+
+	if err = c.ForEach("", fn, MakeFilter("users", "user_1", false)); err != nil {
 		return
 	}
 }

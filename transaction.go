@@ -80,6 +80,16 @@ func (t *Transaction) getLookupBucket(lookup []byte) (bkt *bolt.Bucket, err erro
 }
 
 func (t *Transaction) get(entryID []byte, val interface{}) (err error) {
+	var bs []byte
+	if bs, err = t.getBytes(entryID); err != nil {
+		return
+	}
+
+	err = json.Unmarshal(bs, val)
+	return
+}
+
+func (t *Transaction) getBytes(entryID []byte) (bs []byte, err error) {
 	if isDone(t.ctx) {
 		err = t.ctx.Err()
 		return
@@ -91,13 +101,11 @@ func (t *Transaction) get(entryID []byte, val interface{}) (err error) {
 		return
 	}
 
-	var bs []byte
 	if bs = bkt.Get(entryID); len(bs) == 0 {
 		err = ErrEntryNotFound
 		return
 	}
 
-	err = json.Unmarshal(bs, val)
 	return
 }
 
@@ -211,92 +219,39 @@ func (t *Transaction) isPairMatch(pair *Filter, entryID []byte) (isMatch bool, e
 	return
 }
 
-func (t *Transaction) forEach(fn ForEachFn) (err error) {
+func (t *Transaction) forEach(seekTo []byte, fn entryIteratingFn) (err error) {
+	var bkt *bolt.Bucket
+	if bkt = t.txn.Bucket(entriesBktKey); bkt == nil {
+		err = ErrNotInitialized
+		return
+	}
+
+	return t.iterateBucket(bkt, seekTo, fn)
+}
+
+func (t *Transaction) forEachID(seekTo []byte, fn idIteratingFn, fs []Filter) (err error) {
 	if isDone(t.ctx) {
 		return t.ctx.Err()
 	}
 
-	var bkt *bolt.Bucket
-	if bkt = t.txn.Bucket(entriesBktKey); bkt == nil {
-		err = ErrNotInitialized
+	if len(fs) == 0 {
+		return t.forEach(seekTo, fn.toEntryIteratingFn())
+	}
+
+	var primary Filter
+	if primary, fs, err = getPartedFilters(fs); err != nil {
 		return
 	}
 
-	if err = bkt.ForEach(func(key, bs []byte) (err error) {
-		var val Value
-		if val, err = t.c.newValueFromBytes(bs); err != nil {
-			return
-		}
+	// Wrap iterator with a filtered iterator (if needed)
+	fn = newIDIteratingFn(fn, t, fs)
 
-		// Check to see if context has expired
-		if isDone(t.ctx) {
-			return t.ctx.Err()
-		}
-
-		errCh := make(chan error)
-		go func() {
-			errCh <- fn(string(key), val)
-		}()
-
-		select {
-		case err = <-errCh:
-		case <-t.ctx.Done():
-			err = t.ctx.Err()
-		}
-
-		return
-	}); err == Break {
-		err = nil
-	}
-
+	// Iterate through each relationship item
+	err = t.forEachIDByRelationship(seekTo, primary.relationship(), primary.id(), fn)
 	return
 }
 
-func (t *Transaction) forEachByRelationship(seekTo, relationship, relationshipID []byte, fn ForEachFn) (err error) {
-	err = t.forEachEntryIDByRelationship(seekTo, relationship, relationshipID, func(entryID []byte) (err error) {
-		val := t.c.newEntryValue()
-		if err = t.get(entryID, val); err != nil {
-			return
-		}
-
-		if err = fn(string(entryID), val); err != nil {
-			return
-		}
-
-		return
-	})
-
-	return
-}
-
-func (t *Transaction) forEachEntryID(seekTo []byte, fn func(entryID []byte) error) (err error) {
-	if isDone(t.ctx) {
-		err = t.ctx.Err()
-		return
-	}
-
-	var bkt *bolt.Bucket
-	if bkt = t.txn.Bucket(entriesBktKey); bkt == nil {
-		err = ErrNotInitialized
-		return
-	}
-
-	c := bkt.Cursor()
-	for k, _ := c.Seek(seekTo); k != nil; k, _ = c.Next() {
-		if err = fn(k); err != nil {
-			return
-		}
-	}
-
-	return
-}
-
-func (t *Transaction) forEachEntryIDByRelationship(seekTo, relationship, relationshipID []byte, fn func(entryID []byte) error) (err error) {
-	if isDone(t.ctx) {
-		err = t.ctx.Err()
-		return
-	}
-
+func (t *Transaction) forEachIDByRelationship(seekTo, relationship, relationshipID []byte, fn idIteratingFn) (err error) {
 	var (
 		bkt *bolt.Bucket
 		ok  bool
@@ -306,39 +261,27 @@ func (t *Transaction) forEachEntryIDByRelationship(seekTo, relationship, relatio
 		return
 	}
 
-	c := bkt.Cursor()
-	for k, _ := c.Seek(seekTo); k != nil; k, _ = c.Next() {
-		if err = fn(k); err != nil {
-			return
-		}
-	}
-
-	return
+	return t.iterateBucket(bkt, seekTo, fn.toEntryIteratingFn())
 }
 
-func (t *Transaction) forEachWithFilter(seekTo []byte, fs []Filter, fn ForEachFn) (err error) {
-	if len(fs) == 0 {
-		err = ErrEmptyFilters
-		return
+func (t *Transaction) iterateBucket(bkt *bolt.Bucket, seekTo []byte, fn entryIteratingFn) (err error) {
+	// Check to see if context has expired
+	if isDone(t.ctx) {
+		return t.ctx.Err()
 	}
 
-	// Set primary as the first entry
-	primary := fs[0]
-	// Set remaining values
-	remaining := fs[1:]
-	// Declare iterating function
-	iteratingFn := func(entryID string, val Value) (err error) {
-		var isMatch bool
-		eid := []byte(entryID)
-		if isMatch, err = t.matchesAllPairs(remaining, eid); !isMatch || err != nil {
-			return
+	c := bkt.Cursor()
+	for k, v := c.Seek(seekTo); k != nil; k, v = c.Next() {
+		// Check to see if context has expired
+		if isDone(t.ctx) {
+			return t.ctx.Err()
 		}
 
-		return fn(entryID, val)
+		if err = fn(k, v); err != nil {
+			return
+		}
 	}
 
-	// Iterate through each relationship item
-	err = t.forEachByRelationship(seekTo, primary.relationship(), primary.id(), iteratingFn)
 	return
 }
 
@@ -782,34 +725,26 @@ func (t *Transaction) GetLastByRelationship(relationship, relationshipID string,
 }
 
 // ForEach will iterate through each of the entries
-func (t *Transaction) ForEach(fn ForEachFn) (err error) {
-	return t.forEach(fn)
+func (t *Transaction) ForEach(seekTo string, fn ForEachFn, filters ...Filter) (err error) {
+	// Wrap the provided func with an entry iterating func
+	entryFn := fn.toEntryIteratingFn(t)
+
+	// Check to see if any filters exist
+	if len(filters) == 0 {
+		// Fast path for raw ForEach (non-filtered) calls. This will utilize the value bytes seen during the cursor pass
+		return t.forEach([]byte(seekTo), entryFn)
+	}
+
+	// Wrap the entry iterating func with an id iterating func
+	idFn := entryFn.toIDIteratingFn(t)
+
+	// Call forEachID
+	return t.forEachID([]byte(seekTo), idFn, filters)
 }
 
-// ForEachEntryID will iterate through each of the entry IDs
-func (t *Transaction) ForEachEntryID(seekTo string, fn ForEachEntryIDFn) (err error) {
-	return t.forEachEntryID([]byte(seekTo), toForEachEntryIDBytesFn(fn))
-}
-
-// ForEachByRelationship will iterate through each of the entries for a given relationship and relationship ID
-func (t *Transaction) ForEachByRelationship(seekTo, relationship, relationshipID string, fn ForEachFn) (err error) {
-	return t.forEachByRelationship([]byte(seekTo), []byte(relationship), []byte(relationshipID), fn)
-}
-
-// ForEachEntryIDByRelationship will iterate through each of the entry IDs for a given relationship
-func (t *Transaction) ForEachEntryIDByRelationship(seekTo, relationship, relationshipID string, fn ForEachEntryIDFn) (err error) {
-	return t.forEachEntryIDByRelationship([]byte(seekTo), []byte(relationship), []byte(relationshipID), toForEachEntryIDBytesFn(fn))
-}
-
-// ForEachWithFilter will iterate through each of the entries who match all relationship pairs
-func (t *Transaction) ForEachWithFilter(seekTo string, fs []Filter, fn ForEachFn) (err error) {
-	return t.forEachWithFilter([]byte(seekTo), fs, fn)
-}
-
-// ForEachEntryIDWithFilter will iterate through each of the entry IDs who match all relationship pairs
-func (t *Transaction) ForEachEntryIDWithFilter(seekTo string, fs []Filter, fn ForEachEntryIDFn) (err error) {
-	return
-	//	return t.forEachEntryIDWithFilter([]byte(seekTo), fs, fn)
+// ForEachID will iterate through each of the entry IDs
+func (t *Transaction) ForEachID(seekTo string, fn ForEachEntryIDFn, filters ...Filter) (err error) {
+	return t.forEachID([]byte(seekTo), fn.toIDIteratingFn(), filters)
 }
 
 // Cursor will return an iterating cursor
