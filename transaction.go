@@ -745,5 +745,10 @@ func (t *Transaction) RemoveLookup(lookup, lookupID, key string) (err error) {
 	return t.removeLookup([]byte(lookup), []byte(lookupID), []byte(key))
 }
 
+// GetContext will return a transactions underlying context
+func (t *Transaction) GetContext() (ctx context.Context) {
+	return t.ctx
+}
+
 // TransactionFn represents a transaction function
 type TransactionFn func(*Transaction) error
