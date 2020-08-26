@@ -425,21 +425,18 @@ func (c *Core) Backup(ctx context.Context, dir string, example Value) (err error
 	}
 	defer backup.Close()
 
-	dbCopy := make(map[string]Value)
 	if err = c.ForEach(func(key string, val Value) (err error) {
-		dbCopy[key] = val
+		if err = backup.Transaction(ctx, func(txn *Transaction) (err error) {
+			txn.putBackup([]byte(key), val)
+			return
+		}); err != nil {
+			return
+		}
+
 		return
 	}); err != nil {
 		return
 	}
-
-	err = backup.Transaction(ctx, func(txn *Transaction) (err error) {
-		for k, v := range dbCopy {
-			txn.put([]byte(k), v)
-		}
-
-		return
-	})
 
 	return
 }

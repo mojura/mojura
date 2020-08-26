@@ -305,6 +305,25 @@ func (t *Transaction) put(entryID []byte, val Value) (err error) {
 	return bkt.Put(entryID, bs)
 }
 
+// Private method only meant for use with backups, doesn't not set updated at value
+func (t *Transaction) putBackup(entryID []byte, val Value) (err error) {
+	if isDone(t.ctx) {
+		return t.ctx.Err()
+	}
+
+	var bkt *bolt.Bucket
+	if bkt = t.txn.Bucket(entriesBktKey); bkt == nil {
+		return ErrNotInitialized
+	}
+
+	var bs []byte
+	if bs, err = json.Marshal(val); err != nil {
+		return
+	}
+
+	return bkt.Put(entryID, bs)
+}
+
 func (t *Transaction) delete(entryID []byte) (err error) {
 	if isDone(t.ctx) {
 		return t.ctx.Err()

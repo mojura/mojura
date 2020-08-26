@@ -822,16 +822,20 @@ func TestCore_Backup(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	// Create 9 entries in the db so we have data to compare a backup against
-	for i := 0; i < 9; i++ {
+	// Create 1k entries in the db so we have data to compare a backup against
+	for i := 0; i < 1000; i++ {
 		c.New(&testStruct{
-			UserID:    "0000000" + strconv.Itoa(i),
-			ContactID: "0000001" + strconv.Itoa(i),
+			UserID:    "user_" + strconv.Itoa(i),
+			ContactID: "contact_" + strconv.Itoa(i),
 
 			Foo: "foo_" + strconv.Itoa(i),
 			Bar: "bar_" + strconv.Itoa(i),
 		})
 	}
+
+	// Sleep for a few seconds to ensure we test created/update times copying as expected (we want to
+	// make sure that we aren't asigning new created/update at time values)
+	time.Sleep(2 * time.Second)
 
 	// Run the backup on the core db
 	if err = c.Backup(context.Background(), "data_backup", &testStruct{}); err != nil {
