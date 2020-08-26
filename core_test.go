@@ -822,7 +822,7 @@ func TestCore_Backup(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	// Create 9 entries in the db
+	// Create 9 entries in the db so we have data to compare a backup against
 	for i := 0; i < 9; i++ {
 		c.New(&testStruct{
 			UserID:    "0000000" + strconv.Itoa(i),
@@ -846,18 +846,21 @@ func TestCore_Backup(t *testing.T) {
 	}
 
 	coreEntries := make(map[string]Value)
+	// Gather all the core entries for comparison
 	c.ForEach(func(key string, val Value) (err error) {
 		coreEntries[key] = val
 		return
 	})
 
 	backupEntries := make(map[string]Value)
+	// Gather all the backup entries for comparison
 	backup.ForEach(func(key string, val Value) (err error) {
 		backupEntries[key] = val
 		return
 	})
 
 	var equal bool
+	// Compare the core/backup entries and ensure that they are equal
 	if equal = reflect.DeepEqual(coreEntries, backupEntries); !equal {
 		t.Fatalf("invalid backup: backup entries do not match core entries")
 	}
