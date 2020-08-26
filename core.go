@@ -68,6 +68,7 @@ func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...st
 		return
 	}
 
+	c.name = name
 	c.opts = &opts
 	c.entryType = getCoreType(example)
 	c.logsDir = path.Join(dir, "logs")
@@ -76,7 +77,7 @@ func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...st
 		return
 	}
 
-	if err = c.init(name, dir, relationships); err != nil {
+	if err = c.init(dir, relationships); err != nil {
 		return
 	}
 
@@ -103,6 +104,7 @@ type Core struct {
 	b   *batcher
 
 	opts    *Opts
+	name    string
 	logsDir string
 
 	// Element type
@@ -114,12 +116,12 @@ type Core struct {
 	closed atoms.Bool
 }
 
-func (c *Core) init(name, dir string, relationships []string) (err error) {
-	filename := path.Join(dir, name+".bdb")
+func (c *Core) init(dir string, relationships []string) (err error) {
+	filename := path.Join(dir, c.name+".bdb")
 	c.dbu = dbutils.New(8)
 
 	if c.db, err = bolt.Open(filename, 0644, boltOpts); err != nil {
-		return fmt.Errorf("error opening db for %s (%s): %v", name, dir, err)
+		return fmt.Errorf("error opening db for %s (%s): %v", c.name, dir, err)
 	}
 
 	err = c.db.Update(func(txn *bolt.Tx) (err error) {
@@ -190,6 +192,14 @@ func (c *Core) handleLogRotation(filename string) {
 		// TODO: Add error logging here after we implement output interface to core
 		log.Printf("error renaming file: %v\n", err)
 		return
+	}
+
+	return
+}
+
+func (c *Core) getRelationships() (relationships []string) {
+	for _, relationshipBytes := range c.relationships {
+		relationships = append(relationships, string(relationshipBytes))
 	}
 
 	return
@@ -402,6 +412,33 @@ func (c *Core) GetLookupKey(lookup, lookupID string) (key string, err error) {
 func (c *Core) RemoveLookup(lookup, lookupID, key string) (err error) {
 	err = c.Transaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.removeLookup([]byte(lookup), []byte(lookupID), []byte(key))
+	})
+
+	return
+}
+
+// Backup will create a full backup of the db into a given directory path
+func (c *Core) Backup(ctx context.Context, dir string, example Value) (err error) {
+	var backup *Core
+	if backup, err = New(c.name, dir, example, c.getRelationships()...); err != nil {
+		return
+	}
+	defer backup.Close()
+
+	dbCopy := make(map[string]Value)
+	if err = c.ForEach(func(key string, val Value) (err error) {
+		dbCopy[key] = val
+		return
+	}); err != nil {
+		return
+	}
+
+	err = backup.Transaction(ctx, func(txn *Transaction) (err error) {
+		for k, v := range dbCopy {
+			txn.put([]byte(k), v)
+		}
+
+		return
 	})
 
 	return

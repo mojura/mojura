@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"reflect"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -807,6 +809,58 @@ func TestCore_Batch(t *testing.T) {
 	}
 
 	return
+}
+
+func TestCore_Backup(t *testing.T) {
+	var (
+		c   *Core
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c)
+
+	// Create 9 entries in the db
+	for i := 0; i < 9; i++ {
+		c.New(&testStruct{
+			UserID:    "0000000" + strconv.Itoa(i),
+			ContactID: "0000001" + strconv.Itoa(i),
+
+			Foo: "foo_" + strconv.Itoa(i),
+			Bar: "bar_" + strconv.Itoa(i),
+		})
+	}
+
+	// Run the backup on the core db
+	if err = c.Backup(context.Background(), "data_backup", &testStruct{}); err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll("data_backup")
+
+	var backup *Core
+	// Get the newly created backup db
+	if backup, err = New("test", "data_backup", &testStruct{}, "users", "contacts"); err != nil {
+		t.Fatal(err)
+	}
+
+	coreEntries := make(map[string]Value)
+	c.ForEach(func(key string, val Value) (err error) {
+		coreEntries[key] = val
+		return
+	})
+
+	backupEntries := make(map[string]Value)
+	backup.ForEach(func(key string, val Value) (err error) {
+		backupEntries[key] = val
+		return
+	})
+
+	var equal bool
+	if equal = reflect.DeepEqual(coreEntries, backupEntries); !equal {
+		t.Fatalf("invalid backup: backup entries do not match core entries")
+	}
 }
 
 func BenchmarkCore_New_2(b *testing.B) {
