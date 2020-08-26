@@ -1,7 +1,6 @@
 package dbl
 
 import (
-	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -57,7 +56,7 @@ func (b *batcher) run(cs calls) {
 	}
 
 	var failIndex int
-	err := b.core.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	err := b.core.Transaction(func(txn *Transaction) (err error) {
 		failIndex, err = b.performCalls(txn, cs)
 		return
 	})

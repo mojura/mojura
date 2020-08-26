@@ -2,7 +2,6 @@ package dbl
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"reflect"
 )
@@ -90,22 +89,6 @@ func recoverCall(txn *Transaction, fn TransactionFn) (err error) {
 	}()
 
 	return fn(txn)
-}
-
-func isDone(ctx context.Context) (done bool) {
-	touch, ok := ctx.(*TouchContext)
-	if ok {
-		// We've encountered a touch Context, perform touch and return the inverse of it's state
-		return !touch.Touch()
-	}
-
-	select {
-	case <-ctx.Done():
-		done = true
-	default:
-	}
-
-	return
 }
 
 // ForEachFn are called during iteration

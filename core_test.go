@@ -1,7 +1,6 @@
 package dbl
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"testing"
@@ -91,6 +90,7 @@ func TestCore_Get_context(t *testing.T) {
 	}
 	defer testTeardown(c)
 
+	c.opts.TimeoutDuration = time.Millisecond * 200
 	foobar := newTestStruct("user_1", "contact_1", "FOO FOO", "bunny bar bar")
 
 	var entryID string
@@ -112,8 +112,7 @@ func TestCore_Get_context(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		ctx := NewTouchContext(context.Background(), time.Millisecond*200)
-		if err = c.ReadTransaction(ctx, func(txn *Transaction) (err error) {
+		if err = c.ReadTransaction(func(txn *Transaction) (err error) {
 			var fb testStruct
 			for i := 0; i < tc.iterations; i++ {
 				time.Sleep(tc.timeout)

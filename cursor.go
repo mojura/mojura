@@ -42,7 +42,7 @@ func (c *Cursor) teardown() {
 
 // Seek will seek the provided ID
 func (c *Cursor) Seek(id string, val Value) (err error) {
-	if isDone(c.txn.ctx) {
+	if !c.txn.ctx.Touch() {
 		return c.txn.ctx.Err()
 	}
 
@@ -61,7 +61,7 @@ func (c *Cursor) Seek(id string, val Value) (err error) {
 
 // First will return the first entry
 func (c *Cursor) First(val Value) (err error) {
-	if isDone(c.txn.ctx) {
+	if !c.txn.ctx.Touch() {
 		return c.txn.ctx.Err()
 	}
 
@@ -80,7 +80,7 @@ func (c *Cursor) First(val Value) (err error) {
 
 // Last will return the last entry
 func (c *Cursor) Last(val Value) (err error) {
-	if isDone(c.txn.ctx) {
+	if !c.txn.ctx.Touch() {
 		return c.txn.ctx.Err()
 	}
 
@@ -99,7 +99,7 @@ func (c *Cursor) Last(val Value) (err error) {
 
 // Next will return the next entry
 func (c *Cursor) Next(val Value) (err error) {
-	if isDone(c.txn.ctx) {
+	if !c.txn.ctx.Touch() {
 		return c.txn.ctx.Err()
 	}
 
@@ -118,7 +118,7 @@ func (c *Cursor) Next(val Value) (err error) {
 
 // Prev will return the previous entry
 func (c *Cursor) Prev(val Value) (err error) {
-	if isDone(c.txn.ctx) {
+	if !c.txn.ctx.Touch() {
 		return c.txn.ctx.Err()
 	}
 
