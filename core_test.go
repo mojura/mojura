@@ -6,8 +6,11 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/gdbu/snapshotter"
 )
 
 const (
@@ -811,7 +814,7 @@ func TestCore_Batch(t *testing.T) {
 	return
 }
 
-func TestCore_Backup(t *testing.T) {
+func TestCore_Snapshot(t *testing.T) {
 	var (
 		c   *Core
 		err error
@@ -833,19 +836,29 @@ func TestCore_Backup(t *testing.T) {
 		})
 	}
 
-	// Sleep for a few seconds to ensure we test created/update times copying as expected (we want to
-	// make sure that we aren't asigning new created/update at time values)
-	time.Sleep(2 * time.Second)
-
-	// Run the backup on the core db
-	if err = c.Backup(context.Background(), "data_backup", &testStruct{}); err != nil {
+	var s *snapshotter.Snapshotter
+	// Initialize the snapshotter
+	if s, err = c.NewSnapshotter(context.Background(), "data_backup", time.Second, time.Minute); err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll("data_backup")
+	defer s.Close()
 
-	var backup *Core
+	// Sleep for a few seconds to ensure we allow a snapshot to occur
+	time.Sleep(2 * time.Second)
+
+	var latest string
+	// Get the latest key from the snapshot
+	if latest, err = s.LatestKey(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Get the name from the latest snapshot, just strip off the .bdb filetype
+	name := strings.Replace(latest, ".bdb", "", 1)
+
+	var snpashot *Core
 	// Get the newly created backup db
-	if backup, err = New("test", "data_backup", &testStruct{}, "users", "contacts"); err != nil {
+	if snpashot, err = New(name, "data_backup", &testStruct{}, "users", "contacts"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -856,16 +869,16 @@ func TestCore_Backup(t *testing.T) {
 		return
 	})
 
-	backupEntries := make(map[string]Value)
-	// Gather all the backup entries for comparison
-	backup.ForEach(func(key string, val Value) (err error) {
-		backupEntries[key] = val
+	snapshotEntries := make(map[string]Value)
+	// Gather all the snapshot entries for comparison
+	snpashot.ForEach(func(key string, val Value) (err error) {
+		snapshotEntries[key] = val
 		return
 	})
 
 	var equal bool
-	// Compare the core/backup entries and ensure that they are equal
-	if equal = reflect.DeepEqual(coreEntries, backupEntries); !equal {
+	// Compare the core/snapshot entries and ensure that they are equal
+	if equal = reflect.DeepEqual(coreEntries, snapshotEntries); !equal {
 		t.Fatalf("invalid backup: backup entries do not match core entries")
 	}
 }

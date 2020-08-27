@@ -12,6 +12,9 @@ import (
 
 	"github.com/gdbu/actions"
 	"github.com/gdbu/dbutils"
+	"github.com/gdbu/snapshotter"
+	"github.com/gdbu/snapshotter/backends"
+	"github.com/gdbu/snapshotter/frontends"
 	"github.com/hatchify/errors"
 
 	"github.com/hatchify/atoms"
@@ -417,24 +420,23 @@ func (c *Core) RemoveLookup(lookup, lookupID, key string) (err error) {
 	return
 }
 
-// Backup will create a full backup of the db into a given directory path
-func (c *Core) Backup(ctx context.Context, dir string, example Value) (err error) {
-	var backup *Core
-	if backup, err = New(c.name, dir, example, c.getRelationships()...); err != nil {
-		return
-	}
-	defer backup.Close()
+// NewSnapshotter will initialize a new snapshotter that writes snapshots to a given dir
+func (c *Core) NewSnapshotter(ctx context.Context, dir string, interval, truncate time.Duration) (sp *snapshotter.Snapshotter, err error) {
+	// Set the FE as our current db
+	fe := frontends.NewBolt(c.db)
 
-	if err = c.ForEach(func(key string, val Value) (err error) {
-		if err = backup.Transaction(ctx, func(txn *Transaction) (err error) {
-			txn.putBackup([]byte(key), val)
-			return
-		}); err != nil {
-			return
-		}
+	// Initialize a new BE for backing up
+	be := backends.NewFile(dir)
 
-		return
-	}); err != nil {
+	// Set the config
+	cfg := snapshotter.NewConfig(c.name, "bdb")
+	// We'll snapshot at the provided interval value
+	cfg.Interval = interval
+	// Our keys will be truncated based on the provided truncate value
+	cfg.Truncate = truncate
+
+	if sp, err = snapshotter.New(fe, be, cfg); err != nil {
+		fmt.Printf("error during Init: %v\n\n", err)
 		return
 	}
 
