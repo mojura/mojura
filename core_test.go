@@ -876,9 +876,8 @@ func TestCore_Snapshot(t *testing.T) {
 		return
 	})
 
-	var equal bool
 	// Compare the core/snapshot entries and ensure that they are equal
-	if equal = reflect.DeepEqual(coreEntries, snapshotEntries); !equal {
+	if !reflect.DeepEqual(coreEntries, snapshotEntries) {
 		t.Fatalf("invalid backup: backup entries do not match core entries")
 	}
 }
