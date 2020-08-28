@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path"
@@ -402,6 +403,16 @@ func (c *Core) GetLookupKey(lookup, lookupID string) (key string, err error) {
 func (c *Core) RemoveLookup(lookup, lookupID, key string) (err error) {
 	err = c.Transaction(func(txn *Transaction) (err error) {
 		return txn.removeLookup([]byte(lookup), []byte(lookupID), []byte(key))
+	})
+
+	return
+}
+
+// WriteTo will write the entire underlying db to a writer
+func (c *Core) WriteTo(w io.Writer) (n int64, err error) {
+	err = c.db.View(func(txn *bolt.Tx) (err error) {
+		n, err = txn.WriteTo(w)
+		return
 	})
 
 	return
