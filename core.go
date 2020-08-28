@@ -409,6 +409,7 @@ func (c *Core) RemoveLookup(lookup, lookupID, key string) (err error) {
 }
 
 // Dump will write the entire underlying db to a writer
+// NOTE: Eventually, dbl.Dump will implement it's own writer that is agnostic of database type
 func (c *Core) Dump(w io.Writer) (n int64, err error) {
 	err = c.db.View(func(txn *bolt.Tx) (err error) {
 		n, err = txn.WriteTo(w)
