@@ -38,6 +38,10 @@ const (
 	ErrInvalidEntries = errors.Error("invalid entries, slice expected")
 	// ErrInvalidLogKey is returned when an invalid log key is encountered
 	ErrInvalidLogKey = errors.Error("invalid log key, expecting a single :: delimiter")
+	// ErrEmptyFilters is returned when relationship pairs are empty for a filter or joined request
+	ErrEmptyFilters = errors.Error("invalid relationship pairs, cannot be empty")
+	// ErrInversePrimaryFilter is returned when the primary filter is set as an inverse comparison
+	ErrInversePrimaryFilter = errors.Error("invalid primary filter, cannot be an inverse comparison")
 	// ErrContextCancelled is returned when a transaction ends early from context
 	ErrContextCancelled = errors.Error("context cancelled")
 	// ErrTransactionTimedOut is returned when a transaction times out
@@ -303,18 +307,18 @@ func (c *Core) GetLastByRelationship(relationship, relationshipID string, val Va
 }
 
 // ForEach will iterate through each of the entries
-func (c *Core) ForEach(fn ForEachFn) (err error) {
+func (c *Core) ForEach(seekTo string, fn ForEachFn, filters ...Filter) (err error) {
 	err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		return txn.forEach(fn)
+		return txn.ForEach(seekTo, fn, filters...)
 	})
 
 	return
 }
 
-// ForEachRelationship will iterate through each of the entries for a given relationship and relationship ID
-func (c *Core) ForEachRelationship(relationship, relationshipID string, fn ForEachFn) (err error) {
+// ForEachID will iterate through each of the entry IDs
+func (c *Core) ForEachID(seekTo string, fn ForEachEntryIDFn, filters ...Filter) (err error) {
 	err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		return txn.forEachRelationship([]byte(relationship), []byte(relationshipID), fn)
+		return txn.ForEachID(seekTo, fn, filters...)
 	})
 
 	return
@@ -334,7 +338,7 @@ func (c *Core) Cursor(fn CursorFn) (err error) {
 // CursorRelationship will return an iterating cursor for a given relationship and relationship ID
 func (c *Core) CursorRelationship(relationship, relationshipID string, fn CursorFn) (err error) {
 	if err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		return txn.cursorRelationship([]byte(relationship), []byte(relationshipID), fn)
+		return txn.CursorRelationship(relationship, relationshipID, fn)
 	}); err == Break {
 		err = nil
 	}
