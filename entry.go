@@ -29,7 +29,13 @@ func (e *Entry) GetUpdatedAt() (updatedAt int64) {
 
 // GetRelationshipIDs will get the associated relationship IDs
 // Note: This will have to be replaced by the including entry if relationships are needed
-func (e *Entry) GetRelationshipIDs() (ids []string) {
+func (e *Entry) GetRelationshipIDs(deprecated string) {
+	return
+}
+
+// GetRelationships will get the associated relationships
+// Note: This will have to be replaced by the including entry if relationships are needed
+func (e *Entry) GetRelationships() (r Relationships) {
 	return
 }
 
