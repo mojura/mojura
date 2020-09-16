@@ -67,7 +67,7 @@ func New(name, dir string, example Value, relationships ...string) (cc *Core, er
 // NewWithOpts will return a new instance of Core
 func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...string) (cc *Core, err error) {
 	var c Core
-	if len(example.GetRelationshipIDs()) != len(relationships) {
+	if len(example.GetRelationships()) != len(relationships) {
 		err = ErrInvalidNumberOfRelationships
 		return
 	}

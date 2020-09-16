@@ -1205,15 +1205,13 @@ func newTestStruct(userID, contactID, groupID, value string) (t testStruct) {
 }
 
 type testStruct struct {
-	ID        string `json:"id"`
+	Entry
+
 	UserID    string `json:"userID"`
 	ContactID string `json:"contactID"`
 	GroupID   string `json:"groupID"`
 
 	Value string `json:"value"`
-
-	UpdatedAt int64 `json:"updatedAt"`
-	CreatedAt int64 `json:"createdAt"`
 }
 
 func (t *testStruct) SetID(id string) {
@@ -1232,10 +1230,10 @@ func (t *testStruct) GetID() (id string) {
 	return t.ID
 }
 
-func (t *testStruct) GetRelationshipIDs() (ids []string) {
-	ids = append(ids, t.UserID)
-	ids = append(ids, t.ContactID)
-	ids = append(ids, t.GroupID)
+func (t *testStruct) GetRelationships() (r Relationships) {
+	r.Append(t.UserID)
+	r.Append(t.ContactID)
+	r.Append(t.GroupID)
 	return
 }
 
