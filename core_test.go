@@ -42,7 +42,7 @@ func TestCore_New(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	var entryID string
 	if entryID, err = c.New(&foobar); err != nil {
@@ -65,7 +65,7 @@ func TestCore_Get(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	var entryID string
 	if entryID, err = c.New(&foobar); err != nil {
@@ -93,7 +93,7 @@ func TestCore_Get_context(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	var entryID string
 	if entryID, err = c.New(&foobar); err != nil {
@@ -143,7 +143,7 @@ func TestCore_GetByRelationship_users(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
@@ -172,7 +172,7 @@ func TestCore_GetByRelationship_contacts(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
@@ -201,7 +201,7 @@ func TestCore_GetByRelationship_invalid(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
@@ -224,7 +224,7 @@ func TestCore_GetByRelationship_update(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	var entryID string
 	if entryID, err = c.New(&foobar); err != nil {
@@ -261,6 +261,144 @@ func TestCore_GetByRelationship_update(t *testing.T) {
 	}
 }
 
+func TestCore_GetByRelationship_many_to_many(t *testing.T) {
+	var (
+		c   *Core
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c)
+
+	entries := []*testStruct{
+		newTestStruct("user_1", "contact_1", "group_1", "FOO FOO", "foo", "bar"),
+		newTestStruct("user_1", "contact_1", "group_1", "FOO FOO", "bar"),
+		newTestStruct("user_1", "contact_1", "group_1", "FOO FOO", "baz"),
+	}
+
+	type testcase struct {
+		tag           string
+		expectedCount int
+	}
+
+	runCases := func(cases []testcase) (err error) {
+		for _, tc := range cases {
+			var entries []*testStruct
+			if err = c.GetByRelationship("tags", tc.tag, &entries); err != nil {
+				return
+			}
+
+			if len(entries) != tc.expectedCount {
+				err = fmt.Errorf("invalid number of entries, expected %d and received %d", tc.expectedCount, len(entries))
+			}
+		}
+
+		return
+	}
+
+	createCases := []testcase{
+		{
+			tag:           "foo",
+			expectedCount: 1,
+		},
+		{
+			tag:           "bar",
+			expectedCount: 2,
+		},
+		{
+			tag:           "baz",
+			expectedCount: 1,
+		},
+		{
+			tag:           "beam",
+			expectedCount: 0,
+		},
+		{
+			tag:           "boom",
+			expectedCount: 0,
+		},
+	}
+
+	updateCases := []testcase{
+		{
+			tag:           "foo",
+			expectedCount: 0,
+		},
+		{
+			tag:           "bar",
+			expectedCount: 0,
+		},
+		{
+			tag:           "baz",
+			expectedCount: 0,
+		},
+		{
+			tag:           "beam",
+			expectedCount: 0,
+		},
+		{
+			tag:           "boom",
+			expectedCount: 3,
+		},
+	}
+
+	deleteCases := []testcase{
+		{
+			tag:           "foo",
+			expectedCount: 0,
+		},
+		{
+			tag:           "bar",
+			expectedCount: 0,
+		},
+		{
+			tag:           "baz",
+			expectedCount: 0,
+		},
+		{
+			tag:           "beam",
+			expectedCount: 0,
+		},
+		{
+			tag:           "boom",
+			expectedCount: 0,
+		},
+	}
+
+	for _, entry := range entries {
+		if entry.ID, err = c.New(entry); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = runCases(createCases); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, entry := range entries {
+		entry.Tags = []string{"boom"}
+		if err = c.Edit(entry.ID, entry); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = runCases(updateCases); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, entry := range entries {
+		if err = c.Remove(entry.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = runCases(deleteCases); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestCore_GetFirstByRelationship(t *testing.T) {
 	var (
 		c   *Core
@@ -272,7 +410,7 @@ func TestCore_GetFirstByRelationship(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
@@ -311,7 +449,7 @@ func TestCore_GetLastByRelationship(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
@@ -350,7 +488,7 @@ func TestCore_Edit(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	var entryID string
 	if entryID, err = c.New(&foobar); err != nil {
@@ -384,7 +522,7 @@ func TestCore_ForEach(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
@@ -428,7 +566,7 @@ func TestCore_ForEach_with_filter(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
@@ -477,10 +615,10 @@ func TestCore_ForEach_with_multiple_filters(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	user1 := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
-	user2 := newTestStruct("user_2", "contact_1", "group_1", "bunny bar bar")
-	user3 := newTestStruct("user_3", "contact_2", "group_1", "baz")
-	user4 := newTestStruct("user_4", "contact_2", "group_1", "yep")
+	user1 := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+	user2 := makeTestStruct("user_2", "contact_1", "group_1", "bunny bar bar")
+	user3 := makeTestStruct("user_3", "contact_2", "group_1", "baz")
+	user4 := makeTestStruct("user_4", "contact_2", "group_1", "yep")
 
 	if _, err = c.New(&user1); err != nil {
 		t.Fatal(err)
@@ -608,7 +746,7 @@ func TestCore_Cursor(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
@@ -660,7 +798,7 @@ func TestCore_Cursor_First(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
@@ -705,7 +843,7 @@ func TestCore_Cursor_Last(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
@@ -750,7 +888,7 @@ func TestCore_Cursor_Seek(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
@@ -795,7 +933,7 @@ func TestCore_CursorRelationship(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
@@ -909,7 +1047,7 @@ func TestCore_Batch(t *testing.T) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	var entryID string
 	if err = c.Batch(func(txn *Transaction) (err error) {
@@ -1010,7 +1148,7 @@ func benchmarkCoreNew(b *testing.B, threads int) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	b.SetParallelism(threads)
 	b.RunParallel(func(pb *testing.PB) {
@@ -1036,7 +1174,7 @@ func benchmarkCoreBatch(b *testing.B, threads int) {
 	}
 	defer testTeardown(c)
 
-	foobar := newTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	b.SetParallelism(threads)
 	b.RunParallel(func(pb *testing.PB) {
@@ -1165,7 +1303,7 @@ func testInit() (c *Core, err error) {
 		return
 	}
 
-	return New("test", testDir, &testStruct{}, "users", "contacts", "groups")
+	return New("test", testDir, &testStruct{}, "users", "contacts", "groups", "tags")
 }
 
 func testTeardown(c *Core) (err error) {
@@ -1196,53 +1334,37 @@ func testCheck(a, b *testStruct) (err error) {
 	return
 }
 
-func newTestStruct(userID, contactID, groupID, value string) (t testStruct) {
+func newTestStruct(userID, contactID, groupID, value string, tags ...string) *testStruct {
+	t := makeTestStruct(userID, contactID, groupID, value, tags...)
+	return &t
+}
+
+func makeTestStruct(userID, contactID, groupID, value string, tags ...string) (t testStruct) {
 	t.UserID = userID
 	t.ContactID = contactID
 	t.GroupID = groupID
 	t.Value = value
+	t.Tags = tags
 	return
 }
 
 type testStruct struct {
 	Entry
 
-	UserID    string `json:"userID"`
-	ContactID string `json:"contactID"`
-	GroupID   string `json:"groupID"`
+	UserID    string   `json:"userID"`
+	ContactID string   `json:"contactID"`
+	GroupID   string   `json:"groupID"`
+	Tags      []string `json:"tags"`
 
 	Value string `json:"value"`
-}
-
-func (t *testStruct) SetID(id string) {
-	t.ID = id
-}
-
-func (t *testStruct) GetUpdatedAt() (updatedAt int64) {
-	return t.UpdatedAt
-}
-
-func (t *testStruct) GetCreatedAt() (createdAt int64) {
-	return t.CreatedAt
-}
-
-func (t *testStruct) GetID() (id string) {
-	return t.ID
 }
 
 func (t *testStruct) GetRelationships() (r Relationships) {
 	r.Append(t.UserID)
 	r.Append(t.ContactID)
 	r.Append(t.GroupID)
+	r.Append(t.Tags...)
 	return
-}
-
-func (t *testStruct) SetUpdatedAt(updatedAt int64) {
-	t.UpdatedAt = updatedAt
-}
-
-func (t *testStruct) SetCreatedAt(createdAt int64) {
-	t.CreatedAt = createdAt
 }
 
 type testBadType struct {
