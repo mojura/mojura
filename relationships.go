@@ -22,8 +22,7 @@ func (r Relationship) Has(relationshipID string) (has bool) {
 	return false
 }
 
-// Delta will call onAdd and onRemove for the delta entries between the current and old Relationship
-func (r Relationship) Delta(old Relationship, onAdd, onRemove RelationshipFn) (err error) {
+func (r Relationship) delta(old Relationship, onAdd, onRemove RelationshipFn) (err error) {
 	if err = r.addNew(old, onAdd); err != nil {
 		return
 	}

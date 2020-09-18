@@ -469,7 +469,7 @@ func (t *Transaction) updateRelationships(entryID []byte, orig, val Value) (err 
 			return t.unsetRelationship(t.c.relationships[i], relationshipID, entryID)
 		}
 
-		relationship.Delta(origRelationships[i], onAdd, onRemove)
+		relationship.delta(origRelationships[i], onAdd, onRemove)
 	}
 
 	return
