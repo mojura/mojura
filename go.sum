@@ -8,8 +8,8 @@ github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/gdbu/actions v0.5.12 h1:5wFRPuhkUpb1Nm1/AJtm54pTS0K+GrkJXBf3GVo2kRc=
 github.com/gdbu/actions v0.5.12/go.mod h1:acxuTSDQkVuOGZ8txjvxGT1wEXGOp7wHyBYprg8cAZQ=
-github.com/gdbu/dbutils v0.5.3 h1:nJXi4MkPTpP67K7vdpcrA1OVcNLyQ70ZsMnWq7aSEtw=
-github.com/gdbu/dbutils v0.5.3/go.mod h1:5ZrCjLny8ipC0EuRbiyOsNkB6hGJXbpljj7u9JH928w=
+github.com/gdbu/dbutils v0.5.4 h1:K+NMPXPcnujL/Vzxj0PxMwMgtoeQ6jWTu0SEcm4ShsI=
+github.com/gdbu/dbutils v0.5.4/go.mod h1:5ZrCjLny8ipC0EuRbiyOsNkB6hGJXbpljj7u9JH928w=
 github.com/gdbu/logger v0.5.14 h1:xHIff6czmsbbnUceffDzPw10W3gwtYQM0oU6SyIl1bs=
 github.com/gdbu/logger v0.5.14/go.mod h1:U+Gsgp6ySEBGlK47yjXuYT+TyQazYUPFg0afxHznkq0=
 github.com/gdbu/snapshotter v0.5.10 h1:ofc5KRDsdjCmFEMpW4i2NIQVIH54hJbULRg85/+VidQ=
