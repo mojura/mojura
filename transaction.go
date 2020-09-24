@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"time"
 
@@ -615,9 +616,13 @@ func (t *Transaction) new(val Value) (entryID []byte, err error) {
 		return
 	}
 
-	if entryID, err = t.c.dbu.Next(t.txn, entriesBktKey); err != nil {
+	var index uint64
+	if index = t.c.idx.Next(); err != nil {
 		return
 	}
+
+	// Create a padded entry ID from index value
+	entryID = []byte(fmt.Sprintf(t.c.indexFmt, index))
 
 	val.SetID(string(entryID))
 	if val.GetCreatedAt() == 0 {
