@@ -460,6 +460,11 @@ func (t *Transaction) updateRelationships(entryID []byte, orig, val Value) (err 
 	origRelationships := orig.GetRelationships()
 	newRelationships := val.GetRelationships()
 
+	if len(origRelationships) == 0 && len(origRelationships) == 0 {
+		origRelationships = newRelationshipsFromIDs(orig.GetRelationshipIDs())
+		newRelationships = newRelationshipsFromIDs(val.GetRelationshipIDs())
+	}
+
 	for i, relationship := range newRelationships {
 		onAdd := func(relationshipID []byte) (err error) {
 			return t.setRelationship(t.c.relationships[i], relationshipID, entryID)
