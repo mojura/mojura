@@ -28,8 +28,17 @@ func (e *Entry) GetUpdatedAt() (updatedAt int64) {
 }
 
 // GetRelationshipIDs will get the associated relationship IDs
-// Note: This will have to be replaced by the including entry if relationships are needed
+// Deprecated: This method is now deprecated. The method has been kept and the signature
+// has been changed to ensure previous use of this method would be easily caught by
+// the compiler. If this method was removed, the fear is that the prior use of the
+// unused method would still continue (since the interface would still technically match).
 func (e *Entry) GetRelationshipIDs() (ids []string) {
+	return
+}
+
+// GetRelationships will get the associated relationships
+// Note: This will have to be replaced by the including entry if relationships are needed
+func (e *Entry) GetRelationships() (r Relationships) {
 	return
 }
 

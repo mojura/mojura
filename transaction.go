@@ -377,14 +377,17 @@ func (t *Transaction) delete(entryID []byte) (err error) {
 	return bkt.Delete(entryID)
 }
 
-func (t *Transaction) setRelationships(relationshipIDs []string, entryID []byte) (err error) {
+func (t *Transaction) setRelationships(relationships Relationships, entryID []byte) (err error) {
 	if isDone(t.ctx) {
 		return t.ctx.Err()
 	}
 
-	for i, relationshipID := range relationshipIDs {
-		if err = t.setRelationship(t.c.relationships[i], []byte(relationshipID), entryID); err != nil {
-			return
+	for i, relationship := range relationships {
+		relationshipKey := t.c.relationships[i]
+		for _, relationshipID := range relationship {
+			if err = t.setRelationship(relationshipKey, []byte(relationshipID), entryID); err != nil {
+				return
+			}
 		}
 	}
 
@@ -414,14 +417,17 @@ func (t *Transaction) setRelationship(relationship, relationshipID, entryID []by
 	return bkt.Put(entryID, nil)
 }
 
-func (t *Transaction) unsetRelationships(relationshipIDs []string, entryID []byte) (err error) {
+func (t *Transaction) unsetRelationships(relationships Relationships, entryID []byte) (err error) {
 	if isDone(t.ctx) {
 		return t.ctx.Err()
 	}
 
-	for i, relationshipID := range relationshipIDs {
-		if err = t.unsetRelationship(t.c.relationships[i], []byte(relationshipID), entryID); err != nil {
-			return
+	for i, relationship := range relationships {
+		relationshipKey := t.c.relationships[i]
+		for _, relationshipID := range relationship {
+			if err = t.unsetRelationship(relationshipKey, []byte(relationshipID), entryID); err != nil {
+				return
+			}
 		}
 	}
 
@@ -451,19 +457,24 @@ func (t *Transaction) updateRelationships(entryID []byte, orig, val Value) (err 
 		return t.ctx.Err()
 	}
 
-	origRelationships := orig.GetRelationshipIDs()
-	newRelationships := val.GetRelationshipIDs()
-	if isSliceMatch(origRelationships, newRelationships) {
-		// Relationships already match, return
-		return
+	origRelationships := orig.GetRelationships()
+	newRelationships := val.GetRelationships()
+
+	if len(origRelationships) == 0 && len(origRelationships) == 0 {
+		origRelationships = newRelationshipsFromIDs(orig.GetRelationshipIDs())
+		newRelationships = newRelationshipsFromIDs(val.GetRelationshipIDs())
 	}
 
-	if err = t.unsetRelationships(origRelationships, entryID); err != nil {
-		return
-	}
+	for i, relationship := range newRelationships {
+		onAdd := func(relationshipID []byte) (err error) {
+			return t.setRelationship(t.c.relationships[i], relationshipID, entryID)
+		}
 
-	if err = t.setRelationships(newRelationships, entryID); err != nil {
-		return
+		onRemove := func(relationshipID []byte) (err error) {
+			return t.unsetRelationship(t.c.relationships[i], relationshipID, entryID)
+		}
+
+		relationship.delta(origRelationships[i], onAdd, onRemove)
 	}
 
 	return
@@ -622,7 +633,7 @@ func (t *Transaction) new(val Value) (entryID []byte, err error) {
 		return
 	}
 
-	if err = t.setRelationships(val.GetRelationshipIDs(), entryID); err != nil {
+	if err = t.setRelationships(val.GetRelationships(), entryID); err != nil {
 		return
 	}
 
@@ -678,7 +689,7 @@ func (t *Transaction) remove(entryID []byte) (err error) {
 		return
 	}
 
-	if err = t.unsetRelationships(val.GetRelationshipIDs(), entryID); err != nil {
+	if err = t.unsetRelationships(val.GetRelationships(), entryID); err != nil {
 		return
 	}
 
