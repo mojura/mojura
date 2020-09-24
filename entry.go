@@ -32,7 +32,7 @@ func (e *Entry) GetUpdatedAt() (updatedAt int64) {
 // has been changed to ensure previous use of this method would be easily caught by
 // the compiler. If this method was removed, the fear is that the prior use of the
 // unused method would still continue (since the interface would still technically match).
-func (e *Entry) GetRelationshipIDs() (ids []string) {
+func (e *Entry) GetRelationshipIDs() (deprecated string) {
 	return
 }
 
