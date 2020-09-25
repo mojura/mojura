@@ -241,6 +241,8 @@ func (c *Core) transaction(fn func(*bolt.Tx, *actions.Transaction) error) (err e
 func (c *Core) runTransaction(ctx context.Context, txn *bolt.Tx, atxn *actions.Transaction, fn TransactionFn) (err error) {
 	t := newTransaction(ctx, c, txn, atxn)
 	defer t.teardown()
+	// Always ensure index has been flushed
+	defer c.idx.Flush()
 	errCh := make(chan error)
 
 	// Call function from within goroutine
