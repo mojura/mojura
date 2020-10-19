@@ -42,8 +42,8 @@ func (c *Cursor) teardown() {
 
 // Seek will seek the provided ID
 func (c *Cursor) Seek(id string, val Value) (err error) {
-	if isDone(c.txn.ctx) {
-		return c.txn.ctx.Err()
+	if err = c.txn.cc.isDone(); err != nil {
+		return
 	}
 
 	k, v := c.cur.Seek([]byte(id))
@@ -61,8 +61,8 @@ func (c *Cursor) Seek(id string, val Value) (err error) {
 
 // First will return the first entry
 func (c *Cursor) First(val Value) (err error) {
-	if isDone(c.txn.ctx) {
-		return c.txn.ctx.Err()
+	if err = c.txn.cc.isDone(); err != nil {
+		return
 	}
 
 	k, v := c.cur.First()
@@ -80,8 +80,8 @@ func (c *Cursor) First(val Value) (err error) {
 
 // Last will return the last entry
 func (c *Cursor) Last(val Value) (err error) {
-	if isDone(c.txn.ctx) {
-		return c.txn.ctx.Err()
+	if err = c.txn.cc.isDone(); err != nil {
+		return
 	}
 
 	k, v := c.cur.Last()
@@ -99,8 +99,8 @@ func (c *Cursor) Last(val Value) (err error) {
 
 // Next will return the next entry
 func (c *Cursor) Next(val Value) (err error) {
-	if isDone(c.txn.ctx) {
-		return c.txn.ctx.Err()
+	if err = c.txn.cc.isDone(); err != nil {
+		return
 	}
 
 	k, v := c.cur.Next()
@@ -118,8 +118,8 @@ func (c *Cursor) Next(val Value) (err error) {
 
 // Prev will return the previous entry
 func (c *Cursor) Prev(val Value) (err error) {
-	if isDone(c.txn.ctx) {
-		return c.txn.ctx.Err()
+	if err = c.txn.cc.isDone(); err != nil {
+		return
 	}
 
 	k, v := c.cur.Prev()
