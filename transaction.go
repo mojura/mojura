@@ -288,7 +288,14 @@ func (t *Transaction) iterateBucket(bkt *bolt.Bucket, seekTo []byte, fn entryIte
 			return t.ctx.Err()
 		}
 
-		if err = fn(k, v); err != nil {
+		err = fn(k, v)
+		switch {
+		case err == nil:
+		case err == Break:
+			err = nil
+			return
+
+		default:
 			return
 		}
 	}
