@@ -412,15 +412,19 @@ func TestCore_GetFirstByRelationship(t *testing.T) {
 
 	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
-	if _, err = c.New(&foobar); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err = c.New(&foobar); err != nil {
-		t.Fatal(err)
-	}
-
 	var fb testStruct
+	if err = c.GetFirstByRelationship("contacts", foobar.ContactID, &fb); err != ErrEntryNotFound {
+		t.Fatalf("invalid error encountered, expected %v and received %v", ErrEntryNotFound, err)
+	}
+
+	if _, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
 	if err = c.GetFirstByRelationship("contacts", foobar.ContactID, &fb); err != nil {
 		t.Fatal(err)
 	}
@@ -451,15 +455,19 @@ func TestCore_GetLastByRelationship(t *testing.T) {
 
 	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
-	if _, err = c.New(&foobar); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err = c.New(&foobar); err != nil {
-		t.Fatal(err)
-	}
-
 	var fb testStruct
+	if err = c.GetLastByRelationship("contacts", foobar.ContactID, &fb); err != ErrEntryNotFound {
+		t.Fatalf("invalid error encountered, expected %v and received %v", ErrEntryNotFound, err)
+	}
+
+	if _, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
 	if err = c.GetLastByRelationship("contacts", foobar.ContactID, &fb); err != nil {
 		t.Fatal(err)
 	}
