@@ -425,6 +425,10 @@ func TestCore_GetFirstByRelationship(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if err = c.GetFirstByRelationship("contacts", "NOT AN ID", &fb); err != ErrEntryNotFound {
+		t.Fatalf("invalid error encountered, expected %v and received %v", ErrEntryNotFound, err)
+	}
+
 	if err = c.GetFirstByRelationship("contacts", foobar.ContactID, &fb); err != nil {
 		t.Fatal(err)
 	}
@@ -466,6 +470,10 @@ func TestCore_GetLastByRelationship(t *testing.T) {
 
 	if _, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
+	}
+
+	if err = c.GetLastByRelationship("contacts", "NOT AN ID", &fb); err != ErrEntryNotFound {
+		t.Fatalf("invalid error encountered, expected %v and received %v", ErrEntryNotFound, err)
 	}
 
 	if err = c.GetLastByRelationship("contacts", foobar.ContactID, &fb); err != nil {
