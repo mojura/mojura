@@ -159,9 +159,14 @@ func (c *Core) init(name, dir string, relationships []string) (err error) {
 	return
 }
 
+func (c *Core) newReflectValue() (value reflect.Value) {
+	// Zero value of the entry type
+	return reflect.New(c.entryType)
+}
+
 func (c *Core) newEntryValue() (value Value) {
 	// Zero value of the entry type
-	zero := reflect.New(c.entryType)
+	zero := c.newReflectValue()
 	// Interface of zero value
 	iface := zero.Interface()
 	// Assert as a value (we've confirmed this type at initialization)
@@ -169,7 +174,7 @@ func (c *Core) newEntryValue() (value Value) {
 }
 
 func (c *Core) newValueFromBytes(bs []byte) (val Value, err error) {
-	val = reflect.New(c.entryType).Interface().(Value)
+	val = c.newEntryValue()
 	if err = json.Unmarshal(bs, val); err != nil {
 		val = nil
 		return
