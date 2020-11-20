@@ -399,6 +399,145 @@ func TestCore_GetByRelationship_many_to_many(t *testing.T) {
 	}
 }
 
+func TestCore_GetFiltered_many_to_many(t *testing.T) {
+	var (
+		c   *Core
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c)
+
+	entries := []*testStruct{
+		newTestStruct("user_1", "contact_1", "group_1", "FOO FOO", "foo", "bar"),
+		newTestStruct("user_1", "contact_1", "group_1", "FOO FOO", "bar"),
+		newTestStruct("user_1", "contact_1", "group_1", "FOO FOO", "baz"),
+	}
+
+	type testcase struct {
+		tag           string
+		expectedCount int
+	}
+
+	runCases := func(cases []testcase) (err error) {
+		for _, tc := range cases {
+			var entries []*testStruct
+			filter := MakeFilter("tags", tc.tag, false)
+			if err = c.GetFiltered("", &entries, -1, filter); err != nil {
+				return
+			}
+
+			if len(entries) != tc.expectedCount {
+				err = fmt.Errorf("invalid number of entries, expected %d and received %d for tag of \"%s\"", tc.expectedCount, len(entries), tc.tag)
+			}
+		}
+
+		return
+	}
+
+	createCases := []testcase{
+		{
+			tag:           "foo",
+			expectedCount: 1,
+		},
+		{
+			tag:           "bar",
+			expectedCount: 2,
+		},
+		{
+			tag:           "baz",
+			expectedCount: 1,
+		},
+		{
+			tag:           "beam",
+			expectedCount: 0,
+		},
+		{
+			tag:           "boom",
+			expectedCount: 0,
+		},
+	}
+
+	updateCases := []testcase{
+		{
+			tag:           "foo",
+			expectedCount: 0,
+		},
+		{
+			tag:           "bar",
+			expectedCount: 0,
+		},
+		{
+			tag:           "baz",
+			expectedCount: 0,
+		},
+		{
+			tag:           "beam",
+			expectedCount: 0,
+		},
+		{
+			tag:           "boom",
+			expectedCount: 3,
+		},
+	}
+
+	deleteCases := []testcase{
+		{
+			tag:           "foo",
+			expectedCount: 0,
+		},
+		{
+			tag:           "bar",
+			expectedCount: 0,
+		},
+		{
+			tag:           "baz",
+			expectedCount: 0,
+		},
+		{
+			tag:           "beam",
+			expectedCount: 0,
+		},
+		{
+			tag:           "boom",
+			expectedCount: 0,
+		},
+	}
+
+	for _, entry := range entries {
+		if entry.ID, err = c.New(entry); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = runCases(createCases); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, entry := range entries {
+		entry.Tags = []string{"boom"}
+		if err = c.Edit(entry.ID, entry); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = runCases(updateCases); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, entry := range entries {
+		if err = c.Remove(entry.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = runCases(deleteCases); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestCore_GetFirstByRelationship(t *testing.T) {
 	var (
 		c   *Core
