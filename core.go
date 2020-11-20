@@ -289,6 +289,15 @@ func (c *Core) GetByRelationship(relationship, relationshipID string, entries in
 	return
 }
 
+// GetFiltered will attempt to get the filtered entries
+func (c *Core) GetFiltered(seekTo string, entries interface{}, limit int64, filters ...Filter) (err error) {
+	err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
+		return txn.GetFiltered(seekTo, entries, limit, filters...)
+	})
+
+	return
+}
+
 // GetFirstByRelationship will attempt to get the first entry associated with a given relationship and relationship ID
 func (c *Core) GetFirstByRelationship(relationship, relationshipID string, val Value) (err error) {
 	if err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {

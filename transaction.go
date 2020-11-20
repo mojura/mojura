@@ -162,6 +162,30 @@ func (t *Transaction) getByRelationship(relationship, relationshipID []byte, ent
 	return
 }
 
+func (t *Transaction) getFiltered(seekTo []byte, entries reflect.Value, limit int64, filters []Filter) (err error) {
+	if limit == 0 {
+		return
+	}
+
+	var count int64
+	err = t.forEach(seekTo, func(entryID, entryValue []byte) (err error) {
+		val := t.c.newReflectValue()
+		if err = json.Unmarshal(entryValue, &val); err != nil {
+			return
+		}
+
+		entries.Set(reflect.Append(entries, val))
+
+		if count++; count == limit {
+			return Break
+		}
+
+		return
+	})
+
+	return
+}
+
 func (t *Transaction) exists(entryID []byte) (ok bool, err error) {
 	if isDone(t.ctx) {
 		err = t.ctx.Err()
@@ -736,6 +760,16 @@ func (t *Transaction) GetByRelationship(relationship, relationshipID string, ent
 	}
 
 	return t.getByRelationship([]byte(relationship), []byte(relationshipID), es)
+}
+
+// GetFiltered will attempt to get all entries associated with a set of given filters
+func (t *Transaction) GetFiltered(seekTo string, entries interface{}, limit int64, filters ...Filter) (err error) {
+	var es reflect.Value
+	if es, err = getReflectedSlice(t.c.entryType, entries); err != nil {
+		return
+	}
+
+	return t.getFiltered([]byte(seekTo), es, limit, filters)
 }
 
 // GetFirstByRelationship will attempt to get the first entry associated with a given relationship and relationship ID
