@@ -168,20 +168,20 @@ func (t *Transaction) getFiltered(seekTo []byte, entries reflect.Value, limit in
 	}
 
 	var count int64
-	err = t.forEach(seekTo, func(entryID, entryValue []byte) (err error) {
-		val := t.c.newReflectValue()
-		if err = json.Unmarshal(entryValue, &val); err != nil {
+	err = t.forEachID(seekTo, func(entryID []byte) (err error) {
+		val := t.c.newEntryValue()
+		if err = t.get(entryID, &val); err != nil {
 			return
 		}
 
-		entries.Set(reflect.Append(entries, val))
+		entries.Set(reflect.Append(entries, reflect.ValueOf(val)))
 
 		if count++; count == limit {
 			return Break
 		}
 
 		return
-	})
+	}, filters)
 
 	return
 }
