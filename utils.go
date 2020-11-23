@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strconv"
 )
 
 func getReflectedSlice(t reflect.Type, v interface{}) (slice reflect.Value, err error) {
@@ -205,5 +206,30 @@ func getPartedFilters(fs []Filter) (primary Filter, remaining []Filter, err erro
 
 	// Set remaining values
 	remaining = fs[1:]
+	return
+}
+
+func stripLeadingZeros(bs []byte) (out []byte) {
+	for i, b := range bs {
+		if b != '0' {
+			return bs[i:]
+		}
+
+	}
+
+	return
+}
+
+func parseIDAsIndex(id []byte) (index uint64, err error) {
+	var stripped []byte
+	if stripped = stripLeadingZeros(id); len(stripped) == 0 {
+		return
+	}
+
+	if index, err = strconv.ParseUint(string(stripped), 10, 64); err != nil {
+		err = fmt.Errorf("error parsing ID \"%s\": %v", string(id), err)
+		return
+	}
+
 	return
 }
