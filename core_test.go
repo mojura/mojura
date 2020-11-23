@@ -23,6 +23,7 @@ func TestNew(t *testing.T) {
 	)
 
 	if c, err = testInit(); err != nil {
+		testTeardown(c)
 		t.Fatal(err)
 	}
 
@@ -1211,6 +1212,50 @@ func TestCore_Batch(t *testing.T) {
 
 	if val.Value != "foo bar baz" {
 		t.Fatalf("invalid value for Value, expected \"%s\" and received \"%s\"", foobar.Value, val.Value)
+	}
+
+	return
+}
+
+func TestCore_index_increment_persist(t *testing.T) {
+	var (
+		c   *Core
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		testTeardown(c)
+		t.Fatal(err)
+	}
+
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+
+	if err = c.Transaction(context.Background(), func(txn *Transaction) (err error) {
+		_, err = txn.New(&foobar)
+		return
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = c.Close(); err != nil {
+		t.Fatalf("error closing DBL: %v", err)
+	}
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c)
+
+	var entryID string
+	if err = c.Transaction(context.Background(), func(txn *Transaction) (err error) {
+		entryID, err = txn.New(&foobar)
+		return
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if entryID != "00000001" {
+		t.Fatalf("unexpected ID, expected %s and recieved %s", "00000001", entryID)
 	}
 
 	return
