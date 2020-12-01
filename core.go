@@ -2,7 +2,6 @@ package dbl
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -67,6 +66,10 @@ func New(name, dir string, example Value, relationships ...string) (cc *Core, er
 // NewWithOpts will return a new instance of Core
 func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...string) (cc *Core, err error) {
 	var c Core
+	if err = opts.Validate(); err != nil {
+		return
+	}
+
 	if len(example.GetRelationships()) != len(relationships) {
 		err = ErrInvalidNumberOfRelationships
 		return
@@ -200,9 +203,17 @@ func (c *Core) newEntryValue() (value Value) {
 	return iface.(Value)
 }
 
+func (c *Core) marshal(val interface{}) (bs []byte, err error) {
+	return c.opts.Encoder.Marshal(val)
+}
+
+func (c *Core) unmarshal(bs []byte, val interface{}) (err error) {
+	return c.opts.Encoder.Unmarshal(bs, val)
+}
+
 func (c *Core) newValueFromBytes(bs []byte) (val Value, err error) {
 	val = c.newEntryValue()
-	if err = json.Unmarshal(bs, val); err != nil {
+	if err = c.unmarshal(bs, val); err != nil {
 		val = nil
 		return
 	}
