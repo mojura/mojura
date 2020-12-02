@@ -3,7 +3,6 @@ package dbl
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"time"
@@ -86,7 +85,7 @@ func (t *Transaction) get(entryID []byte, val interface{}) (err error) {
 		return
 	}
 
-	err = json.Unmarshal(bs, val)
+	err = t.c.unmarshal(bs, val)
 	return
 }
 
@@ -389,7 +388,7 @@ func (t *Transaction) put(entryID []byte, val Value) (err error) {
 	val.SetUpdatedAt(time.Now().Unix())
 
 	var bs []byte
-	if bs, err = json.Marshal(val); err != nil {
+	if bs, err = t.c.marshal(val); err != nil {
 		return
 	}
 
