@@ -13,7 +13,7 @@ import (
 
 func newTransaction(ctx context.Context, c *Core, txn *bolt.Tx, atxn *actions.Transaction) (t Transaction) {
 	t.c = c
-	t.ctx = ctx
+	t.cc = newContextContainer(ctx)
 	t.txn = txn
 	t.atxn = atxn
 	return
@@ -23,15 +23,14 @@ func newTransaction(ctx context.Context, c *Core, txn *bolt.Tx, atxn *actions.Tr
 type Transaction struct {
 	c *Core
 
-	ctx context.Context
+	cc *contextContainer
 
 	txn  *bolt.Tx
 	atxn *actions.Transaction
 }
 
 func (t *Transaction) getRelationshipBucket(relationship []byte) (bkt *bolt.Bucket, err error) {
-	if isDone(t.ctx) {
-		err = t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
 		return
 	}
 
@@ -64,8 +63,7 @@ func (t *Transaction) getRelationshipIDBucket(relationship, relationshipID []byt
 }
 
 func (t *Transaction) getLookupBucket(lookup []byte) (bkt *bolt.Bucket, err error) {
-	if isDone(t.ctx) {
-		err = t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
 		return
 	}
 
@@ -90,8 +88,7 @@ func (t *Transaction) get(entryID []byte, val interface{}) (err error) {
 }
 
 func (t *Transaction) getBytes(entryID []byte) (bs []byte, err error) {
-	if isDone(t.ctx) {
-		err = t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
 		return
 	}
 
@@ -110,8 +107,7 @@ func (t *Transaction) getBytes(entryID []byte) (bs []byte, err error) {
 }
 
 func (t *Transaction) getIDsByRelationship(relationship, relationshipID []byte) (entryIDs [][]byte, err error) {
-	if isDone(t.ctx) {
-		err = t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
 		return
 	}
 
@@ -134,8 +130,7 @@ func (t *Transaction) getIDsByRelationship(relationship, relationshipID []byte) 
 }
 
 func (t *Transaction) getByRelationship(relationship, relationshipID []byte, entries reflect.Value) (err error) {
-	if isDone(t.ctx) {
-		err = t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
 		return
 	}
 
@@ -187,8 +182,7 @@ func (t *Transaction) getFiltered(seekTo []byte, entries reflect.Value, limit in
 }
 
 func (t *Transaction) exists(entryID []byte) (ok bool, err error) {
-	if isDone(t.ctx) {
-		err = t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
 		return
 	}
 
@@ -221,8 +215,7 @@ func (t *Transaction) matchesAllPairs(fs []Filter, entryID []byte) (isMatch bool
 }
 
 func (t *Transaction) isPairMatch(pair *Filter, entryID []byte) (isMatch bool, err error) {
-	if isDone(t.ctx) {
-		err = t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
 		return
 	}
 
@@ -265,8 +258,8 @@ func (t *Transaction) forEach(seekTo []byte, fn entryIteratingFn) (err error) {
 }
 
 func (t *Transaction) forEachID(seekTo []byte, fn idIteratingFn, fs []Filter) (err error) {
-	if isDone(t.ctx) {
-		return t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
+		return
 	}
 
 	if len(fs) == 0 {
@@ -301,15 +294,15 @@ func (t *Transaction) forEachIDByRelationship(seekTo, relationship, relationship
 
 func (t *Transaction) iterateBucket(bkt *bolt.Bucket, seekTo []byte, fn entryIteratingFn) (err error) {
 	// Check to see if context has expired
-	if isDone(t.ctx) {
-		return t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
+		return
 	}
 
 	c := bkt.Cursor()
 	for k, v := c.Seek(seekTo); k != nil; k, v = c.Next() {
 		// Check to see if context has expired
-		if isDone(t.ctx) {
-			return t.ctx.Err()
+		if err = t.cc.isDone(); err != nil {
+			return
 		}
 
 		err = fn(k, v)
@@ -328,8 +321,8 @@ func (t *Transaction) iterateBucket(bkt *bolt.Bucket, seekTo []byte, fn entryIte
 }
 
 func (t *Transaction) cursor(fn CursorFn) (err error) {
-	if isDone(t.ctx) {
-		return t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
+		return
 	}
 
 	var bkt *bolt.Bucket
@@ -350,8 +343,8 @@ func (t *Transaction) cursor(fn CursorFn) (err error) {
 }
 
 func (t *Transaction) cursorRelationship(relationship, relationshipID []byte, fn CursorFn) (err error) {
-	if isDone(t.ctx) {
-		return t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
+		return
 	}
 
 	var relationshipBkt *bolt.Bucket
@@ -376,8 +369,8 @@ func (t *Transaction) cursorRelationship(relationship, relationshipID []byte, fn
 }
 
 func (t *Transaction) put(entryID []byte, val Value) (err error) {
-	if isDone(t.ctx) {
-		return t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
+		return
 	}
 
 	var bkt *bolt.Bucket
@@ -396,8 +389,8 @@ func (t *Transaction) put(entryID []byte, val Value) (err error) {
 }
 
 func (t *Transaction) delete(entryID []byte) (err error) {
-	if isDone(t.ctx) {
-		return t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
+		return
 	}
 
 	var bkt *bolt.Bucket
@@ -409,8 +402,8 @@ func (t *Transaction) delete(entryID []byte) (err error) {
 }
 
 func (t *Transaction) setRelationships(relationships Relationships, entryID []byte) (err error) {
-	if isDone(t.ctx) {
-		return t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
+		return
 	}
 
 	for i, relationship := range relationships {
@@ -426,8 +419,8 @@ func (t *Transaction) setRelationships(relationships Relationships, entryID []by
 }
 
 func (t *Transaction) setRelationship(relationship, relationshipID, entryID []byte) (err error) {
-	if isDone(t.ctx) {
-		return t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
+		return
 	}
 
 	if len(relationshipID) == 0 {
@@ -449,8 +442,8 @@ func (t *Transaction) setRelationship(relationship, relationshipID, entryID []by
 }
 
 func (t *Transaction) unsetRelationships(relationships Relationships, entryID []byte) (err error) {
-	if isDone(t.ctx) {
-		return t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
+		return
 	}
 
 	for i, relationship := range relationships {
@@ -466,8 +459,8 @@ func (t *Transaction) unsetRelationships(relationships Relationships, entryID []
 }
 
 func (t *Transaction) unsetRelationship(relationship, relationshipID, entryID []byte) (err error) {
-	if isDone(t.ctx) {
-		return t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
+		return
 	}
 
 	var relationshipBkt *bolt.Bucket
@@ -484,8 +477,8 @@ func (t *Transaction) unsetRelationship(relationship, relationshipID, entryID []
 }
 
 func (t *Transaction) updateRelationships(entryID []byte, orig, val Value) (err error) {
-	if isDone(t.ctx) {
-		return t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
+		return
 	}
 
 	origRelationships := orig.GetRelationships()
@@ -507,8 +500,8 @@ func (t *Transaction) updateRelationships(entryID []byte, orig, val Value) (err 
 }
 
 func (t *Transaction) getFirstByRelationship(relationship, relationshipID []byte, val Value) (err error) {
-	if isDone(t.ctx) {
-		return t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
+		return
 	}
 
 	var match bool
@@ -532,8 +525,8 @@ func (t *Transaction) getFirstByRelationship(relationship, relationshipID []byte
 }
 
 func (t *Transaction) getLastByRelationship(relationship, relationshipID []byte, val Value) (err error) {
-	if isDone(t.ctx) {
-		return t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
+		return
 	}
 
 	var match bool
@@ -557,8 +550,8 @@ func (t *Transaction) getLastByRelationship(relationship, relationshipID []byte,
 }
 
 func (t *Transaction) setLookup(lookup, lookupID, key []byte) (err error) {
-	if isDone(t.ctx) {
-		return t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
+		return
 	}
 
 	var lookupsBkt *bolt.Bucket
@@ -590,8 +583,7 @@ func (t *Transaction) setLookup(lookup, lookupID, key []byte) (err error) {
 }
 
 func (t *Transaction) getLookupKeys(lookup, lookupID []byte) (keys []string, err error) {
-	if isDone(t.ctx) {
-		err = t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
 		return
 	}
 
@@ -614,8 +606,8 @@ func (t *Transaction) getLookupKeys(lookup, lookupID []byte) (keys []string, err
 }
 
 func (t *Transaction) removeLookup(lookup, lookupID, key []byte) (err error) {
-	if isDone(t.ctx) {
-		return t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
+		return
 	}
 
 	var lookupBkt *bolt.Bucket
@@ -641,8 +633,7 @@ func (t *Transaction) removeLookup(lookup, lookupID, key []byte) (err error) {
 }
 
 func (t *Transaction) new(val Value) (entryID []byte, err error) {
-	if isDone(t.ctx) {
-		err = t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
 		return
 	}
 
@@ -675,8 +666,8 @@ func (t *Transaction) new(val Value) (entryID []byte, err error) {
 }
 
 func (t *Transaction) edit(entryID []byte, val Value) (err error) {
-	if isDone(t.ctx) {
-		return t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
+		return
 	}
 
 	orig := reflect.New(t.c.entryType).Interface().(Value)
@@ -706,8 +697,8 @@ func (t *Transaction) edit(entryID []byte, val Value) (err error) {
 }
 
 func (t *Transaction) remove(entryID []byte) (err error) {
-	if isDone(t.ctx) {
-		return t.ctx.Err()
+	if err = t.cc.isDone(); err != nil {
+		return
 	}
 
 	val := t.c.newEntryValue()

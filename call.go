@@ -1,7 +1,10 @@
 package dbl
 
+import "context"
+
 type call struct {
 	fn   TransactionFn
+	ctx  context.Context
 	errC chan error
 }
 

@@ -114,12 +114,13 @@ func (b *batcher) flush() {
 	b.calls = b.calls[:0]
 }
 
-func (b *batcher) Append(fn TransactionFn) (errC chan error) {
+func (b *batcher) Append(ctx context.Context, fn TransactionFn) (errC chan error) {
 	b.mux.Lock()
 	defer b.mux.Unlock()
 
 	var c call
 	c.fn = fn
+	c.ctx = ctx
 	c.errC = make(chan error, 1)
 
 	// Append calls to calls buffer
