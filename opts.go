@@ -1,6 +1,10 @@
 package dbl
 
-import "time"
+import (
+	"time"
+
+	"github.com/hatchify/errors"
+)
 
 const (
 	// DefaultMaxBatchCalls is the default maximum number of calls a batch will take
@@ -9,6 +13,14 @@ const (
 	DefaultMaxBatchDuration = time.Millisecond * 10
 	// DefaultRetryBatchFail is the default value for if a batch call will retry when a batch sibling fails
 	DefaultRetryBatchFail = true
+)
+
+// DefaultEncoder represents the default encoder used by DBL
+var DefaultEncoder JSONEncoder
+
+const (
+	// ErrEmptyEncoder is returned when an encoder is unset
+	ErrEmptyEncoder = errors.Error("invalid encoder, cannot be empty")
 )
 
 var defaultOpts = Opts{
@@ -22,4 +34,26 @@ type Opts struct {
 	MaxBatchCalls    int
 	MaxBatchDuration time.Duration
 	RetryBatchFail   bool
+
+	Encoder Encoder
+}
+
+// Validate will validate a set of Options
+func (o *Opts) Validate() (err error) {
+	o.init()
+	return
+}
+
+func (o *Opts) init() {
+	if o.Encoder == nil {
+		o.Encoder = &DefaultEncoder
+	}
+
+	if o.MaxBatchCalls == 0 {
+		o.MaxBatchCalls = DefaultMaxBatchCalls
+	}
+
+	if o.MaxBatchDuration == 0 {
+		o.MaxBatchDuration = DefaultMaxBatchDuration
+	}
 }

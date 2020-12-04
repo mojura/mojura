@@ -1,10 +1,6 @@
 package dbl
 
-import (
-	"encoding/json"
-
-	"github.com/boltdb/bolt"
-)
+import "github.com/boltdb/bolt"
 
 func newCursor(txn *Transaction, cur *bolt.Cursor, relationship bool) (c Cursor) {
 	c.txn = txn
@@ -15,16 +11,15 @@ func newCursor(txn *Transaction, cur *bolt.Cursor, relationship bool) (c Cursor)
 
 // Cursor is an iterating structure
 type Cursor struct {
-	core *Core
-	txn  *Transaction
-	cur  *bolt.Cursor
+	txn *Transaction
+	cur *bolt.Cursor
 
 	relationship bool
 }
 
 func (c *Cursor) get(key, bs []byte, val Value) (err error) {
 	if !c.relationship {
-		return json.Unmarshal(bs, val)
+		return c.txn.c.unmarshal(bs, val)
 	}
 
 	if err = c.txn.get(key, val); err != nil {

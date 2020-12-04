@@ -3,7 +3,7 @@ package dbl
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"fmt"
 	"reflect"
 	"time"
 
@@ -83,7 +83,7 @@ func (t *Transaction) get(entryID []byte, val interface{}) (err error) {
 		return
 	}
 
-	err = json.Unmarshal(bs, val)
+	err = t.c.unmarshal(bs, val)
 	return
 }
 
@@ -153,6 +153,30 @@ func (t *Transaction) getByRelationship(relationship, relationshipID []byte, ent
 
 		entries.Set(reflect.Append(entries, val))
 	}
+
+	return
+}
+
+func (t *Transaction) getFiltered(seekTo []byte, entries reflect.Value, limit int64, filters []Filter) (err error) {
+	if limit == 0 {
+		return
+	}
+
+	var count int64
+	err = t.forEachID(seekTo, func(entryID []byte) (err error) {
+		val := t.c.newEntryValue()
+		if err = t.get(entryID, &val); err != nil {
+			return
+		}
+
+		entries.Set(reflect.Append(entries, reflect.ValueOf(val)))
+
+		if count++; count == limit {
+			return Break
+		}
+
+		return
+	}, filters)
 
 	return
 }
@@ -281,7 +305,14 @@ func (t *Transaction) iterateBucket(bkt *bolt.Bucket, seekTo []byte, fn entryIte
 			return
 		}
 
-		if err = fn(k, v); err != nil {
+		err = fn(k, v)
+		switch {
+		case err == nil:
+		case err == Break:
+			err = nil
+			return
+
+		default:
 			return
 		}
 	}
@@ -350,7 +381,7 @@ func (t *Transaction) put(entryID []byte, val Value) (err error) {
 	val.SetUpdatedAt(time.Now().Unix())
 
 	var bs []byte
-	if bs, err = json.Marshal(val); err != nil {
+	if bs, err = t.c.marshal(val); err != nil {
 		return
 	}
 
@@ -606,9 +637,13 @@ func (t *Transaction) new(val Value) (entryID []byte, err error) {
 		return
 	}
 
-	if entryID, err = t.c.dbu.Next(t.txn, entriesBktKey); err != nil {
+	var index uint64
+	if index = t.c.idx.Next(); err != nil {
 		return
 	}
+
+	// Create a padded entry ID from index value
+	entryID = []byte(fmt.Sprintf(t.c.indexFmt, index))
 
 	val.SetID(string(entryID))
 	if val.GetCreatedAt() == 0 {
@@ -720,6 +755,16 @@ func (t *Transaction) GetByRelationship(relationship, relationshipID string, ent
 	}
 
 	return t.getByRelationship([]byte(relationship), []byte(relationshipID), es)
+}
+
+// GetFiltered will attempt to get all entries associated with a set of given filters
+func (t *Transaction) GetFiltered(seekTo string, entries interface{}, limit int64, filters ...Filter) (err error) {
+	var es reflect.Value
+	if es, err = getReflectedSlice(t.c.entryType, entries); err != nil {
+		return
+	}
+
+	return t.getFiltered([]byte(seekTo), es, limit, filters)
 }
 
 // GetFirstByRelationship will attempt to get the first entry associated with a given relationship and relationship ID

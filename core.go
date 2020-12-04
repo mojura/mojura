@@ -2,7 +2,6 @@ package dbl
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -11,7 +10,7 @@ import (
 	"time"
 
 	"github.com/gdbu/actions"
-	"github.com/gdbu/dbutils"
+	"github.com/gdbu/indexer"
 	"github.com/hatchify/errors"
 
 	"github.com/hatchify/atoms"
@@ -67,6 +66,10 @@ func New(name, dir string, example Value, relationships ...string) (cc *Core, er
 // NewWithOpts will return a new instance of Core
 func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...string) (cc *Core, err error) {
 	var c Core
+	if err = opts.Validate(); err != nil {
+		return
+	}
+
 	if len(example.GetRelationships()) != len(relationships) {
 		err = ErrInvalidNumberOfRelationships
 		return
@@ -75,6 +78,7 @@ func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...st
 	c.opts = &opts
 	c.entryType = getCoreType(example)
 	c.logsDir = path.Join(dir, "logs")
+	c.indexFmt = fmt.Sprintf("%s0%dd", "%", 8)
 
 	if err = os.MkdirAll(c.logsDir, 0744); err != nil {
 		return
@@ -102,12 +106,13 @@ func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...st
 // Core is the core manager
 type Core struct {
 	db  *bolt.DB
-	dbu *dbutils.DBUtils
+	idx *indexer.Indexer
 	a   *actions.Actions
 	b   *batcher
 
-	opts    *Opts
-	logsDir string
+	opts     *Opts
+	logsDir  string
+	indexFmt string
 
 	// Element type
 	entryType reflect.Type
@@ -119,19 +124,20 @@ type Core struct {
 }
 
 func (c *Core) init(name, dir string, relationships []string) (err error) {
+	indexFilename := path.Join(dir, name+".idb")
 	filename := path.Join(dir, name+".bdb")
-	c.dbu = dbutils.New(8)
+
+	if c.idx, err = indexer.New(indexFilename); err != nil {
+		return fmt.Errorf("error opening index db for %s (%s): %v", name, dir, err)
+	}
 
 	if c.db, err = bolt.Open(filename, 0644, boltOpts); err != nil {
 		return fmt.Errorf("error opening db for %s (%s): %v", name, dir, err)
 	}
 
 	err = c.db.Update(func(txn *bolt.Tx) (err error) {
-		if err = c.dbu.Init(txn); err != nil {
-			return
-		}
-
-		if _, err = txn.CreateBucketIfNotExists(entriesBktKey); err != nil {
+		var entriesBkt *bolt.Bucket
+		if entriesBkt, err = txn.CreateBucketIfNotExists(entriesBktKey); err != nil {
 			return
 		}
 
@@ -153,24 +159,61 @@ func (c *Core) init(name, dir string, relationships []string) (err error) {
 			c.relationships = append(c.relationships, rbs)
 		}
 
+		if err = c.setIndexer(entriesBkt); err != nil {
+			err = fmt.Errorf("error reading last ID: %v", err)
+			return
+		}
+
 		return
 	})
 
 	return
 }
 
+func (c *Core) newReflectValue() (value reflect.Value) {
+	// Zero value of the entry type
+	return reflect.New(c.entryType)
+}
+
+func (c *Core) setIndexer(entriesBkt *bolt.Bucket) (err error) {
+	if c.idx.Get() != 0 {
+		// Indexer has already been set, bail out
+		return
+	}
+
+	// Since indexer has not been set it, set the index value from the current last entry
+
+	lastID, _ := entriesBkt.Cursor().Last()
+
+	var value uint64
+	if value, err = parseIDAsIndex(lastID); err != nil {
+		return
+	}
+
+	c.idx.Set(value)
+	return c.idx.Flush()
+}
+
 func (c *Core) newEntryValue() (value Value) {
 	// Zero value of the entry type
-	zero := reflect.New(c.entryType)
+	zero := c.newReflectValue()
 	// Interface of zero value
 	iface := zero.Interface()
 	// Assert as a value (we've confirmed this type at initialization)
 	return iface.(Value)
 }
 
+func (c *Core) marshal(val interface{}) (bs []byte, err error) {
+	return c.opts.Encoder.Marshal(val)
+}
+
+func (c *Core) unmarshal(bs []byte, val interface{}) (err error) {
+	return c.opts.Encoder.Unmarshal(bs, val)
+}
+
 func (c *Core) newValueFromBytes(bs []byte) (val Value, err error) {
-	val = reflect.New(c.entryType).Interface().(Value)
-	if err = json.Unmarshal(bs, val); err != nil {
+	val = c.newEntryValue()
+	if err = c.unmarshal(bs, val); err != nil {
 		val = nil
 		return
 	}
@@ -214,6 +257,8 @@ func (c *Core) transaction(fn func(*bolt.Tx, *actions.Transaction) error) (err e
 func (c *Core) runTransaction(ctx context.Context, txn *bolt.Tx, atxn *actions.Transaction, fn TransactionFn) (err error) {
 	t := newTransaction(ctx, c, txn, atxn)
 	defer t.teardown()
+	// Always ensure index has been flushed
+	defer c.idx.Flush()
 	errCh := make(chan error)
 
 	// Call function from within goroutine
@@ -279,6 +324,15 @@ func (c *Core) GetByRelationship(relationship, relationshipID string, entries in
 
 	err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.getByRelationship([]byte(relationship), []byte(relationshipID), es)
+	})
+
+	return
+}
+
+// GetFiltered will attempt to get the filtered entries
+func (c *Core) GetFiltered(seekTo string, entries interface{}, limit int64, filters ...Filter) (err error) {
+	err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
+		return txn.GetFiltered(seekTo, entries, limit, filters...)
 	})
 
 	return
