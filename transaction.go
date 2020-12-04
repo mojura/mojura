@@ -7,11 +7,10 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/boltdb/bolt"
 	"github.com/gdbu/actions"
 )
 
-func newTransaction(ctx context.Context, c *Core, txn *bolt.Tx, atxn *actions.Transaction) (t Transaction) {
+func newTransaction(ctx context.Context, c *Core, txn BackendTransaction, atxn *actions.Transaction) (t Transaction) {
 	t.c = c
 	t.cc = newContextContainer(ctx)
 	t.txn = txn
@@ -25,22 +24,22 @@ type Transaction struct {
 
 	cc *contextContainer
 
-	txn  *bolt.Tx
+	txn  BackendTransaction
 	atxn *actions.Transaction
 }
 
-func (t *Transaction) getRelationshipBucket(relationship []byte) (bkt *bolt.Bucket, err error) {
+func (t *Transaction) getRelationshipBucket(relationship []byte) (bkt BackendBucket, err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
 
-	var relationshipsBkt *bolt.Bucket
-	if relationshipsBkt = t.txn.Bucket(relationshipsBktKey); relationshipsBkt == nil {
+	var relationshipsBkt BackendBucket
+	if relationshipsBkt = t.txn.GetBucket(relationshipsBktKey); relationshipsBkt == nil {
 		err = ErrNotInitialized
 		return
 	}
 
-	if bkt = relationshipsBkt.Bucket(relationship); bkt == nil {
+	if bkt = relationshipsBkt.GetBucket(relationship); bkt == nil {
 		err = ErrRelationshipNotFound
 		return
 	}
@@ -48,13 +47,13 @@ func (t *Transaction) getRelationshipBucket(relationship []byte) (bkt *bolt.Buck
 	return
 }
 
-func (t *Transaction) getRelationshipIDBucket(relationship, relationshipID []byte) (bkt *bolt.Bucket, ok bool, err error) {
-	var relationshipBkt *bolt.Bucket
+func (t *Transaction) getRelationshipIDBucket(relationship, relationshipID []byte) (bkt BackendBucket, ok bool, err error) {
+	var relationshipBkt BackendBucket
 	if relationshipBkt, err = t.getRelationshipBucket(relationship); err != nil {
 		return
 	}
 
-	if bkt = relationshipBkt.Bucket(relationshipID); bkt == nil {
+	if bkt = relationshipBkt.GetBucket(relationshipID); bkt == nil {
 		return
 	}
 
@@ -62,18 +61,18 @@ func (t *Transaction) getRelationshipIDBucket(relationship, relationshipID []byt
 	return
 }
 
-func (t *Transaction) getLookupBucket(lookup []byte) (bkt *bolt.Bucket, err error) {
+func (t *Transaction) getLookupBucket(lookup []byte) (bkt BackendBucket, err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
 
-	var lookupsBkt *bolt.Bucket
-	if lookupsBkt = t.txn.Bucket(lookupsBktKey); lookupsBkt == nil {
+	var lookupsBkt BackendBucket
+	if lookupsBkt = t.txn.GetBucket(lookupsBktKey); lookupsBkt == nil {
 		err = ErrNotInitialized
 		return
 	}
 
-	bkt = lookupsBkt.Bucket(lookup)
+	bkt = lookupsBkt.GetBucket(lookup)
 	return
 }
 
@@ -92,8 +91,8 @@ func (t *Transaction) getBytes(entryID []byte) (bs []byte, err error) {
 		return
 	}
 
-	var bkt *bolt.Bucket
-	if bkt = t.txn.Bucket(entriesBktKey); bkt == nil {
+	var bkt BackendBucket
+	if bkt = t.txn.GetBucket(entriesBktKey); bkt == nil {
 		err = ErrNotInitialized
 		return
 	}
@@ -111,13 +110,13 @@ func (t *Transaction) getIDsByRelationship(relationship, relationshipID []byte) 
 		return
 	}
 
-	var relationshipBkt *bolt.Bucket
+	var relationshipBkt BackendBucket
 	if relationshipBkt, err = t.getRelationshipBucket(relationship); err != nil {
 		return
 	}
 
-	var bkt *bolt.Bucket
-	if bkt = relationshipBkt.Bucket(relationshipID); bkt == nil {
+	var bkt BackendBucket
+	if bkt = relationshipBkt.GetBucket(relationshipID); bkt == nil {
 		return
 	}
 
@@ -134,13 +133,13 @@ func (t *Transaction) getByRelationship(relationship, relationshipID []byte, ent
 		return
 	}
 
-	var relationshipBkt *bolt.Bucket
+	var relationshipBkt BackendBucket
 	if relationshipBkt, err = t.getRelationshipBucket(relationship); err != nil {
 		return
 	}
 
-	var bkt *bolt.Bucket
-	if bkt = relationshipBkt.Bucket(relationshipID); bkt == nil {
+	var bkt BackendBucket
+	if bkt = relationshipBkt.GetBucket(relationshipID); bkt == nil {
 		return
 	}
 
@@ -186,8 +185,8 @@ func (t *Transaction) exists(entryID []byte) (ok bool, err error) {
 		return
 	}
 
-	var bkt *bolt.Bucket
-	if bkt = t.txn.Bucket(entriesBktKey); bkt == nil {
+	var bkt BackendBucket
+	if bkt = t.txn.GetBucket(entriesBktKey); bkt == nil {
 		err = ErrNotInitialized
 		return
 	}
@@ -219,13 +218,13 @@ func (t *Transaction) isPairMatch(pair *Filter, entryID []byte) (isMatch bool, e
 		return
 	}
 
-	var relationshipBkt *bolt.Bucket
+	var relationshipBkt BackendBucket
 	if relationshipBkt, err = t.getRelationshipBucket(pair.relationship()); err != nil {
 		return
 	}
 
-	var bkt *bolt.Bucket
-	if bkt = relationshipBkt.Bucket(pair.id()); bkt == nil {
+	var bkt BackendBucket
+	if bkt = relationshipBkt.GetBucket(pair.id()); bkt == nil {
 		return
 	}
 
@@ -248,8 +247,8 @@ func (t *Transaction) isPairMatch(pair *Filter, entryID []byte) (isMatch bool, e
 }
 
 func (t *Transaction) forEach(seekTo []byte, fn entryIteratingFn) (err error) {
-	var bkt *bolt.Bucket
-	if bkt = t.txn.Bucket(entriesBktKey); bkt == nil {
+	var bkt BackendBucket
+	if bkt = t.txn.GetBucket(entriesBktKey); bkt == nil {
 		err = ErrNotInitialized
 		return
 	}
@@ -281,7 +280,7 @@ func (t *Transaction) forEachID(seekTo []byte, fn idIteratingFn, fs []Filter) (e
 
 func (t *Transaction) forEachIDByRelationship(seekTo, relationship, relationshipID []byte, fn idIteratingFn) (err error) {
 	var (
-		bkt *bolt.Bucket
+		bkt BackendBucket
 		ok  bool
 	)
 
@@ -292,7 +291,7 @@ func (t *Transaction) forEachIDByRelationship(seekTo, relationship, relationship
 	return t.iterateBucket(bkt, seekTo, fn.toEntryIteratingFn())
 }
 
-func (t *Transaction) iterateBucket(bkt *bolt.Bucket, seekTo []byte, fn entryIteratingFn) (err error) {
+func (t *Transaction) iterateBucket(bkt BackendBucket, seekTo []byte, fn entryIteratingFn) (err error) {
 	// Check to see if context has expired
 	if err = t.cc.isDone(); err != nil {
 		return
@@ -325,8 +324,8 @@ func (t *Transaction) cursor(fn CursorFn) (err error) {
 		return
 	}
 
-	var bkt *bolt.Bucket
-	if bkt = t.txn.Bucket(entriesBktKey); bkt == nil {
+	var bkt BackendBucket
+	if bkt = t.txn.GetBucket(entriesBktKey); bkt == nil {
 		err = ErrNotInitialized
 		return
 	}
@@ -347,13 +346,13 @@ func (t *Transaction) cursorRelationship(relationship, relationshipID []byte, fn
 		return
 	}
 
-	var relationshipBkt *bolt.Bucket
+	var relationshipBkt BackendBucket
 	if relationshipBkt, err = t.getRelationshipBucket(relationship); err != nil {
 		return
 	}
 
-	var bkt *bolt.Bucket
-	if bkt = relationshipBkt.Bucket(relationshipID); bkt == nil {
+	var bkt BackendBucket
+	if bkt = relationshipBkt.GetBucket(relationshipID); bkt == nil {
 		return
 	}
 
@@ -373,8 +372,8 @@ func (t *Transaction) put(entryID []byte, val Value) (err error) {
 		return
 	}
 
-	var bkt *bolt.Bucket
-	if bkt = t.txn.Bucket(entriesBktKey); bkt == nil {
+	var bkt BackendBucket
+	if bkt = t.txn.GetBucket(entriesBktKey); bkt == nil {
 		return ErrNotInitialized
 	}
 
@@ -393,8 +392,8 @@ func (t *Transaction) delete(entryID []byte) (err error) {
 		return
 	}
 
-	var bkt *bolt.Bucket
-	if bkt = t.txn.Bucket(entriesBktKey); bkt == nil {
+	var bkt BackendBucket
+	if bkt = t.txn.GetBucket(entriesBktKey); bkt == nil {
 		return ErrNotInitialized
 	}
 
@@ -428,13 +427,13 @@ func (t *Transaction) setRelationship(relationship, relationshipID, entryID []by
 		return
 	}
 
-	var relationshipBkt *bolt.Bucket
+	var relationshipBkt BackendBucket
 	if relationshipBkt, err = t.getRelationshipBucket(relationship); err != nil {
 		return
 	}
 
-	var bkt *bolt.Bucket
-	if bkt, err = relationshipBkt.CreateBucketIfNotExists(relationshipID); err != nil {
+	var bkt BackendBucket
+	if bkt, err = relationshipBkt.GetOrCreateBucket(relationshipID); err != nil {
 		return
 	}
 
@@ -463,13 +462,13 @@ func (t *Transaction) unsetRelationship(relationship, relationshipID, entryID []
 		return
 	}
 
-	var relationshipBkt *bolt.Bucket
+	var relationshipBkt BackendBucket
 	if relationshipBkt, err = t.getRelationshipBucket(relationship); err != nil {
 		return
 	}
 
-	var bkt *bolt.Bucket
-	if bkt = relationshipBkt.Bucket(relationshipID); bkt == nil {
+	var bkt BackendBucket
+	if bkt = relationshipBkt.GetBucket(relationshipID); bkt == nil {
 		return
 	}
 
@@ -554,19 +553,19 @@ func (t *Transaction) setLookup(lookup, lookupID, key []byte) (err error) {
 		return
 	}
 
-	var lookupsBkt *bolt.Bucket
-	if lookupsBkt = t.txn.Bucket(lookupsBktKey); lookupsBkt == nil {
+	var lookupsBkt BackendBucket
+	if lookupsBkt = t.txn.GetBucket(lookupsBktKey); lookupsBkt == nil {
 		err = ErrNotInitialized
 		return
 	}
 
-	var lookupBkt *bolt.Bucket
-	if lookupBkt, err = lookupsBkt.CreateBucketIfNotExists(lookup); err != nil {
+	var lookupBkt BackendBucket
+	if lookupBkt, err = lookupsBkt.GetOrCreateBucket(lookup); err != nil {
 		return
 	}
 
-	var bkt *bolt.Bucket
-	if bkt, err = lookupBkt.CreateBucketIfNotExists(lookupID); err != nil {
+	var bkt BackendBucket
+	if bkt, err = lookupBkt.GetOrCreateBucket(lookupID); err != nil {
 		return
 	}
 
@@ -587,13 +586,13 @@ func (t *Transaction) getLookupKeys(lookup, lookupID []byte) (keys []string, err
 		return
 	}
 
-	var lookupBkt *bolt.Bucket
+	var lookupBkt BackendBucket
 	if lookupBkt, err = t.getLookupBucket(lookup); lookupBkt == nil || err != nil {
 		return
 	}
 
-	var bkt *bolt.Bucket
-	if bkt = lookupBkt.Bucket(lookupID); bkt == nil {
+	var bkt BackendBucket
+	if bkt = lookupBkt.GetBucket(lookupID); bkt == nil {
 		return
 	}
 
@@ -610,13 +609,13 @@ func (t *Transaction) removeLookup(lookup, lookupID, key []byte) (err error) {
 		return
 	}
 
-	var lookupBkt *bolt.Bucket
+	var lookupBkt BackendBucket
 	if lookupBkt, err = t.getLookupBucket(lookup); lookupBkt == nil || err != nil {
 		return
 	}
 
-	var bkt *bolt.Bucket
-	if bkt = lookupBkt.Bucket(lookupID); bkt == nil {
+	var bkt BackendBucket
+	if bkt = lookupBkt.GetBucket(lookupID); bkt == nil {
 		return
 	}
 

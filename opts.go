@@ -35,7 +35,8 @@ type Opts struct {
 	MaxBatchDuration time.Duration
 	RetryBatchFail   bool
 
-	Encoder Encoder
+	Initializer BackendInitializer
+	Encoder     Encoder
 }
 
 // Validate will validate a set of Options
