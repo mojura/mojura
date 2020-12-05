@@ -1,6 +1,8 @@
 package dbl
 
-func newCursor(txn *Transaction, cur BucketCursor, relationship bool) (c Cursor) {
+import "github.com/mojura/backend"
+
+func newCursor(txn *Transaction, cur backend.Cursor, relationship bool) (c Cursor) {
 	c.txn = txn
 	c.cur = cur
 	c.relationship = relationship
@@ -10,7 +12,7 @@ func newCursor(txn *Transaction, cur BucketCursor, relationship bool) (c Cursor)
 // Cursor is an iterating structure
 type Cursor struct {
 	txn *Transaction
-	cur BucketCursor
+	cur backend.Cursor
 
 	relationship bool
 }

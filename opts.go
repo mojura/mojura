@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/hatchify/errors"
+	"github.com/mojura/backend"
 )
 
 const (
@@ -35,7 +36,7 @@ type Opts struct {
 	MaxBatchDuration time.Duration
 	RetryBatchFail   bool
 
-	Initializer BackendInitializer
+	Initializer backend.Initializer
 	Encoder     Encoder
 }
 

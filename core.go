@@ -12,6 +12,7 @@ import (
 	"github.com/gdbu/actions"
 	"github.com/gdbu/indexer"
 	"github.com/hatchify/errors"
+	"github.com/mojura/backend"
 
 	"github.com/hatchify/atoms"
 
@@ -105,7 +106,7 @@ func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...st
 
 // Core is the core manager
 type Core struct {
-	db  Backend
+	db  backend.Backend
 	idx *indexer.Indexer
 	a   *actions.Actions
 	b   *batcher
@@ -135,8 +136,8 @@ func (c *Core) init(name, dir string, relationships []string) (err error) {
 		return fmt.Errorf("error opening db for %s (%s): %v", name, dir, err)
 	}
 
-	err = c.db.Transaction(func(txn BackendTransaction) (err error) {
-		var entriesBkt BackendBucket
+	err = c.db.Transaction(func(txn backend.Transaction) (err error) {
+		var entriesBkt backend.Bucket
 		if entriesBkt, err = txn.GetOrCreateBucket(entriesBktKey); err != nil {
 			return
 		}
@@ -145,7 +146,7 @@ func (c *Core) init(name, dir string, relationships []string) (err error) {
 			return
 		}
 
-		var relationshipsBkt BackendBucket
+		var relationshipsBkt backend.Bucket
 		if relationshipsBkt, err = txn.GetOrCreateBucket(relationshipsBktKey); err != nil {
 			return
 		}
@@ -175,7 +176,7 @@ func (c *Core) newReflectValue() (value reflect.Value) {
 	return reflect.New(c.entryType)
 }
 
-func (c *Core) setIndexer(entriesBkt BackendBucket) (err error) {
+func (c *Core) setIndexer(entriesBkt backend.Bucket) (err error) {
 	if c.idx.Get() != 0 {
 		// Indexer has already been set, bail out
 		return
@@ -242,8 +243,8 @@ func (c *Core) handleLogRotation(filename string) {
 	return
 }
 
-func (c *Core) transaction(fn func(BackendTransaction, *actions.Transaction) error) (err error) {
-	err = c.db.Transaction(func(txn BackendTransaction) (err error) {
+func (c *Core) transaction(fn func(backend.Transaction, *actions.Transaction) error) (err error) {
+	err = c.db.Transaction(func(txn backend.Transaction) (err error) {
 		err = c.a.Transaction(func(atxn *actions.Transaction) (err error) {
 			return fn(txn, atxn)
 		})
@@ -254,7 +255,7 @@ func (c *Core) transaction(fn func(BackendTransaction, *actions.Transaction) err
 	return
 }
 
-func (c *Core) runTransaction(ctx context.Context, txn BackendTransaction, atxn *actions.Transaction, fn TransactionFn) (err error) {
+func (c *Core) runTransaction(ctx context.Context, txn backend.Transaction, atxn *actions.Transaction, fn TransactionFn) (err error) {
 	t := newTransaction(ctx, c, txn, atxn)
 	defer t.teardown()
 	// Always ensure index has been flushed
@@ -467,7 +468,7 @@ func (c *Core) RemoveLookup(lookup, lookupID, key string) (err error) {
 
 // Transaction will initialize a transaction
 func (c *Core) Transaction(ctx context.Context, fn func(*Transaction) error) (err error) {
-	err = c.transaction(func(txn BackendTransaction, atxn *actions.Transaction) (err error) {
+	err = c.transaction(func(txn backend.Transaction, atxn *actions.Transaction) (err error) {
 		return c.runTransaction(ctx, txn, atxn, fn)
 	})
 
@@ -476,7 +477,7 @@ func (c *Core) Transaction(ctx context.Context, fn func(*Transaction) error) (er
 
 // ReadTransaction will initialize a read-only transaction
 func (c *Core) ReadTransaction(ctx context.Context, fn func(*Transaction) error) (err error) {
-	err = c.db.ReadTransaction(func(txn BackendTransaction) (err error) {
+	err = c.db.ReadTransaction(func(txn backend.Transaction) (err error) {
 		return c.runTransaction(ctx, txn, nil, fn)
 	})
 
