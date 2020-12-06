@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hatchify/errors"
 	"github.com/hatchify/stringset"
 )
 
@@ -1491,11 +1492,13 @@ func testInit() (c *Core, err error) {
 }
 
 func testTeardown(c *Core) (err error) {
-	if err = c.Close(); err != nil {
-		return
+	var errs errors.ErrorList
+	if c != nil {
+		errs.Push(c.Close())
 	}
 
-	return os.RemoveAll(testDir)
+	errs.Push(os.RemoveAll(testDir))
+	return errs.Err()
 }
 
 func testCheck(a, b *testStruct) (err error) {

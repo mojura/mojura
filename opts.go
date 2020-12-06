@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/hatchify/errors"
+	"github.com/mojura-backends/bolt"
+	"github.com/mojura/backend"
 )
 
 const (
@@ -15,9 +17,6 @@ const (
 	DefaultRetryBatchFail = true
 )
 
-// DefaultEncoder represents the default encoder used by DBL
-var DefaultEncoder JSONEncoder
-
 const (
 	// ErrEmptyEncoder is returned when an encoder is unset
 	ErrEmptyEncoder = errors.Error("invalid encoder, cannot be empty")
@@ -27,6 +26,9 @@ var defaultOpts = Opts{
 	MaxBatchCalls:    DefaultMaxBatchCalls,
 	MaxBatchDuration: DefaultMaxBatchDuration,
 	RetryBatchFail:   DefaultRetryBatchFail,
+
+	Initializer: bolt.New(),
+	Encoder:     &JSONEncoder{},
 }
 
 // Opts represent dbl options
@@ -35,7 +37,8 @@ type Opts struct {
 	MaxBatchDuration time.Duration
 	RetryBatchFail   bool
 
-	Encoder Encoder
+	Initializer backend.Initializer
+	Encoder     Encoder
 }
 
 // Validate will validate a set of Options
@@ -46,7 +49,11 @@ func (o *Opts) Validate() (err error) {
 
 func (o *Opts) init() {
 	if o.Encoder == nil {
-		o.Encoder = &DefaultEncoder
+		o.Encoder = defaultOpts.Encoder
+	}
+
+	if o.Initializer == nil {
+		o.Initializer = defaultOpts.Initializer
 	}
 
 	if o.MaxBatchCalls == 0 {

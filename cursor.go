@@ -1,8 +1,8 @@
 package dbl
 
-import "github.com/boltdb/bolt"
+import "github.com/mojura/backend"
 
-func newCursor(txn *Transaction, cur *bolt.Cursor, relationship bool) (c Cursor) {
+func newCursor(txn *Transaction, cur backend.Cursor, relationship bool) (c Cursor) {
 	c.txn = txn
 	c.cur = cur
 	c.relationship = relationship
@@ -12,7 +12,7 @@ func newCursor(txn *Transaction, cur *bolt.Cursor, relationship bool) (c Cursor)
 // Cursor is an iterating structure
 type Cursor struct {
 	txn *Transaction
-	cur *bolt.Cursor
+	cur backend.Cursor
 
 	relationship bool
 }
