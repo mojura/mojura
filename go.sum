@@ -38,6 +38,8 @@ github.com/hatchify/stringset v0.4.79 h1:R/mxFEDeLVb9LDO/eaXlpeO3SxyjsnUI6iWaY7I
 github.com/hatchify/stringset v0.4.79/go.mod h1:bKqgmbhsxVL+o2JiWcmBUhPS9GOSQFwkJtgXJynjGps=
 github.com/jmespath/go-jmespath v0.3.0 h1:OS12ieG61fsCg5+qLJ+SsW9NicxNkg3b25OyT2yCeUc=
 github.com/jmespath/go-jmespath v0.3.0/go.mod h1:9QtRXoHjLGCJ5IBSaohpXITPlowMeeYCZ7fLUTSywik=
+github.com/mojura-backends/bolt v0.1.4 h1:9JnaLFGP6qP3W2xWSgjg3Iv+i4edFXN2TXuHubjrO2w=
+github.com/mojura-backends/bolt v0.1.4/go.mod h1:nTYxOStZscQe8jtGnvZTadAbL4u0naufubIvvt76kvQ=
 github.com/mojura/backend v0.1.1 h1:d1AvGDEqR2m6J3Qe7FJ8z8pnM9+WV6G6K6GrCVjVQGg=
 github.com/mojura/backend v0.1.1/go.mod h1:JasOEo8h+g7kp7qybW3K3F7qtcITeknVo27tSOibD6c=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
