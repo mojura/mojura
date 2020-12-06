@@ -1,4 +1,4 @@
-package dbl
+package mojura
 
 // Value represents an entry value
 type Value interface {

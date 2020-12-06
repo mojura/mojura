@@ -1,8 +1,8 @@
-package dbl
+package mojura
 
 import "encoding/json"
 
-// Encoder represents an encoder for DBL Entries
+// Encoder represents an encoder for Mojura Entries
 type Encoder interface {
 	Marshal(interface{}) ([]byte, error)
 	Unmarshal([]byte, interface{}) error

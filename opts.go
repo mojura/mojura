@@ -1,4 +1,4 @@
-package dbl
+package mojura
 
 import (
 	"time"
@@ -31,7 +31,7 @@ var defaultOpts = Opts{
 	Encoder:     &JSONEncoder{},
 }
 
-// Opts represent dbl options
+// Opts represent mojura options
 type Opts struct {
 	MaxBatchCalls    int
 	MaxBatchDuration time.Duration

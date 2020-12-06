@@ -1,4 +1,4 @@
-module github.com/gdbu/dbl
+module github.com/mojura/mojura
 
 go 1.14
 

@@ -1,4 +1,4 @@
-package dbl
+package mojura
 
 import (
 	"context"
@@ -1239,7 +1239,7 @@ func TestCore_index_increment_persist(t *testing.T) {
 	}
 
 	if err = c.Close(); err != nil {
-		t.Fatalf("error closing DBL: %v", err)
+		t.Fatalf("error closing Mojura: %v", err)
 	}
 
 	if c, err = testInit(); err != nil {
