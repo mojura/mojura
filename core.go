@@ -15,8 +15,6 @@ import (
 	"github.com/mojura/backend"
 
 	"github.com/hatchify/atoms"
-
-	"github.com/boltdb/bolt"
 )
 
 const (
@@ -56,8 +54,6 @@ var (
 	relationshipsBktKey = []byte("relationships")
 	lookupsBktKey       = []byte("lookups")
 )
-
-var boltOpts = &bolt.Options{Timeout: 1 * time.Second}
 
 // New will return a new instance of Core
 func New(name, dir string, example Value, relationships ...string) (cc *Core, err error) {
