@@ -1,4 +1,4 @@
-package dbl
+package mojura
 
 // Note: This is to support the deprecated GetRelationshipIDs method.
 // This will be removed in v0.6.0

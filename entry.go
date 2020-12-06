@@ -1,7 +1,7 @@
-package dbl
+package mojura
 
-// Entry is a base entry type for dbl Entries. This type contains all
-// the base methods required by dbl. This struct can be included to decrease
+// Entry is a base entry type for mojura Entries. This type contains all
+// the base methods required by mojura. This struct can be included to decrease
 // the time of initial integration
 type Entry struct {
 	// Entry ID

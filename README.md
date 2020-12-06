@@ -1,5 +1,5 @@
-# DBL (Database layer)
-DBL (Database layer) is a service helper library for core ancillary methods
+# Mojura
+Mojura is a service helper library for core ancillary methods
 
 ## Usage
 

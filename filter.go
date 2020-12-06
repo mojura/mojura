@@ -1,4 +1,4 @@
-package dbl
+package mojura
 
 // MakeFilter create a relationship pair
 func MakeFilter(relationship, relationshipID string, inverseComparison bool) (f Filter) {
