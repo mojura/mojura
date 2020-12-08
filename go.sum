@@ -38,8 +38,8 @@ github.com/hatchify/scribe v0.4.87 h1:dfAjUJQvAbFbg9fvvCMa/dB0839KWB78aPUtUp95we
 github.com/hatchify/scribe v0.4.87/go.mod h1:uuAiA5oKKL+CEJDEVcGWQyiW8yVzljv11Z/O2gotpjY=
 github.com/jmespath/go-jmespath v0.3.0 h1:OS12ieG61fsCg5+qLJ+SsW9NicxNkg3b25OyT2yCeUc=
 github.com/jmespath/go-jmespath v0.3.0/go.mod h1:9QtRXoHjLGCJ5IBSaohpXITPlowMeeYCZ7fLUTSywik=
-github.com/mojura-backends/bolt v0.1.4 h1:9JnaLFGP6qP3W2xWSgjg3Iv+i4edFXN2TXuHubjrO2w=
-github.com/mojura-backends/bolt v0.1.4/go.mod h1:nTYxOStZscQe8jtGnvZTadAbL4u0naufubIvvt76kvQ=
+github.com/mojura-backends/bolt v0.1.5 h1:QfjyNMSD1fhqUc2czCEtmW5aiJlVeTkkOKxV2xgycCQ=
+github.com/mojura-backends/bolt v0.1.5/go.mod h1:E2Nn2zKMIEeojZ2Es74kG+q9S7N6pIL+Qfopjiz8SgQ=
 github.com/mojura/backend v0.1.1 h1:d1AvGDEqR2m6J3Qe7FJ8z8pnM9+WV6G6K6GrCVjVQGg=
 github.com/mojura/backend v0.1.1/go.mod h1:JasOEo8h+g7kp7qybW3K3F7qtcITeknVo27tSOibD6c=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
@@ -51,9 +51,8 @@ github.com/stretchr/testify v1.5.1/go.mod h1:5W2xD1RspED5o8YsWQXVCued0rvSQ+mT+I5
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
 golang.org/x/net v0.0.0-20200202094626-16171245cfb2 h1:CCH4IOTTfewWjGOlSp+zGcjutRKlBEZQ6wTn8ozI/nI=
 golang.org/x/net v0.0.0-20200202094626-16171245cfb2/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a h1:1BGLXjeY4akVXGgbC9HugT3Jv3hCI0z56oJR5vAMgBU=
 golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
-golang.org/x/sys v0.0.0-20201204225414-ed752295db88 h1:KmZPnMocC93w341XZp26yTJg8Za7lhb2KhkYmixoeso=
-golang.org/x/sys v0.0.0-20201204225414-ed752295db88/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/text v0.3.0 h1:g61tztE5qeGQ89tm6NTjjM9VPIm088od1l6aSorWRWg=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=
