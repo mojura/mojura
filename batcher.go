@@ -9,16 +9,16 @@ import (
 	"github.com/hatchify/errors"
 )
 
-func newBatcher(core *Core) *batcher {
+func newBatcher(m *Mojura) *batcher {
 	var b batcher
-	b.core = core
+	b.m = m
 	return &b
 }
 
 type batcher struct {
 	mux sync.Mutex
 
-	core *Core
+	m *Mojura
 
 	timer *time.Timer
 	calls []call
@@ -57,7 +57,7 @@ func (b *batcher) run(cs calls) {
 	}
 
 	var failIndex int
-	err := b.core.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	err := b.m.Transaction(context.Background(), func(txn *Transaction) (err error) {
 		failIndex, err = b.performCalls(txn, cs)
 		return
 	})
@@ -91,7 +91,7 @@ func (b *batcher) run(cs calls) {
 }
 
 func (b *batcher) retry(cs calls, err error) {
-	if b.core.opts.RetryBatchFail {
+	if b.m.opts.RetryBatchFail {
 		// Re-run the successful portion
 		// Note: This is expected to pass
 		b.run(cs)
@@ -127,7 +127,7 @@ func (b *batcher) Append(ctx context.Context, fn TransactionFn) (errC chan error
 	b.calls = append(b.calls, c)
 
 	// If length of calls equals or exceeds MaxBatchCalls, run the current calls
-	if len(b.calls) >= b.core.opts.MaxBatchCalls {
+	if len(b.calls) >= b.m.opts.MaxBatchCalls {
 		// Since we've matched or exceeded our MaxBatchCalls, manually flush the calls buffer and return
 		b.flush()
 		return
@@ -135,7 +135,7 @@ func (b *batcher) Append(ctx context.Context, fn TransactionFn) (errC chan error
 
 	if b.timer == nil {
 		// Set func to run after MaxBatchDuration
-		b.timer = time.AfterFunc(b.core.opts.MaxBatchDuration, b.Run)
+		b.timer = time.AfterFunc(b.m.opts.MaxBatchDuration, b.Run)
 	}
 
 	return c.errC

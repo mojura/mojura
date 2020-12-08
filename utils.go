@@ -28,7 +28,7 @@ func getReflectedSlice(t reflect.Type, v interface{}) (slice reflect.Value, err 
 	return
 }
 
-func getCoreType(v interface{}) (t reflect.Type) {
+func getMojuraType(v interface{}) (t reflect.Type) {
 	if t = reflect.TypeOf(v); !isPointer(t) {
 		return
 	}
@@ -115,7 +115,7 @@ type ForEachFn func(key string, val Value) error
 func (f ForEachFn) toEntryIteratingFn(txn *Transaction) entryIteratingFn {
 	return func(entryID, entryValue []byte) (err error) {
 		var val Value
-		if val, err = txn.c.newValueFromBytes(entryValue); err != nil {
+		if val, err = txn.m.newValueFromBytes(entryValue); err != nil {
 			return
 		}
 

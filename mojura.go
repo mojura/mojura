@@ -55,14 +55,14 @@ var (
 	lookupsBktKey       = []byte("lookups")
 )
 
-// New will return a new instance of Core
-func New(name, dir string, example Value, relationships ...string) (cc *Core, err error) {
+// New will return a new instance of Mojura
+func New(name, dir string, example Value, relationships ...string) (cc *Mojura, err error) {
 	return NewWithOpts(name, dir, example, defaultOpts, relationships...)
 }
 
-// NewWithOpts will return a new instance of Core
-func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...string) (cc *Core, err error) {
-	var c Core
+// NewWithOpts will return a new instance of Mojura
+func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...string) (mp *Mojura, err error) {
+	var m Mojura
 	if err = opts.Validate(); err != nil {
 		return
 	}
@@ -72,36 +72,36 @@ func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...st
 		return
 	}
 
-	c.opts = &opts
-	c.entryType = getCoreType(example)
-	c.logsDir = path.Join(dir, "logs")
-	c.indexFmt = fmt.Sprintf("%s0%dd", "%", 8)
+	m.opts = &opts
+	m.entryType = getMojuraType(example)
+	m.logsDir = path.Join(dir, "logs")
+	m.indexFmt = fmt.Sprintf("%s0%dd", "%", 8)
 
-	if err = os.MkdirAll(c.logsDir, 0744); err != nil {
+	if err = os.MkdirAll(m.logsDir, 0744); err != nil {
 		return
 	}
 
-	if err = c.init(name, dir, relationships); err != nil {
+	if err = m.init(name, dir, relationships); err != nil {
 		return
 	}
 
-	if c.a, err = actions.New(c.logsDir, name); err != nil {
+	if m.a, err = actions.New(m.logsDir, name); err != nil {
 		return
 	}
 
-	c.a.SetRotateFn(c.handleLogRotation)
-	c.a.SetRotateInterval(time.Minute)
+	m.a.SetRotateFn(m.handleLogRotation)
+	m.a.SetRotateInterval(time.Minute)
 	// Set maximum number of lines to 10,000
-	c.a.SetNumLines(100000)
+	m.a.SetNumLines(100000)
 	// Initialize new batcher
-	c.b = newBatcher(&c)
+	m.b = newBatcher(&m)
 	// Set return pointer
-	cc = &c
+	mp = &m
 	return
 }
 
-// Core is the core manager
-type Core struct {
+// Mojura is the DB manager
+type Mojura struct {
 	db  backend.Backend
 	idx *indexer.Indexer
 	a   *actions.Actions
@@ -120,19 +120,19 @@ type Core struct {
 	closed atoms.Bool
 }
 
-func (c *Core) init(name, dir string, relationships []string) (err error) {
+func (m *Mojura) init(name, dir string, relationships []string) (err error) {
 	indexFilename := path.Join(dir, name+".idb")
 	filename := path.Join(dir, name+".bdb")
 
-	if c.idx, err = indexer.New(indexFilename); err != nil {
+	if m.idx, err = indexer.New(indexFilename); err != nil {
 		return fmt.Errorf("error opening index db for %s (%s): %v", name, dir, err)
 	}
 
-	if c.db, err = c.opts.Initializer.New(filename); err != nil {
+	if m.db, err = m.opts.Initializer.New(filename); err != nil {
 		return fmt.Errorf("error opening db for %s (%s): %v", name, dir, err)
 	}
 
-	err = c.db.Transaction(func(txn backend.Transaction) (err error) {
+	err = m.db.Transaction(func(txn backend.Transaction) (err error) {
 		var entriesBkt backend.Bucket
 		if entriesBkt, err = txn.GetOrCreateBucket(entriesBktKey); err != nil {
 			return
@@ -153,10 +153,10 @@ func (c *Core) init(name, dir string, relationships []string) (err error) {
 				return
 			}
 
-			c.relationships = append(c.relationships, rbs)
+			m.relationships = append(m.relationships, rbs)
 		}
 
-		if err = c.setIndexer(entriesBkt); err != nil {
+		if err = m.setIndexer(entriesBkt); err != nil {
 			err = fmt.Errorf("error reading last ID: %v", err)
 			return
 		}
@@ -167,13 +167,13 @@ func (c *Core) init(name, dir string, relationships []string) (err error) {
 	return
 }
 
-func (c *Core) newReflectValue() (value reflect.Value) {
+func (m *Mojura) newReflectValue() (value reflect.Value) {
 	// Zero value of the entry type
-	return reflect.New(c.entryType)
+	return reflect.New(m.entryType)
 }
 
-func (c *Core) setIndexer(entriesBkt backend.Bucket) (err error) {
-	if c.idx.Get() != 0 {
+func (m *Mojura) setIndexer(entriesBkt backend.Bucket) (err error) {
+	if m.idx.Get() != 0 {
 		// Indexer has already been set, bail out
 		return
 	}
@@ -187,30 +187,30 @@ func (c *Core) setIndexer(entriesBkt backend.Bucket) (err error) {
 		return
 	}
 
-	c.idx.Set(value)
-	return c.idx.Flush()
+	m.idx.Set(value)
+	return m.idx.Flush()
 }
 
-func (c *Core) newEntryValue() (value Value) {
+func (m *Mojura) newEntryValue() (value Value) {
 	// Zero value of the entry type
-	zero := c.newReflectValue()
+	zero := m.newReflectValue()
 	// Interface of zero value
 	iface := zero.Interface()
 	// Assert as a value (we've confirmed this type at initialization)
 	return iface.(Value)
 }
 
-func (c *Core) marshal(val interface{}) (bs []byte, err error) {
-	return c.opts.Encoder.Marshal(val)
+func (m *Mojura) marshal(val interface{}) (bs []byte, err error) {
+	return m.opts.Encoder.Marshal(val)
 }
 
-func (c *Core) unmarshal(bs []byte, val interface{}) (err error) {
-	return c.opts.Encoder.Unmarshal(bs, val)
+func (m *Mojura) unmarshal(bs []byte, val interface{}) (err error) {
+	return m.opts.Encoder.Unmarshal(bs, val)
 }
 
-func (c *Core) newValueFromBytes(bs []byte) (val Value, err error) {
-	val = c.newEntryValue()
-	if err = c.unmarshal(bs, val); err != nil {
+func (m *Mojura) newValueFromBytes(bs []byte) (val Value, err error) {
+	val = m.newEntryValue()
+	if err = m.unmarshal(bs, val); err != nil {
 		val = nil
 		return
 	}
@@ -218,20 +218,20 @@ func (c *Core) newValueFromBytes(bs []byte) (val Value, err error) {
 	return
 }
 
-func (c *Core) handleLogRotation(filename string) {
+func (m *Mojura) handleLogRotation(filename string) {
 	var err error
-	archiveDir := path.Join(c.logsDir, "archived")
+	archiveDir := path.Join(m.logsDir, "archived")
 	name := path.Base(filename)
 	destination := path.Join(archiveDir, name)
 
 	if err = os.MkdirAll(archiveDir, 0744); err != nil {
-		// TODO: Add error logging here after we implement output interface to core
+		// TODO: Add error logging here after we implement output interface to mojura
 		log.Printf("error creating archive directory: %v\n", err)
 		return
 	}
 
 	if err = os.Rename(filename, destination); err != nil {
-		// TODO: Add error logging here after we implement output interface to core
+		// TODO: Add error logging here after we implement output interface to mojura
 		log.Printf("error renaming file: %v\n", err)
 		return
 	}
@@ -239,9 +239,9 @@ func (c *Core) handleLogRotation(filename string) {
 	return
 }
 
-func (c *Core) transaction(fn func(backend.Transaction, *actions.Transaction) error) (err error) {
-	err = c.db.Transaction(func(txn backend.Transaction) (err error) {
-		err = c.a.Transaction(func(atxn *actions.Transaction) (err error) {
+func (m *Mojura) transaction(fn func(backend.Transaction, *actions.Transaction) error) (err error) {
+	err = m.db.Transaction(func(txn backend.Transaction) (err error) {
+		err = m.a.Transaction(func(atxn *actions.Transaction) (err error) {
 			return fn(txn, atxn)
 		})
 
@@ -251,11 +251,11 @@ func (c *Core) transaction(fn func(backend.Transaction, *actions.Transaction) er
 	return
 }
 
-func (c *Core) runTransaction(ctx context.Context, txn backend.Transaction, atxn *actions.Transaction, fn TransactionFn) (err error) {
-	t := newTransaction(ctx, c, txn, atxn)
+func (m *Mojura) runTransaction(ctx context.Context, txn backend.Transaction, atxn *actions.Transaction, fn TransactionFn) (err error) {
+	t := newTransaction(ctx, m, txn, atxn)
 	defer t.teardown()
 	// Always ensure index has been flushed
-	defer c.idx.Flush()
+	defer m.idx.Flush()
 	errCh := make(chan error)
 
 	// Call function from within goroutine
@@ -279,8 +279,8 @@ func (c *Core) runTransaction(ctx context.Context, txn backend.Transaction, atxn
 }
 
 // New will insert a new entry with the given value and the associated relationships
-func (c *Core) New(val Value) (entryID string, err error) {
-	err = c.Transaction(context.Background(), func(txn *Transaction) (err error) {
+func (m *Mojura) New(val Value) (entryID string, err error) {
+	err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
 		var id []byte
 		if id, err = txn.new(val); err != nil {
 			return
@@ -294,8 +294,8 @@ func (c *Core) New(val Value) (entryID string, err error) {
 }
 
 // Exists will notiy if an entry exists for a given entry ID
-func (c *Core) Exists(entryID string) (exists bool, err error) {
-	err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
+func (m *Mojura) Exists(entryID string) (exists bool, err error) {
+	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		exists, err = txn.exists([]byte(entryID))
 		return
 	})
@@ -304,8 +304,8 @@ func (c *Core) Exists(entryID string) (exists bool, err error) {
 }
 
 // Get will attempt to get an entry by ID
-func (c *Core) Get(entryID string, val Value) (err error) {
-	err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
+func (m *Mojura) Get(entryID string, val Value) (err error) {
+	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.get([]byte(entryID), val)
 	})
 
@@ -313,13 +313,13 @@ func (c *Core) Get(entryID string, val Value) (err error) {
 }
 
 // GetByRelationship will attempt to get all entries associated with a given relationship
-func (c *Core) GetByRelationship(relationship, relationshipID string, entries interface{}) (err error) {
+func (m *Mojura) GetByRelationship(relationship, relationshipID string, entries interface{}) (err error) {
 	var es reflect.Value
-	if es, err = getReflectedSlice(c.entryType, entries); err != nil {
+	if es, err = getReflectedSlice(m.entryType, entries); err != nil {
 		return
 	}
 
-	err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
+	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.getByRelationship([]byte(relationship), []byte(relationshipID), es)
 	})
 
@@ -327,8 +327,8 @@ func (c *Core) GetByRelationship(relationship, relationshipID string, entries in
 }
 
 // GetFiltered will attempt to get the filtered entries
-func (c *Core) GetFiltered(seekTo string, entries interface{}, limit int64, filters ...Filter) (err error) {
-	err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
+func (m *Mojura) GetFiltered(seekTo string, entries interface{}, limit int64, filters ...Filter) (err error) {
+	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.GetFiltered(seekTo, entries, limit, filters...)
 	})
 
@@ -336,8 +336,8 @@ func (c *Core) GetFiltered(seekTo string, entries interface{}, limit int64, filt
 }
 
 // GetFirstByRelationship will attempt to get the first entry associated with a given relationship and relationship ID
-func (c *Core) GetFirstByRelationship(relationship, relationshipID string, val Value) (err error) {
-	if err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
+func (m *Mojura) GetFirstByRelationship(relationship, relationshipID string, val Value) (err error) {
+	if err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.getFirstByRelationship([]byte(relationship), []byte(relationshipID), val)
 	}); err != nil {
 		return
@@ -347,8 +347,8 @@ func (c *Core) GetFirstByRelationship(relationship, relationshipID string, val V
 }
 
 // GetLastByRelationship will attempt to get the last entry associated with a given relationship and relationship ID
-func (c *Core) GetLastByRelationship(relationship, relationshipID string, val Value) (err error) {
-	if err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
+func (m *Mojura) GetLastByRelationship(relationship, relationshipID string, val Value) (err error) {
+	if err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.getLastByRelationship([]byte(relationship), []byte(relationshipID), val)
 	}); err != nil {
 		return
@@ -358,8 +358,8 @@ func (c *Core) GetLastByRelationship(relationship, relationshipID string, val Va
 }
 
 // ForEach will iterate through each of the entries
-func (c *Core) ForEach(seekTo string, fn ForEachFn, filters ...Filter) (err error) {
-	err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
+func (m *Mojura) ForEach(seekTo string, fn ForEachFn, filters ...Filter) (err error) {
+	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.ForEach(seekTo, fn, filters...)
 	})
 
@@ -367,8 +367,8 @@ func (c *Core) ForEach(seekTo string, fn ForEachFn, filters ...Filter) (err erro
 }
 
 // ForEachID will iterate through each of the entry IDs
-func (c *Core) ForEachID(seekTo string, fn ForEachEntryIDFn, filters ...Filter) (err error) {
-	err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
+func (m *Mojura) ForEachID(seekTo string, fn ForEachEntryIDFn, filters ...Filter) (err error) {
+	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.ForEachID(seekTo, fn, filters...)
 	})
 
@@ -376,8 +376,8 @@ func (c *Core) ForEachID(seekTo string, fn ForEachEntryIDFn, filters ...Filter) 
 }
 
 // Cursor will return an iterating cursor
-func (c *Core) Cursor(fn CursorFn) (err error) {
-	if err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
+func (m *Mojura) Cursor(fn CursorFn) (err error) {
+	if err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.cursor(fn)
 	}); err == Break {
 		err = nil
@@ -387,8 +387,8 @@ func (c *Core) Cursor(fn CursorFn) (err error) {
 }
 
 // CursorRelationship will return an iterating cursor for a given relationship and relationship ID
-func (c *Core) CursorRelationship(relationship, relationshipID string, fn CursorFn) (err error) {
-	if err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
+func (m *Mojura) CursorRelationship(relationship, relationshipID string, fn CursorFn) (err error) {
+	if err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.CursorRelationship(relationship, relationshipID, fn)
 	}); err == Break {
 		err = nil
@@ -398,8 +398,8 @@ func (c *Core) CursorRelationship(relationship, relationshipID string, fn Cursor
 }
 
 // Edit will attempt to edit an entry by ID
-func (c *Core) Edit(entryID string, val Value) (err error) {
-	err = c.Transaction(context.Background(), func(txn *Transaction) (err error) {
+func (m *Mojura) Edit(entryID string, val Value) (err error) {
+	err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.edit([]byte(entryID), val)
 	})
 
@@ -407,8 +407,8 @@ func (c *Core) Edit(entryID string, val Value) (err error) {
 }
 
 // Remove will remove a relationship ID and it's related relationship IDs
-func (c *Core) Remove(entryID string) (err error) {
-	err = c.Transaction(context.Background(), func(txn *Transaction) (err error) {
+func (m *Mojura) Remove(entryID string) (err error) {
+	err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.remove([]byte(entryID))
 	})
 
@@ -416,8 +416,8 @@ func (c *Core) Remove(entryID string) (err error) {
 }
 
 // SetLookup will set a lookup value
-func (c *Core) SetLookup(lookup, lookupID, key string) (err error) {
-	err = c.Transaction(context.Background(), func(txn *Transaction) (err error) {
+func (m *Mojura) SetLookup(lookup, lookupID, key string) (err error) {
+	err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.setLookup([]byte(lookup), []byte(lookupID), []byte(key))
 	})
 
@@ -425,8 +425,8 @@ func (c *Core) SetLookup(lookup, lookupID, key string) (err error) {
 }
 
 // GetLookup will retrieve the matching lookup keys
-func (c *Core) GetLookup(lookup, lookupID string) (keys []string, err error) {
-	err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
+func (m *Mojura) GetLookup(lookup, lookupID string) (keys []string, err error) {
+	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		keys, err = txn.getLookupKeys([]byte(lookup), []byte(lookupID))
 		return
 	})
@@ -435,8 +435,8 @@ func (c *Core) GetLookup(lookup, lookupID string) (keys []string, err error) {
 }
 
 // GetLookupKey will retrieve the first lookup key
-func (c *Core) GetLookupKey(lookup, lookupID string) (key string, err error) {
-	err = c.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
+func (m *Mojura) GetLookupKey(lookup, lookupID string) (key string, err error) {
+	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		var keys []string
 		if keys, err = txn.getLookupKeys([]byte(lookup), []byte(lookupID)); err != nil {
 			return
@@ -454,8 +454,8 @@ func (c *Core) GetLookupKey(lookup, lookupID string) (key string, err error) {
 }
 
 // RemoveLookup will set a lookup value
-func (c *Core) RemoveLookup(lookup, lookupID, key string) (err error) {
-	err = c.Transaction(context.Background(), func(txn *Transaction) (err error) {
+func (m *Mojura) RemoveLookup(lookup, lookupID, key string) (err error) {
+	err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.removeLookup([]byte(lookup), []byte(lookupID), []byte(key))
 	})
 
@@ -463,36 +463,36 @@ func (c *Core) RemoveLookup(lookup, lookupID, key string) (err error) {
 }
 
 // Transaction will initialize a transaction
-func (c *Core) Transaction(ctx context.Context, fn func(*Transaction) error) (err error) {
-	err = c.transaction(func(txn backend.Transaction, atxn *actions.Transaction) (err error) {
-		return c.runTransaction(ctx, txn, atxn, fn)
+func (m *Mojura) Transaction(ctx context.Context, fn func(*Transaction) error) (err error) {
+	err = m.transaction(func(txn backend.Transaction, atxn *actions.Transaction) (err error) {
+		return m.runTransaction(ctx, txn, atxn, fn)
 	})
 
 	return
 }
 
 // ReadTransaction will initialize a read-only transaction
-func (c *Core) ReadTransaction(ctx context.Context, fn func(*Transaction) error) (err error) {
-	err = c.db.ReadTransaction(func(txn backend.Transaction) (err error) {
-		return c.runTransaction(ctx, txn, nil, fn)
+func (m *Mojura) ReadTransaction(ctx context.Context, fn func(*Transaction) error) (err error) {
+	err = m.db.ReadTransaction(func(txn backend.Transaction) (err error) {
+		return m.runTransaction(ctx, txn, nil, fn)
 	})
 
 	return
 }
 
 // Batch will initialize a batch
-func (c *Core) Batch(ctx context.Context, fn func(*Transaction) error) (err error) {
-	return <-c.b.Append(ctx, fn)
+func (m *Mojura) Batch(ctx context.Context, fn func(*Transaction) error) (err error) {
+	return <-m.b.Append(ctx, fn)
 }
 
-// Close will close the selected instance of Core
-func (c *Core) Close() (err error) {
-	if !c.closed.Set(true) {
+// Close will close the selected instance of Mojura
+func (m *Mojura) Close() (err error) {
+	if !m.closed.Set(true) {
 		return errors.ErrIsClosed
 	}
 
 	var errs errors.ErrorList
-	errs.Push(c.db.Close())
-	errs.Push(c.a.Close())
+	errs.Push(m.db.Close())
+	errs.Push(m.a.Close())
 	return errs.Err()
 }

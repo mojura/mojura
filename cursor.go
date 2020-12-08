@@ -19,7 +19,7 @@ type Cursor struct {
 
 func (c *Cursor) get(key, bs []byte, val Value) (err error) {
 	if !c.relationship {
-		return c.txn.c.unmarshal(bs, val)
+		return c.txn.m.unmarshal(bs, val)
 	}
 
 	if err = c.txn.get(key, val); err != nil {

@@ -15,11 +15,11 @@ const (
 	testDir = "./test_data"
 )
 
-var c *Core
+var c *Mojura
 
 func TestNew(t *testing.T) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -33,9 +33,9 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestCore_New(t *testing.T) {
+func TestMojura_New(t *testing.T) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -56,9 +56,9 @@ func TestCore_New(t *testing.T) {
 	}
 }
 
-func TestCore_Get(t *testing.T) {
+func TestMojura_Get(t *testing.T) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -84,9 +84,9 @@ func TestCore_Get(t *testing.T) {
 	}
 }
 
-func TestCore_Get_context(t *testing.T) {
+func TestMojura_Get_context(t *testing.T) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -134,9 +134,9 @@ func TestCore_Get_context(t *testing.T) {
 	}
 }
 
-func TestCore_GetByRelationship_users(t *testing.T) {
+func TestMojura_GetByRelationship_users(t *testing.T) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -163,9 +163,9 @@ func TestCore_GetByRelationship_users(t *testing.T) {
 	}
 }
 
-func TestCore_GetByRelationship_contacts(t *testing.T) {
+func TestMojura_GetByRelationship_contacts(t *testing.T) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -192,9 +192,9 @@ func TestCore_GetByRelationship_contacts(t *testing.T) {
 	}
 }
 
-func TestCore_GetByRelationship_invalid(t *testing.T) {
+func TestMojura_GetByRelationship_invalid(t *testing.T) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -215,9 +215,9 @@ func TestCore_GetByRelationship_invalid(t *testing.T) {
 	}
 }
 
-func TestCore_GetByRelationship_update(t *testing.T) {
+func TestMojura_GetByRelationship_update(t *testing.T) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -263,9 +263,9 @@ func TestCore_GetByRelationship_update(t *testing.T) {
 	}
 }
 
-func TestCore_GetByRelationship_many_to_many(t *testing.T) {
+func TestMojura_GetByRelationship_many_to_many(t *testing.T) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -401,9 +401,9 @@ func TestCore_GetByRelationship_many_to_many(t *testing.T) {
 	}
 }
 
-func TestCore_GetFiltered_many_to_many(t *testing.T) {
+func TestMojura_GetFiltered_many_to_many(t *testing.T) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -540,9 +540,9 @@ func TestCore_GetFiltered_many_to_many(t *testing.T) {
 	}
 }
 
-func TestCore_GetFirstByRelationship(t *testing.T) {
+func TestMojura_GetFirstByRelationship(t *testing.T) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -579,9 +579,9 @@ func TestCore_GetFirstByRelationship(t *testing.T) {
 	return
 }
 
-func TestCore_GetLastByRelationship(t *testing.T) {
+func TestMojura_GetLastByRelationship(t *testing.T) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -618,9 +618,9 @@ func TestCore_GetLastByRelationship(t *testing.T) {
 	return
 }
 
-func TestCore_Edit(t *testing.T) {
+func TestMojura_Edit(t *testing.T) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -652,9 +652,9 @@ func TestCore_Edit(t *testing.T) {
 	}
 }
 
-func TestCore_ForEach(t *testing.T) {
+func TestMojura_ForEach(t *testing.T) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -696,9 +696,9 @@ func TestCore_ForEach(t *testing.T) {
 	return
 }
 
-func TestCore_ForEach_with_filter(t *testing.T) {
+func TestMojura_ForEach_with_filter(t *testing.T) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -745,9 +745,9 @@ func TestCore_ForEach_with_filter(t *testing.T) {
 	return
 }
 
-func TestCore_ForEach_with_multiple_filters(t *testing.T) {
+func TestMojura_ForEach_with_multiple_filters(t *testing.T) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -876,9 +876,9 @@ func TestCore_ForEach_with_multiple_filters(t *testing.T) {
 	return
 }
 
-func TestCore_Cursor(t *testing.T) {
+func TestMojura_Cursor(t *testing.T) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -928,9 +928,9 @@ func TestCore_Cursor(t *testing.T) {
 	return
 }
 
-func TestCore_Cursor_First(t *testing.T) {
+func TestMojura_Cursor_First(t *testing.T) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -973,9 +973,9 @@ func TestCore_Cursor_First(t *testing.T) {
 	return
 }
 
-func TestCore_Cursor_Last(t *testing.T) {
+func TestMojura_Cursor_Last(t *testing.T) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -1018,9 +1018,9 @@ func TestCore_Cursor_Last(t *testing.T) {
 	return
 }
 
-func TestCore_Cursor_Seek(t *testing.T) {
+func TestMojura_Cursor_Seek(t *testing.T) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -1063,9 +1063,9 @@ func TestCore_Cursor_Seek(t *testing.T) {
 	return
 }
 
-func TestCore_CursorRelationship(t *testing.T) {
+func TestMojura_CursorRelationship(t *testing.T) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -1118,9 +1118,9 @@ func TestCore_CursorRelationship(t *testing.T) {
 	return
 }
 
-func TestCore_Lookups(t *testing.T) {
+func TestMojura_Lookups(t *testing.T) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -1177,9 +1177,9 @@ func TestCore_Lookups(t *testing.T) {
 	}
 }
 
-func TestCore_Batch(t *testing.T) {
+func TestMojura_Batch(t *testing.T) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -1218,9 +1218,9 @@ func TestCore_Batch(t *testing.T) {
 	return
 }
 
-func TestCore_index_increment_persist(t *testing.T) {
+func TestMojura_index_increment_persist(t *testing.T) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -1262,69 +1262,69 @@ func TestCore_index_increment_persist(t *testing.T) {
 	return
 }
 
-func BenchmarkCore_New_2(b *testing.B) {
-	benchmarkCoreNew(b, 2)
+func BenchmarkMojura_New_2(b *testing.B) {
+	benchmarkMojuraNew(b, 2)
 	return
 }
 
-func BenchmarkCore_New_4(b *testing.B) {
-	benchmarkCoreNew(b, 4)
+func BenchmarkMojura_New_4(b *testing.B) {
+	benchmarkMojuraNew(b, 4)
 	return
 }
 
-func BenchmarkCore_New_8(b *testing.B) {
-	benchmarkCoreNew(b, 8)
+func BenchmarkMojura_New_8(b *testing.B) {
+	benchmarkMojuraNew(b, 8)
 	return
 }
 
-func BenchmarkCore_New_16(b *testing.B) {
-	benchmarkCoreNew(b, 16)
+func BenchmarkMojura_New_16(b *testing.B) {
+	benchmarkMojuraNew(b, 16)
 	return
 }
 
-func BenchmarkCore_New_32(b *testing.B) {
-	benchmarkCoreNew(b, 32)
+func BenchmarkMojura_New_32(b *testing.B) {
+	benchmarkMojuraNew(b, 32)
 	return
 }
 
-func BenchmarkCore_New_64(b *testing.B) {
-	benchmarkCoreNew(b, 64)
+func BenchmarkMojura_New_64(b *testing.B) {
+	benchmarkMojuraNew(b, 64)
 	return
 }
 
-func BenchmarkCore_Batch_2(b *testing.B) {
-	benchmarkCoreBatch(b, 2)
+func BenchmarkMojura_Batch_2(b *testing.B) {
+	benchmarkMojuraBatch(b, 2)
 	return
 }
 
-func BenchmarkCore_Batch_4(b *testing.B) {
-	benchmarkCoreBatch(b, 4)
+func BenchmarkMojura_Batch_4(b *testing.B) {
+	benchmarkMojuraBatch(b, 4)
 	return
 }
 
-func BenchmarkCore_Batch_8(b *testing.B) {
-	benchmarkCoreBatch(b, 8)
+func BenchmarkMojura_Batch_8(b *testing.B) {
+	benchmarkMojuraBatch(b, 8)
 	return
 }
 
-func BenchmarkCore_Batch_16(b *testing.B) {
-	benchmarkCoreBatch(b, 16)
+func BenchmarkMojura_Batch_16(b *testing.B) {
+	benchmarkMojuraBatch(b, 16)
 	return
 }
 
-func BenchmarkCore_Batch_32(b *testing.B) {
-	benchmarkCoreBatch(b, 32)
+func BenchmarkMojura_Batch_32(b *testing.B) {
+	benchmarkMojuraBatch(b, 32)
 	return
 }
 
-func BenchmarkCore_Batch_64(b *testing.B) {
-	benchmarkCoreBatch(b, 64)
+func BenchmarkMojura_Batch_64(b *testing.B) {
+	benchmarkMojuraBatch(b, 64)
 	return
 }
 
-func benchmarkCoreNew(b *testing.B, threads int) {
+func benchmarkMojuraNew(b *testing.B, threads int) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -1348,9 +1348,9 @@ func benchmarkCoreNew(b *testing.B, threads int) {
 	return
 }
 
-func benchmarkCoreBatch(b *testing.B, threads int) {
+func benchmarkMojuraBatch(b *testing.B, threads int) {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -1379,7 +1379,7 @@ func benchmarkCoreBatch(b *testing.B, threads int) {
 
 func ExampleNew() {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -1387,10 +1387,10 @@ func ExampleNew() {
 		return
 	}
 
-	fmt.Printf("Core! %v\n", c)
+	fmt.Printf("Mojura! %v\n", c)
 }
 
-func ExampleCore_New() {
+func ExampleMojura_New() {
 	var ts testStruct
 	ts.Value = "Foo bar"
 
@@ -1406,7 +1406,7 @@ func ExampleCore_New() {
 	fmt.Printf("New entry! %s\n", entryID)
 }
 
-func ExampleCore_Get() {
+func ExampleMojura_Get() {
 	var (
 		ts  testStruct
 		err error
@@ -1419,7 +1419,7 @@ func ExampleCore_Get() {
 	fmt.Printf("Retrieved entry! %+v\n", ts)
 }
 
-func ExampleCore_GetByRelationship() {
+func ExampleMojura_GetByRelationship() {
 	var (
 		tss []*testStruct
 		err error
@@ -1434,7 +1434,7 @@ func ExampleCore_GetByRelationship() {
 	}
 }
 
-func ExampleCore_ForEach() {
+func ExampleMojura_ForEach() {
 	var err error
 	if err = c.ForEach("", func(key string, val Value) (err error) {
 		fmt.Printf("Iterating entry (%s)! %+v\n", key, val)
@@ -1444,7 +1444,7 @@ func ExampleCore_ForEach() {
 	}
 }
 
-func ExampleCore_ForEach_with_filter() {
+func ExampleMojura_ForEach_with_filter() {
 	var err error
 	fn := func(key string, val Value) (err error) {
 		fmt.Printf("Iterating entry (%s)! %+v\n", key, val)
@@ -1456,7 +1456,7 @@ func ExampleCore_ForEach_with_filter() {
 	}
 }
 
-func ExampleCore_Edit() {
+func ExampleMojura_Edit() {
 	var (
 		ts  *testStruct
 		err error
@@ -1474,7 +1474,7 @@ func ExampleCore_Edit() {
 	fmt.Printf("Edited entry %s!\n", "00000000")
 }
 
-func ExampleCore_Remove() {
+func ExampleMojura_Remove() {
 	var err error
 	if err = c.Remove("00000000"); err != nil {
 		return
@@ -1483,7 +1483,7 @@ func ExampleCore_Remove() {
 	fmt.Printf("Removed entry %s!\n", "00000000")
 }
 
-func testInit() (c *Core, err error) {
+func testInit() (c *Mojura, err error) {
 	if err = os.MkdirAll(testDir, 0744); err != nil {
 		return
 	}
@@ -1491,7 +1491,7 @@ func testInit() (c *Core, err error) {
 	return New("test", testDir, &testStruct{}, "users", "contacts", "groups", "tags")
 }
 
-func testTeardown(c *Core) (err error) {
+func testTeardown(c *Mojura) (err error) {
 	var errs errors.ErrorList
 	if c != nil {
 		errs.Push(c.Close())

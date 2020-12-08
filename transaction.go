@@ -11,17 +11,17 @@ import (
 	"github.com/mojura/backend"
 )
 
-func newTransaction(ctx context.Context, c *Core, txn backend.Transaction, atxn *actions.Transaction) (t Transaction) {
-	t.c = c
+func newTransaction(ctx context.Context, m *Mojura, txn backend.Transaction, atxn *actions.Transaction) (t Transaction) {
+	t.m = m
 	t.cc = newContextContainer(ctx)
 	t.txn = txn
 	t.atxn = atxn
 	return
 }
 
-// Transaction manages a core transaction
+// Transaction manages a DB transaction
 type Transaction struct {
-	c *Core
+	m *Mojura
 
 	cc *contextContainer
 
@@ -83,7 +83,7 @@ func (t *Transaction) get(entryID []byte, val interface{}) (err error) {
 		return
 	}
 
-	err = t.c.unmarshal(bs, val)
+	err = t.m.unmarshal(bs, val)
 	return
 }
 
@@ -146,7 +146,7 @@ func (t *Transaction) getByRelationship(relationship, relationshipID []byte, ent
 
 	c := bkt.Cursor()
 	for k, _ := c.First(); k != nil; k, _ = c.Next() {
-		val := reflect.New(t.c.entryType)
+		val := reflect.New(t.m.entryType)
 		if err = t.get(k, val.Interface()); err != nil {
 			return
 		}
@@ -164,7 +164,7 @@ func (t *Transaction) getFiltered(seekTo []byte, entries reflect.Value, limit in
 
 	var count int64
 	err = t.forEachID(seekTo, func(entryID []byte) (err error) {
-		val := t.c.newEntryValue()
+		val := t.m.newEntryValue()
 		if err = t.get(entryID, &val); err != nil {
 			return
 		}
@@ -381,7 +381,7 @@ func (t *Transaction) put(entryID []byte, val Value) (err error) {
 	val.SetUpdatedAt(time.Now().Unix())
 
 	var bs []byte
-	if bs, err = t.c.marshal(val); err != nil {
+	if bs, err = t.m.marshal(val); err != nil {
 		return
 	}
 
@@ -407,7 +407,7 @@ func (t *Transaction) setRelationships(relationships Relationships, entryID []by
 	}
 
 	for i, relationship := range relationships {
-		relationshipKey := t.c.relationships[i]
+		relationshipKey := t.m.relationships[i]
 		for _, relationshipID := range relationship {
 			if err = t.setRelationship(relationshipKey, []byte(relationshipID), entryID); err != nil {
 				return
@@ -447,7 +447,7 @@ func (t *Transaction) unsetRelationships(relationships Relationships, entryID []
 	}
 
 	for i, relationship := range relationships {
-		relationshipKey := t.c.relationships[i]
+		relationshipKey := t.m.relationships[i]
 		for _, relationshipID := range relationship {
 			if err = t.unsetRelationship(relationshipKey, []byte(relationshipID), entryID); err != nil {
 				return
@@ -486,11 +486,11 @@ func (t *Transaction) updateRelationships(entryID []byte, orig, val Value) (err 
 
 	for i, relationship := range newRelationships {
 		onAdd := func(relationshipID []byte) (err error) {
-			return t.setRelationship(t.c.relationships[i], relationshipID, entryID)
+			return t.setRelationship(t.m.relationships[i], relationshipID, entryID)
 		}
 
 		onRemove := func(relationshipID []byte) (err error) {
-			return t.unsetRelationship(t.c.relationships[i], relationshipID, entryID)
+			return t.unsetRelationship(t.m.relationships[i], relationshipID, entryID)
 		}
 
 		relationship.delta(origRelationships[i], onAdd, onRemove)
@@ -638,12 +638,12 @@ func (t *Transaction) new(val Value) (entryID []byte, err error) {
 	}
 
 	var index uint64
-	if index = t.c.idx.Next(); err != nil {
+	if index = t.m.idx.Next(); err != nil {
 		return
 	}
 
 	// Create a padded entry ID from index value
-	entryID = []byte(fmt.Sprintf(t.c.indexFmt, index))
+	entryID = []byte(fmt.Sprintf(t.m.indexFmt, index))
 
 	val.SetID(string(entryID))
 	if val.GetCreatedAt() == 0 {
@@ -670,7 +670,7 @@ func (t *Transaction) edit(entryID []byte, val Value) (err error) {
 		return
 	}
 
-	orig := reflect.New(t.c.entryType).Interface().(Value)
+	orig := reflect.New(t.m.entryType).Interface().(Value)
 	if err = t.get(entryID, orig); err != nil {
 		return
 	}
@@ -701,7 +701,7 @@ func (t *Transaction) remove(entryID []byte) (err error) {
 		return
 	}
 
-	val := t.c.newEntryValue()
+	val := t.m.newEntryValue()
 	if err = t.get(entryID, val); err != nil {
 		return
 	}
@@ -723,7 +723,7 @@ func (t *Transaction) remove(entryID []byte) (err error) {
 
 func (t *Transaction) teardown() {
 	t.txn = nil
-	t.c = nil
+	t.m = nil
 }
 
 // New will insert a new entry with the given value and the associated relationships
@@ -750,7 +750,7 @@ func (t *Transaction) Get(entryID string, val Value) (err error) {
 // GetByRelationship will attempt to get all entries associated with a given relationship
 func (t *Transaction) GetByRelationship(relationship, relationshipID string, entries interface{}) (err error) {
 	var es reflect.Value
-	if es, err = getReflectedSlice(t.c.entryType, entries); err != nil {
+	if es, err = getReflectedSlice(t.m.entryType, entries); err != nil {
 		return
 	}
 
@@ -760,7 +760,7 @@ func (t *Transaction) GetByRelationship(relationship, relationshipID string, ent
 // GetFiltered will attempt to get all entries associated with a set of given filters
 func (t *Transaction) GetFiltered(seekTo string, entries interface{}, limit int64, filters ...Filter) (err error) {
 	var es reflect.Value
-	if es, err = getReflectedSlice(t.c.entryType, entries); err != nil {
+	if es, err = getReflectedSlice(t.m.entryType, entries); err != nil {
 		return
 	}
 

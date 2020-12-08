@@ -1,5 +1,5 @@
 # Mojura
-Mojura is a service helper library for core ancillary methods
+Mojura is a service helper library for DB ancillary methods
 
 ## Usage
 
@@ -7,7 +7,7 @@ Mojura is a service helper library for core ancillary methods
 ```go
 func ExampleNew() {
 	var (
-		c   *Core
+		c   *Mojura
 		err error
 	)
 
@@ -15,13 +15,13 @@ func ExampleNew() {
 		return
 	}
 
-	fmt.Printf("Core! %v\n", c)
+	fmt.Printf("Mojura! %v\n", c)
 }
 ```
 
-### Core.New
+### Mojura.New
 ```go
-func ExampleCore_New() {
+func ExampleMojura_New() {
 	var ts testStruct
 	ts.Foo = "Foo foo"
 	ts.Bar = "Bar bar"
@@ -39,9 +39,9 @@ func ExampleCore_New() {
 }
 ```
 
-### Core.Get
+### Mojura.Get
 ```go
-func ExampleCore_Get() {
+func ExampleMojura_Get() {
 	var (
 		ts  testStruct
 		err error
@@ -55,9 +55,9 @@ func ExampleCore_Get() {
 }
 ```
 
-### Core.GetByRelationship
+### Mojura.GetByRelationship
 ```go
-func ExampleCore_GetByRelationship() {
+func ExampleMojura_GetByRelationship() {
 	var (
 		tss []*testStruct
 		err error
@@ -73,10 +73,10 @@ func ExampleCore_GetByRelationship() {
 }
 ```
 
-### Core.ForEach
+### Mojura.ForEach
 ```go
 
-func ExampleCore_ForEach() {
+func ExampleMojura_ForEach() {
 	var err error
 	if err = c.ForEach(func(key string, val Value) (err error) {
 		fmt.Printf("Iterating entry (%s)! %+v\n", key, val)
@@ -87,9 +87,9 @@ func ExampleCore_ForEach() {
 }
 ```
 
-### Core.ForEachRelationship
+### Mojura.ForEachRelationship
 ```go
-func ExampleCore_ForEachRelationship() {
+func ExampleMojura_ForEachRelationship() {
 	var err error
 	if err = c.ForEachRelationship("users", "user_1", func(key string, val Value) (err error) {
 		fmt.Printf("Iterating entry (%s)! %+v\n", key, val)
@@ -100,9 +100,9 @@ func ExampleCore_ForEachRelationship() {
 }
 ```
 
-### Core.Edit
+### Mojura.Edit
 ```go
-func ExampleCore_Edit() {
+func ExampleMojura_Edit() {
 	var err error
 	if err = c.Edit("00000000", func(v interface{}) (err error) {
 		ts := v.(*testStruct)
@@ -116,9 +116,9 @@ func ExampleCore_Edit() {
 }
 ```
 
-### Core.Remove
+### Mojura.Remove
 ```go
-func ExampleCore_Remove() {
+func ExampleMojura_Remove() {
 	var err error
 	if err = c.Remove("00000000"); err != nil {
 		return
