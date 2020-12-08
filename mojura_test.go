@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/hatchify/errors"
-	"github.com/hatchify/stringset"
+	"github.com/gdbu/stringset"
 )
 
 const (
