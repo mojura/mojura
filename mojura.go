@@ -10,11 +10,12 @@ import (
 	"time"
 
 	"github.com/gdbu/actions"
+	"github.com/gdbu/atoms"
 	"github.com/gdbu/indexer"
-	"github.com/hatchify/errors"
-	"github.com/mojura/backend"
 
-	"github.com/hatchify/atoms"
+	"github.com/hatchify/errors"
+
+	"github.com/mojura/backend"
 )
 
 const (

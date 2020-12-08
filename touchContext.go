@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hatchify/atoms"
+	"github.com/gdbu/atoms"
 )
 
 // NewTouchContext will create a new timeout touch context
