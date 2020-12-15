@@ -81,7 +81,7 @@ func (b *batcher) run(cs calls) {
 	b.retry(successful, err)
 
 	// Send error down error channel to call who caused issue
-	cs[failIndex].errC <- err
+	cs[failIndex].notify(err)
 
 	// Create group for remaining calls
 	remaining := cs[failIndex+1:]
