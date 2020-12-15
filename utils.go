@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+
+	"github.com/mojura/backend"
 )
 
 func getReflectedSlice(t reflect.Type, v interface{}) (slice reflect.Value, err error) {
@@ -232,4 +234,12 @@ func parseIDAsIndex(id []byte) (index uint64, err error) {
 	}
 
 	return
+}
+
+func getFirstPair(c backend.Cursor, seekTo []byte, reverse bool) (k, v []byte) {
+	if reverse && len(seekTo) == 0 {
+		return c.Last()
+	}
+
+	return c.Seek(seekTo)
 }
