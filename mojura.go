@@ -358,6 +358,30 @@ func (m *Mojura) GetLastByRelationship(relationship, relationshipID string, val 
 	return
 }
 
+// GetFirst will attempt to get the first entry which matches the provided filters
+// Note: Will return ErrEntryNotFound if no match is found
+func (m *Mojura) GetFirst(val Value, filters ...Filter) (err error) {
+	if err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
+		return txn.getFirst(val, filters)
+	}); err != nil {
+		return
+	}
+
+	return
+}
+
+// GetLast will attempt to get the last entry which matches the provided filters
+// Note: Will return ErrEntryNotFound if no match is found
+func (m *Mojura) GetLast(val Value, filters ...Filter) (err error) {
+	if err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
+		return txn.getLast(val, filters)
+	}); err != nil {
+		return
+	}
+
+	return
+}
+
 // ForEach will iterate through each of the entries
 func (m *Mojura) ForEach(seekTo string, fn ForEachFn, filters ...Filter) (err error) {
 	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {

@@ -157,13 +157,29 @@ func (t *Transaction) getByRelationship(relationship, relationshipID []byte, ent
 	return
 }
 
-func (t *Transaction) getFiltered(seekTo []byte, entries reflect.Value, limit int64, filters []Filter) (err error) {
+func (t *Transaction) getFirstID(reverse bool, filters []Filter) (entryID string, err error) {
+	if err = t.forEachID(nil, reverse, func(id []byte) (err error) {
+		entryID = string(id)
+		return Break
+	}, filters); err != nil {
+		return
+	}
+
+	if entryID == "" {
+		err = ErrEntryNotFound
+		return
+	}
+
+	return
+}
+
+func (t *Transaction) getFiltered(seekTo []byte, reverse bool, entries reflect.Value, limit int64, filters []Filter) (err error) {
 	if limit == 0 {
 		return
 	}
 
 	var count int64
-	err = t.forEachID(seekTo, func(entryID []byte) (err error) {
+	err = t.forEachID(seekTo, reverse, func(entryID []byte) (err error) {
 		val := t.m.newEntryValue()
 		if err = t.get(entryID, &val); err != nil {
 			return
@@ -247,23 +263,23 @@ func (t *Transaction) isPairMatch(pair *Filter, entryID []byte) (isMatch bool, e
 	return
 }
 
-func (t *Transaction) forEach(seekTo []byte, fn entryIteratingFn) (err error) {
+func (t *Transaction) forEach(seekTo []byte, reverse bool, fn entryIteratingFn) (err error) {
 	var bkt backend.Bucket
 	if bkt = t.txn.GetBucket(entriesBktKey); bkt == nil {
 		err = ErrNotInitialized
 		return
 	}
 
-	return t.iterateBucket(bkt, seekTo, fn)
+	return t.iterateBucket(bkt, seekTo, reverse, fn)
 }
 
-func (t *Transaction) forEachID(seekTo []byte, fn idIteratingFn, fs []Filter) (err error) {
+func (t *Transaction) forEachID(seekTo []byte, reverse bool, fn idIteratingFn, fs []Filter) (err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
 
 	if len(fs) == 0 {
-		return t.forEach(seekTo, fn.toEntryIteratingFn())
+		return t.forEach(seekTo, reverse, fn.toEntryIteratingFn())
 	}
 
 	var primary Filter
@@ -275,11 +291,11 @@ func (t *Transaction) forEachID(seekTo []byte, fn idIteratingFn, fs []Filter) (e
 	fn = newIDIteratingFn(fn, t, fs)
 
 	// Iterate through each relationship item
-	err = t.forEachIDByRelationship(seekTo, primary.relationship(), primary.id(), fn)
+	err = t.forEachIDByRelationship(seekTo, primary.relationship(), primary.id(), reverse, fn)
 	return
 }
 
-func (t *Transaction) forEachIDByRelationship(seekTo, relationship, relationshipID []byte, fn idIteratingFn) (err error) {
+func (t *Transaction) forEachIDByRelationship(seekTo, relationship, relationshipID []byte, reverse bool, fn idIteratingFn) (err error) {
 	var (
 		bkt backend.Bucket
 		ok  bool
@@ -289,30 +305,42 @@ func (t *Transaction) forEachIDByRelationship(seekTo, relationship, relationship
 		return
 	}
 
-	return t.iterateBucket(bkt, seekTo, fn.toEntryIteratingFn())
+	return t.iterateBucket(bkt, seekTo, reverse, fn.toEntryIteratingFn())
 }
 
-func (t *Transaction) iterateBucket(bkt backend.Bucket, seekTo []byte, fn entryIteratingFn) (err error) {
+func (t *Transaction) iterateBucket(bkt backend.Bucket, seekTo []byte, reverse bool, fn entryIteratingFn) (err error) {
 	// Check to see if context has expired
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
 
+	// Initialize cursor for targeting bucket
 	c := bkt.Cursor()
-	for k, v := c.Seek(seekTo); k != nil; k, v = c.Next() {
+
+	// Set iterating function
+	iteratingFunc := getIteratorFunc(c, reverse)
+
+	// Iterate through the entries by:
+	// - Set initial KV pair using getFirstPair
+	// - Continuing while key is not nil
+	// - Incrementing KV pairs using iteratingFunc
+	for k, v := getFirstPair(c, seekTo, reverse); k != nil; k, v = iteratingFunc() {
 		// Check to see if context has expired
 		if err = t.cc.isDone(); err != nil {
 			return
 		}
 
 		err = fn(k, v)
+
 		switch {
 		case err == nil:
 		case err == Break:
+			// Error is a break statement, set error to nil and return
 			err = nil
 			return
 
 		default:
+			// Error is not nil, nor is it break - return.
 			return
 		}
 	}
@@ -549,6 +577,34 @@ func (t *Transaction) getLastByRelationship(relationship, relationshipID []byte,
 	return
 }
 
+// getLast will attempt to get the first entry which matches the provided filters
+// Note: Will return ErrEntryNotFound if no match is found
+func (t *Transaction) getFirst(value Value, filters []Filter) (err error) {
+	var match string
+	// Get the first ID match of the provided filters as a forward-direction look-up
+	if match, err = t.getFirstID(false, filters); err != nil {
+		// Error encountered while finding match, return
+		return
+	}
+
+	// Retrieve entry for the matching entry ID
+	return t.get([]byte(match), value)
+}
+
+// getLast will attempt to get the last entry which matches the provided filters
+// Note: Will return ErrEntryNotFound if no match is found
+func (t *Transaction) getLast(value Value, filters []Filter) (err error) {
+	var match string
+	// Get the first ID match of the provided filters as a reverse-direction look-up
+	if match, err = t.getFirstID(true, filters); err != nil {
+		// Error encountered while finding match, return
+		return
+	}
+
+	// Retrieve entry for the matching entry ID
+	return t.get([]byte(match), value)
+}
+
 func (t *Transaction) setLookup(lookup, lookupID, key []byte) (err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
@@ -764,7 +820,20 @@ func (t *Transaction) GetFiltered(seekTo string, entries interface{}, limit int6
 		return
 	}
 
-	return t.getFiltered([]byte(seekTo), es, limit, filters)
+	return t.getFiltered([]byte(seekTo), false, es, limit, filters)
+}
+
+// GetFirst will attempt to get the first entry associated with a set of given filters
+// Note: Will return ErrEntryNotFound if no match is found
+func (t *Transaction) GetFirst(value Value, filters ...Filter) (err error) {
+	return t.getFirst(value, filters)
+}
+
+// GetLast will attempt to get the last entry associated with a set of given filters
+// Note: Will return ErrEntryNotFound if no match is found
+func (t *Transaction) GetLast(value Value, filters ...Filter) (err error) {
+	return t.getLast(value, filters)
+
 }
 
 // GetFirstByRelationship will attempt to get the first entry associated with a given relationship and relationship ID
@@ -785,19 +854,19 @@ func (t *Transaction) ForEach(seekTo string, fn ForEachFn, filters ...Filter) (e
 	// Check to see if any filters exist
 	if len(filters) == 0 {
 		// Fast path for raw ForEach (non-filtered) calls. This will utilize the value bytes seen during the cursor pass
-		return t.forEach([]byte(seekTo), entryFn)
+		return t.forEach([]byte(seekTo), false, entryFn)
 	}
 
 	// Wrap the entry iterating func with an id iterating func
 	idFn := entryFn.toIDIteratingFn(t)
 
 	// Call forEachID
-	return t.forEachID([]byte(seekTo), idFn, filters)
+	return t.forEachID([]byte(seekTo), false, idFn, filters)
 }
 
 // ForEachID will iterate through each of the entry IDs
 func (t *Transaction) ForEachID(seekTo string, fn ForEachEntryIDFn, filters ...Filter) (err error) {
-	return t.forEachID([]byte(seekTo), fn.toIDIteratingFn(), filters)
+	return t.forEachID([]byte(seekTo), false, fn.toIDIteratingFn(), filters)
 }
 
 // Cursor will return an iterating cursor
