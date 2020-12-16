@@ -335,6 +335,7 @@ func (t *Transaction) iterateBucket(bkt backend.Bucket, seekTo []byte, reverse b
 		switch {
 		case err == nil:
 		case err == Break:
+			// Error is a break statement, set error to nil and return
 			err = nil
 			return
 
