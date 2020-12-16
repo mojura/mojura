@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hatchify/errors"
 	"github.com/gdbu/stringset"
+	"github.com/hatchify/errors"
 )
 
 const (
@@ -873,6 +873,279 @@ func TestMojura_ForEach_with_multiple_filters(t *testing.T) {
 		}
 	}
 
+	return
+}
+
+func TestMojura_GetFirst_with_multiple_filters(t *testing.T) {
+	var (
+		c   *Mojura
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c)
+
+	user1 := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+	user2 := makeTestStruct("user_2", "contact_1", "group_1", "bunny bar bar")
+	user3 := makeTestStruct("user_3", "contact_2", "group_1", "baz")
+	user4 := makeTestStruct("user_4", "contact_2", "group_1", "yep")
+
+	if _, err = c.New(&user1); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err = c.New(&user2); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err = c.New(&user3); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err = c.New(&user4); err != nil {
+		t.Fatal(err)
+	}
+
+	type testcase struct {
+		filters    []Filter
+		expectedID string
+		err        error
+	}
+
+	tcs := []testcase{
+		{
+			filters: []Filter{
+				MakeFilter("contacts", "contact_1", false),
+			},
+			expectedID: "00000000",
+		},
+		{
+			filters: []Filter{
+				MakeFilter("contacts", "contact_2", false),
+			},
+			expectedID: "00000002",
+		},
+		{
+			filters: []Filter{
+				MakeFilter("contacts", "contact_1", false),
+				MakeFilter("groups", "group_1", false),
+			},
+			expectedID: "00000000",
+		},
+		{
+			filters: []Filter{
+				MakeFilter("contacts", "contact_2", false),
+				MakeFilter("groups", "group_1", false),
+			},
+			expectedID: "00000002",
+		},
+		{
+			filters: []Filter{
+				MakeFilter("contacts", "contact_1", false),
+				MakeFilter("users", "user_1", false),
+			},
+			expectedID: "00000000",
+		},
+		{
+			filters: []Filter{
+				MakeFilter("contacts", "contact_2", false),
+				MakeFilter("users", "user_2", false),
+			},
+			expectedID: "",
+			err:        ErrEntryNotFound,
+		},
+		{
+			filters: []Filter{
+				MakeFilter("contacts", "contact_1", false),
+				MakeFilter("users", "user_1", false),
+				MakeFilter("groups", "group_1", false),
+			},
+			expectedID: "00000000",
+		},
+		{
+			filters: []Filter{
+				MakeFilter("contacts", "contact_2", false),
+				MakeFilter("users", "user_2", false),
+				MakeFilter("groups", "group_1", false),
+			},
+			expectedID: "",
+			err:        ErrEntryNotFound,
+		},
+		{
+			filters: []Filter{
+				MakeFilter("groups", "group_1", false),
+				MakeFilter("contacts", "contact_1", true),
+			},
+			expectedID: "00000002",
+		},
+		{
+			filters: []Filter{
+				MakeFilter("groups", "group_1", false),
+				MakeFilter("contacts", "contact_2", true),
+			},
+			expectedID: "00000000",
+		},
+	}
+
+	for _, tc := range tcs {
+		ss := stringset.New()
+		fn := func(key string, v Value) (err error) {
+			ss.Set(key)
+			return
+		}
+
+		if err = c.ForEach("", fn, tc.filters...); err != nil {
+			t.Fatal(err)
+		}
+
+		var match testStruct
+		if err = c.GetFirst(&match, tc.filters...); err != tc.err {
+			t.Fatalf("invalid error, expected <%v> and received <%v>", tc.err, err)
+		}
+
+		if match.ID != tc.expectedID {
+			t.Fatalf("invalid ID, expected <%s> and recieved <%s>", tc.expectedID, match.ID)
+		}
+	}
+
+	return
+}
+
+func TestMojura_GetLast_with_multiple_filters(t *testing.T) {
+	var (
+		c   *Mojura
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c)
+
+	user1 := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+	user2 := makeTestStruct("user_2", "contact_1", "group_1", "bunny bar bar")
+	user3 := makeTestStruct("user_3", "contact_2", "group_1", "baz")
+	user4 := makeTestStruct("user_4", "contact_2", "group_1", "yep")
+
+	if _, err = c.New(&user1); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err = c.New(&user2); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err = c.New(&user3); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err = c.New(&user4); err != nil {
+		t.Fatal(err)
+	}
+
+	type testcase struct {
+		filters    []Filter
+		expectedID string
+		err        error
+	}
+
+	tcs := []testcase{
+		{
+			filters: []Filter{
+				MakeFilter("contacts", "contact_1", false),
+			},
+			expectedID: "00000001",
+		},
+		{
+			filters: []Filter{
+				MakeFilter("contacts", "contact_2", false),
+			},
+			expectedID: "00000003",
+		},
+		{
+			filters: []Filter{
+				MakeFilter("contacts", "contact_1", false),
+				MakeFilter("groups", "group_1", false),
+			},
+			expectedID: "00000001",
+		},
+		{
+			filters: []Filter{
+				MakeFilter("contacts", "contact_2", false),
+				MakeFilter("groups", "group_1", false),
+			},
+			expectedID: "00000003",
+		},
+		{
+			filters: []Filter{
+				MakeFilter("contacts", "contact_1", false),
+				MakeFilter("users", "user_1", false),
+			},
+			expectedID: "00000000",
+		},
+		{
+			filters: []Filter{
+				MakeFilter("contacts", "contact_2", false),
+				MakeFilter("users", "user_2", false),
+			},
+			expectedID: "",
+			err:        ErrEntryNotFound,
+		},
+		{
+			filters: []Filter{
+				MakeFilter("contacts", "contact_1", false),
+				MakeFilter("users", "user_1", false),
+				MakeFilter("groups", "group_1", false),
+			},
+			expectedID: "00000000",
+		},
+		{
+			filters: []Filter{
+				MakeFilter("contacts", "contact_2", false),
+				MakeFilter("users", "user_2", false),
+				MakeFilter("groups", "group_1", false),
+			},
+			expectedID: "",
+			err:        ErrEntryNotFound,
+		},
+		{
+			filters: []Filter{
+				MakeFilter("groups", "group_1", false),
+				MakeFilter("contacts", "contact_1", true),
+			},
+			expectedID: "00000003",
+		},
+		{
+			filters: []Filter{
+				MakeFilter("groups", "group_1", false),
+				MakeFilter("contacts", "contact_2", true),
+			},
+			expectedID: "00000001",
+		},
+	}
+
+	for _, tc := range tcs {
+		ss := stringset.New()
+		fn := func(key string, v Value) (err error) {
+			ss.Set(key)
+			return
+		}
+
+		if err = c.ForEach("", fn, tc.filters...); err != nil {
+			t.Fatal(err)
+		}
+
+		var match testStruct
+		if err = c.GetLast(&match, tc.filters...); err != tc.err {
+			t.Fatalf("invalid error, expected <%v> and received <%v>", tc.err, err)
+		}
+
+		if match.ID != tc.expectedID {
+			t.Fatalf("invalid ID, expected <%s> and recieved <%s>", tc.expectedID, match.ID)
+		}
+	}
 	return
 }
 
