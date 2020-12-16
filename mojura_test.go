@@ -1146,7 +1146,6 @@ func TestMojura_GetLast_with_multiple_filters(t *testing.T) {
 			t.Fatalf("invalid ID, expected <%s> and recieved <%s>", tc.expectedID, match.ID)
 		}
 	}
-	return
 }
 
 func TestMojura_Cursor(t *testing.T) {
