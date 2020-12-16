@@ -314,19 +314,24 @@ func (t *Transaction) iterateBucket(bkt backend.Bucket, seekTo []byte, reverse b
 		return
 	}
 
+	// Initialize cursor for targeting bucket
 	c := bkt.Cursor()
-	nextFn := c.Next
-	if reverse {
-		nextFn = c.Prev
-	}
 
-	for k, v := getFirstPair(c, seekTo, reverse); k != nil; k, v = nextFn() {
+	// Set iterating function
+	iteratingFunc := getIteratorFunc(c, reverse)
+
+	// Iterate through the entries by:
+	// - Set initial KV pair using getFirstPair
+	// - Continuing while key is not nil
+	// - Incrementing KV pairs using iteratingFunc
+	for k, v := getFirstPair(c, seekTo, reverse); k != nil; k, v = iteratingFunc() {
 		// Check to see if context has expired
 		if err = t.cc.isDone(); err != nil {
 			return
 		}
 
 		err = fn(k, v)
+
 		switch {
 		case err == nil:
 		case err == Break:
@@ -334,6 +339,7 @@ func (t *Transaction) iterateBucket(bkt backend.Bucket, seekTo []byte, reverse b
 			return
 
 		default:
+			// Error is not nil, nor is it break - return.
 			return
 		}
 	}
@@ -570,21 +576,31 @@ func (t *Transaction) getLastByRelationship(relationship, relationshipID []byte,
 	return
 }
 
+// getLast will attempt to get the first entry which matches the provided filters
+// Note: Will return ErrEntryNotFound if no match is found
 func (t *Transaction) getFirst(value Value, filters []Filter) (err error) {
 	var match string
+	// Get the first ID match of the provided filters as a forward-direction look-up
 	if match, err = t.getFirstID(false, filters); err != nil {
+		// Error encountered while finding match, return
 		return
 	}
 
+	// Retrieve entry for the matching entry ID
 	return t.get([]byte(match), value)
 }
 
+// getLast will attempt to get the last entry which matches the provided filters
+// Note: Will return ErrEntryNotFound if no match is found
 func (t *Transaction) getLast(value Value, filters []Filter) (err error) {
 	var match string
+	// Get the first ID match of the provided filters as a reverse-direction look-up
 	if match, err = t.getFirstID(true, filters); err != nil {
+		// Error encountered while finding match, return
 		return
 	}
 
+	// Retrieve entry for the matching entry ID
 	return t.get([]byte(match), value)
 }
 
@@ -807,11 +823,13 @@ func (t *Transaction) GetFiltered(seekTo string, entries interface{}, limit int6
 }
 
 // GetFirst will attempt to get the first entry associated with a set of given filters
+// Note: Will return ErrEntryNotFound if no match is found
 func (t *Transaction) GetFirst(value Value, filters ...Filter) (err error) {
 	return t.getFirst(value, filters)
 }
 
 // GetLast will attempt to get the last entry associated with a set of given filters
+// Note: Will return ErrEntryNotFound if no match is found
 func (t *Transaction) GetLast(value Value, filters ...Filter) (err error) {
 	return t.getLast(value, filters)
 
