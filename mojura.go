@@ -359,7 +359,7 @@ func (m *Mojura) GetLastByRelationship(relationship, relationshipID string, val 
 }
 
 // GetFirst will attempt to get the first entry which matches the provided filters
-func (m *Mojura) GetFirst(val Value, filters []Filter) (err error) {
+func (m *Mojura) GetFirst(val Value, filters ...Filter) (err error) {
 	if err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.getFirst(val, filters)
 	}); err != nil {
