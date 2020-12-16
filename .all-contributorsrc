@@ -1,0 +1,25 @@
+{
+  "files": [
+    "README.md"
+  ],
+  "imageSize": 100,
+  "commit": false,
+  "contributors": [
+    {
+      "login": "itsmontoya",
+      "name": "Josh",
+      "avatar_url": "https://avatars2.githubusercontent.com/u/928954?v=4",
+      "profile": "http://itsmontoya.com",
+      "contributions": [
+        "code",
+        "doc"
+      ]
+    }
+  ],
+  "contributorsPerLine": 7,
+  "projectName": "mojura",
+  "projectOwner": "mojura",
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "skipCi": true
+}
