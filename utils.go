@@ -237,15 +237,35 @@ func parseIDAsIndex(id []byte) (index uint64, err error) {
 }
 
 func getFirstPair(c backend.Cursor, seekTo []byte, reverse bool) (k, v []byte) {
-	if reverse && len(seekTo) == 0 {
+	switch {
+	case !reverse && len(seekTo) == 0:
+		// Current request is a forward-direction cursor AND has not provided a seek value.
+		// Seek to the first entry within the cursor set.
+		return c.First()
+	case reverse && len(seekTo) == 0:
 		// Current request is a reverse-direction cursor AND has not provided a seek value.
 		// Seek to the last entry within the cursor set.
 		return c.Last()
 	}
 
-	// Current request is a standard forward-direction cursor. If a seek value is not provided,
-	// an empty set of bytes will seek to the first entry within the cursor set.
-	return c.Seek(seekTo)
+	// Seek to seekTo value, check to see if provided seekTo is a direct match
+	if k, v = c.Seek(seekTo); bytes.Compare(k, seekTo) != 0 {
+		// seekTo is not a direct match, return current K/V pair
+		return
+	}
+
+	// seekTo is a direct match, we must move to the next sibling
+
+	switch reverse {
+	case false:
+		// Forward-direction cursor, call Next
+		return c.Next()
+	case true:
+		// Reverse-direction cursor, call Prev
+		return c.Prev()
+	}
+
+	return
 }
 
 func getIteratorFunc(c backend.Cursor, reverse bool) (fn func() (k, v []byte)) {
