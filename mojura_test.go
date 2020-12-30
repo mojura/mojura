@@ -540,6 +540,73 @@ func TestMojura_GetFiltered_many_to_many(t *testing.T) {
 	}
 }
 
+func TestMojura_GetFiltered_seek(t *testing.T) {
+	var (
+		c   *Mojura
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c)
+
+	entries := []*testStruct{
+		newTestStruct("user_1", "contact_1", "group_1", "FOO FOO", "foo", "bar"),
+		newTestStruct("user_1", "contact_1", "group_1", "FOO FOO", "bar"),
+		newTestStruct("user_1", "contact_1", "group_1", "FOO FOO", "baz"),
+	}
+
+	for _, entry := range entries {
+		if entry.ID, err = c.New(entry); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	filter := MakeFilter("users", "user_1", false)
+
+	var filtered []*testStruct
+	if err = c.GetFiltered("", &filtered, 1, filter); err != nil {
+		t.Fatal(err)
+	}
+
+	target := filtered[0]
+	if target.ID != entries[0].ID {
+		t.Fatalf("invalid ID, expected <%s> and received <%s>", entries[0].ID, target.ID)
+	}
+
+	filtered = filtered[:0]
+	if err = c.GetFiltered(target.ID, &filtered, 1); err != nil {
+		t.Fatal(err)
+	}
+
+	target = filtered[0]
+
+	if target.ID != entries[1].ID {
+		t.Fatalf("invalid ID, expected <%s> and received <%s>", entries[0].ID, target.ID)
+	}
+
+	filtered = filtered[:0]
+	if err = c.GetFiltered(target.ID, &filtered, 1); err != nil {
+		t.Fatal(err)
+	}
+
+	target = filtered[0]
+
+	if target.ID != entries[2].ID {
+		t.Fatalf("invalid ID, expected <%s> and received <%s>", entries[0].ID, target.ID)
+	}
+
+	filtered = filtered[:0]
+	if err = c.GetFiltered(target.ID, &filtered, 1); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(filtered) != 0 {
+		t.Fatalf("invalid filtered length, expected %d and received %d <%v>", 0, len(filtered), filtered)
+	}
+}
+
 func TestMojura_GetFirstByRelationship(t *testing.T) {
 	var (
 		c   *Mojura
