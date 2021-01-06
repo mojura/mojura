@@ -943,6 +943,100 @@ func TestMojura_ForEach_with_multiple_filters(t *testing.T) {
 	return
 }
 
+func TestMojura_ForEachRelationshipValue(t *testing.T) {
+	var (
+		c   *Mojura
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c)
+
+	val := makeTestStruct("user_1", "contact_1", "group_2", "FOO FOO")
+
+	if _, err = c.New(&val); err != nil {
+		t.Fatal(err)
+	}
+
+	val = makeTestStruct("user_2", "contact_1", "group_2", "FOO FOO")
+
+	if _, err = c.New(&val); err != nil {
+		t.Fatal(err)
+	}
+
+	val = makeTestStruct("user_3", "contact_1", "group_1", "FOO FOO")
+
+	if _, err = c.New(&val); err != nil {
+		t.Fatal(err)
+	}
+
+	var count int
+	// Test with forward direction
+	if err = c.ForEachRelationshipValue("", "groups", false, func(relationshipID, entryID string) (err error) {
+		var expectedRelationship, expectedEntry string
+		switch count {
+		case 0:
+			expectedRelationship = "group_1"
+			expectedEntry = "00000002"
+		case 1:
+			expectedRelationship = "group_2"
+			expectedEntry = "00000000"
+		case 2:
+			expectedRelationship = "group_2"
+			expectedEntry = "00000001"
+		}
+
+		if relationshipID != expectedRelationship {
+			return fmt.Errorf("invalid relationshipID, expected <%s> and received <%s>", expectedRelationship, relationshipID)
+		}
+
+		if entryID != expectedEntry {
+			return fmt.Errorf("invalid relationshipID, expected <%s> and received <%s>", expectedEntry, entryID)
+		}
+
+		count++
+		return
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Reset count
+	count = 0
+
+	// Test with reverse direction
+	if err = c.ForEachRelationshipValue("", "groups", true, func(relationshipID, entryID string) (err error) {
+		var expectedRelationship, expectedEntry string
+		switch count {
+		case 0:
+			expectedRelationship = "group_2"
+			expectedEntry = "00000001"
+		case 1:
+			expectedRelationship = "group_2"
+			expectedEntry = "00000000"
+		case 2:
+			expectedRelationship = "group_1"
+			expectedEntry = "00000002"
+		}
+
+		if relationshipID != expectedRelationship {
+			return fmt.Errorf("invalid relationshipID, expected <%s> and received <%s>", expectedRelationship, relationshipID)
+		}
+
+		if entryID != expectedEntry {
+			return fmt.Errorf("invalid relationshipID, expected <%s> and received <%s>", expectedEntry, entryID)
+		}
+
+		count++
+		return
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	return
+}
+
 func TestMojura_GetFirst_with_multiple_filters(t *testing.T) {
 	var (
 		c   *Mojura

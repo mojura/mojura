@@ -899,6 +899,27 @@ func (t *Transaction) ForEachRelationshipID(seekTo, relationship string, reverse
 	return
 }
 
+// ForEachRelationshipValue will iterate through the values for each ID of a given relationship
+func (t *Transaction) ForEachRelationshipValue(seekTo, relationship string, reverse bool, fn ForEachRelationshipValueFn) (err error) {
+	var relationshipBkt backend.Bucket
+	if relationshipBkt, err = t.getRelationshipBucket([]byte(relationship)); err != nil {
+		return
+	}
+
+	var currentRelationshipID string
+	iterFn := func(entryID, _ []byte) (err error) {
+		return fn(currentRelationshipID, string(entryID))
+	}
+
+	bktIterFn := func(relationshipID, _ []byte) (err error) {
+		currentRelationshipID = string(relationshipID)
+		return t.iterateBucket(relationshipBkt.GetBucket(relationshipID), nil, reverse, iterFn)
+	}
+
+	err = t.iterateBucket(relationshipBkt, []byte(seekTo), reverse, bktIterFn)
+	return
+}
+
 // Cursor will return an iterating cursor
 func (t *Transaction) Cursor(fn CursorFn) (err error) {
 	if err = t.cursor(fn); err == Break {
