@@ -391,10 +391,28 @@ func (m *Mojura) ForEach(seekTo string, fn ForEachFn, filters ...Filter) (err er
 	return
 }
 
+// ForEachReverse will iterate through each of the entries in reverse order
+func (m *Mojura) ForEachReverse(seekTo string, fn ForEachFn, filters ...Filter) (err error) {
+	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
+		return txn.ForEachReverse(seekTo, fn, filters...)
+	})
+
+	return
+}
+
 // ForEachID will iterate through each of the entry IDs
 func (m *Mojura) ForEachID(seekTo string, fn ForEachEntryIDFn, filters ...Filter) (err error) {
 	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.ForEachID(seekTo, fn, filters...)
+	})
+
+	return
+}
+
+// ForEachIDReverse will iterate through each of the entry IDs in reverse order
+func (m *Mojura) ForEachIDReverse(seekTo string, fn ForEachEntryIDFn, filters ...Filter) (err error) {
+	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
+		return txn.ForEachIDReverse(seekTo, fn, filters...)
 	})
 
 	return

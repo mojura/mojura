@@ -263,6 +263,24 @@ func (t *Transaction) isPairMatch(pair *Filter, entryID []byte) (isMatch bool, e
 	return
 }
 
+// ForEach will iterate through each of the entries
+func (t *Transaction) newForEach(seekTo string, reverse bool, fn ForEachFn, filters []Filter) (err error) {
+	// Wrap the provided func with an entry iterating func
+	entryFn := fn.toEntryIteratingFn(t)
+
+	// Check to see if any filters exist
+	if len(filters) == 0 {
+		// Fast path for raw ForEach (non-filtered) calls. This will utilize the value bytes seen during the cursor pass
+		return t.forEach([]byte(seekTo), reverse, entryFn)
+	}
+
+	// Wrap the entry iterating func with an id iterating func
+	idFn := entryFn.toIDIteratingFn(t)
+
+	// Call forEachID
+	return t.forEachID([]byte(seekTo), reverse, idFn, filters)
+}
+
 func (t *Transaction) forEach(seekTo []byte, reverse bool, fn entryIteratingFn) (err error) {
 	var bkt backend.Bucket
 	if bkt = t.txn.GetBucket(entriesBktKey); bkt == nil {
@@ -848,25 +866,22 @@ func (t *Transaction) GetLastByRelationship(relationship, relationshipID string,
 
 // ForEach will iterate through each of the entries
 func (t *Transaction) ForEach(seekTo string, fn ForEachFn, filters ...Filter) (err error) {
-	// Wrap the provided func with an entry iterating func
-	entryFn := fn.toEntryIteratingFn(t)
+	return t.newForEach(seekTo, false, fn, filters)
+}
 
-	// Check to see if any filters exist
-	if len(filters) == 0 {
-		// Fast path for raw ForEach (non-filtered) calls. This will utilize the value bytes seen during the cursor pass
-		return t.forEach([]byte(seekTo), false, entryFn)
-	}
-
-	// Wrap the entry iterating func with an id iterating func
-	idFn := entryFn.toIDIteratingFn(t)
-
-	// Call forEachID
-	return t.forEachID([]byte(seekTo), false, idFn, filters)
+// ForEachReverse will iterate through each of the entries in reverse order
+func (t *Transaction) ForEachReverse(seekTo string, fn ForEachFn, filters ...Filter) (err error) {
+	return t.newForEach(seekTo, true, fn, filters)
 }
 
 // ForEachID will iterate through each of the entry IDs
 func (t *Transaction) ForEachID(seekTo string, fn ForEachEntryIDFn, filters ...Filter) (err error) {
 	return t.forEachID([]byte(seekTo), false, fn.toIDIteratingFn(), filters)
+}
+
+// ForEachIDReverse will iterate through each of the entry IDs in reverse order
+func (t *Transaction) ForEachIDReverse(seekTo string, fn ForEachEntryIDFn, filters ...Filter) (err error) {
+	return t.forEachID([]byte(seekTo), true, fn.toIDIteratingFn(), filters)
 }
 
 // Cursor will return an iterating cursor
