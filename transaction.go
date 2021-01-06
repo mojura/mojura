@@ -884,6 +884,21 @@ func (t *Transaction) ForEachIDReverse(seekTo string, fn ForEachEntryIDFn, filte
 	return t.forEachID([]byte(seekTo), true, fn.toIDIteratingFn(), filters)
 }
 
+// ForEachRelationshipID will iterate through the IDs of a given relationship
+func (t *Transaction) ForEachRelationshipID(seekTo, relationship string, reverse bool, fn ForEachRelationshipIDFn) (err error) {
+	var relationshipBkt backend.Bucket
+	if relationshipBkt, err = t.getRelationshipBucket([]byte(relationship)); err != nil {
+		return
+	}
+
+	iterFn := func(relationshipID, _ []byte) (err error) {
+		return fn(string(relationshipID))
+	}
+
+	err = t.iterateBucket(relationshipBkt, []byte(seekTo), reverse, iterFn)
+	return
+}
+
 // Cursor will return an iterating cursor
 func (t *Transaction) Cursor(fn CursorFn) (err error) {
 	if err = t.cursor(fn); err == Break {

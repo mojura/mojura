@@ -137,6 +137,9 @@ type ForEachEntryIDFn func(entryID string) error
 // CursorFn is called during cursor iteration
 type CursorFn func(*Cursor) error
 
+// ForEachRelationshipIDFn is called during relationship ID iteration
+type ForEachRelationshipIDFn func(relationshipID string) error
+
 type forEachEntryIDBytesFn func(entryID []byte) error
 
 func toForEachEntryIDBytesFn(fn ForEachEntryIDFn) forEachEntryIDBytesFn {

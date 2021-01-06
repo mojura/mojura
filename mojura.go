@@ -418,6 +418,15 @@ func (m *Mojura) ForEachIDReverse(seekTo string, fn ForEachEntryIDFn, filters ..
 	return
 }
 
+// ForEachRelationshipID will iterate through the IDs of a given relationship
+func (m *Mojura) ForEachRelationshipID(seekTo, relationship string, reverse bool, fn ForEachRelationshipIDFn) (err error) {
+	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
+		return txn.ForEachRelationshipID(seekTo, relationship, reverse, fn)
+	})
+
+	return
+}
+
 // Cursor will return an iterating cursor
 func (m *Mojura) Cursor(fn CursorFn) (err error) {
 	if err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
