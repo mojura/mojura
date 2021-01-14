@@ -1,8 +1,15 @@
 package mojura
 
-import "github.com/mojura/backend"
+import (
+	"bytes"
 
-var _ primaryCursor = &matchCursor{}
+	"github.com/mojura/backend"
+)
+
+var (
+	_ primaryCursor   = &matchCursor{}
+	_ secondaryCursor = &matchCursor{}
+)
 
 func newMatchCursor(txn *Transaction, relationshipKey, relationshipID []byte) (m *matchCursor, err error) {
 	var parentBkt backend.Bucket
@@ -10,9 +17,8 @@ func newMatchCursor(txn *Transaction, relationshipKey, relationshipID []byte) (m
 		return
 	}
 
-	bkt := parentBkt.GetBucket(relationshipID)
-
 	var match matchCursor
+	bkt := parentBkt.GetBucket(relationshipID)
 	match.txn = txn
 	match.cur = bkt.Cursor()
 	m = &match
@@ -35,6 +41,14 @@ func (c *matchCursor) seek(id []byte) (entryID []byte, err error) {
 		return
 	}
 
+	return
+}
+
+func (c *matchCursor) has(entryID []byte) (ok bool, err error) {
+	// Get the first key matching entryID (will get next key if entryID does not exist)
+	firstKey, _ := c.cur.Seek(entryID)
+	// If the first key matches the entry ID, we have a match
+	ok = bytes.Compare(entryID, firstKey) == 0
 	return
 }
 
@@ -111,4 +125,22 @@ func (c *matchCursor) Prev() (entryID []byte, err error) {
 	}
 
 	return
+}
+
+// HasForward will determine if an entry exists in a forward direction
+func (c *matchCursor) HasForward(entryID []byte) (ok bool, err error) {
+	if err = c.txn.cc.isDone(); err != nil {
+		return
+	}
+
+	return c.has(entryID)
+}
+
+// HasReverse will determine if an entry exists in a reverse direction
+func (c *matchCursor) HasReverse(entryID []byte) (ok bool, err error) {
+	if err = c.txn.cc.isDone(); err != nil {
+		return
+	}
+
+	return c.has(entryID)
 }
