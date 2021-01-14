@@ -8,15 +8,18 @@ import (
 
 var _ primaryCursor = &comparisonCursor{}
 
-func newComparisonCursor(txn *Transaction, relationshipKey []byte, comparison comparisonFn) (cur *comparisonCursor, err error) {
+func newComparisonCursor(txn *Transaction, opts ComparisonOpts) (cur *comparisonCursor, err error) {
 	var c comparisonCursor
-	if c.parent, err = txn.getRelationshipBucket(relationshipKey); err != nil {
+	if c.parent, err = txn.getRelationshipBucket(opts.RelationshipKey); err != nil {
 		return
 	}
 
 	c.txn = txn
 	c.bktCur = c.parent.Cursor()
-	c.isMatch = comparison
+	c.isMatch = opts.Comparison
+
+	c.rangeStart = opts.RangeStart
+	c.rangeEnd = opts.RangeEnd
 	cur = &c
 	return
 }
@@ -28,9 +31,11 @@ type comparisonCursor struct {
 	bktCur backend.Cursor
 	cur    backend.Cursor
 
+	rangeStart            []byte
+	rangeEnd              []byte
 	currentRelationshipID []byte
 
-	isMatch comparisonFn
+	isMatch ComparisonFn
 }
 
 func (c *comparisonCursor) next() (entryID []byte, err error) {
@@ -343,13 +348,5 @@ func (c *comparisonCursor) Last() (entryID []byte, err error) {
 	return c.prevUntilMatch(entryID)
 }
 
-type comparisonFn func(relationshipID []byte) (ok bool, err error)
-
-// ComparisonFn is the exposed comparison function
-type ComparisonFn func(relationshipID string) (ok bool, err error)
-
-func (c ComparisonFn) comparisonFn() comparisonFn {
-	return func(relationshipID []byte) (ok bool, err error) {
-		return c(string(relationshipID))
-	}
-}
+// ComparisonFn is used for comparison filters
+type ComparisonFn func(relationshipID []byte) (ok bool, err error)

@@ -27,7 +27,7 @@ func Test_comparisonCursor_SeekForward(t *testing.T) {
 		relationshipID  string
 		seekID          string
 
-		isMatch  comparisonFn
+		isMatch  ComparisonFn
 		expected expected
 	}
 
@@ -83,7 +83,8 @@ func Test_comparisonCursor_SeekForward(t *testing.T) {
 
 		for i, tc := range tcs {
 			var cur *comparisonCursor
-			if cur, err = newComparisonCursor(txn, []byte(tc.relationshipKey), tc.isMatch); err != nil {
+			opts := MakeComparisonOpts([]byte(tc.relationshipKey), tc.isMatch)
+			if cur, err = newComparisonCursor(txn, opts); err != nil {
 				return
 			}
 
@@ -128,7 +129,7 @@ func Test_comparisonCursor_SeekReverse(t *testing.T) {
 		relationshipID  string
 		seekID          string
 
-		isMatch  comparisonFn
+		isMatch  ComparisonFn
 		expected expected
 	}
 
@@ -184,7 +185,8 @@ func Test_comparisonCursor_SeekReverse(t *testing.T) {
 
 		for i, tc := range tcs {
 			var cur *comparisonCursor
-			if cur, err = newComparisonCursor(txn, []byte(tc.relationshipKey), tc.isMatch); err != nil {
+			opts := MakeComparisonOpts([]byte(tc.relationshipKey), tc.isMatch)
+			if cur, err = newComparisonCursor(txn, opts); err != nil {
 				return
 			}
 
@@ -226,7 +228,7 @@ func Test_comparisonCursor_First(t *testing.T) {
 
 	type testcase struct {
 		relationshipKey string
-		isMatch         comparisonFn
+		isMatch         ComparisonFn
 		expected        expected
 	}
 
@@ -276,7 +278,8 @@ func Test_comparisonCursor_First(t *testing.T) {
 
 		for i, tc := range tcs {
 			var cur *comparisonCursor
-			if cur, err = newComparisonCursor(txn, []byte(tc.relationshipKey), tc.isMatch); err != nil {
+			opts := MakeComparisonOpts([]byte(tc.relationshipKey), tc.isMatch)
+			if cur, err = newComparisonCursor(txn, opts); err != nil {
 				return
 			}
 
@@ -318,7 +321,7 @@ func Test_comparisonCursor_Next(t *testing.T) {
 
 	type testcase struct {
 		relationshipKey string
-		isMatch         comparisonFn
+		isMatch         ComparisonFn
 		expected        []expected
 	}
 
@@ -379,7 +382,8 @@ func Test_comparisonCursor_Next(t *testing.T) {
 
 		for i, tc := range tcs {
 			var cur *comparisonCursor
-			if cur, err = newComparisonCursor(txn, []byte(tc.relationshipKey), tc.isMatch); err != nil {
+			opts := MakeComparisonOpts([]byte(tc.relationshipKey), tc.isMatch)
+			if cur, err = newComparisonCursor(txn, opts); err != nil {
 				return
 			}
 
@@ -426,7 +430,7 @@ func Test_comparisonCursor_Prev(t *testing.T) {
 
 	type testcase struct {
 		relationshipKey string
-		isMatch         comparisonFn
+		isMatch         ComparisonFn
 		expected        []expected
 	}
 
@@ -487,7 +491,8 @@ func Test_comparisonCursor_Prev(t *testing.T) {
 
 		for i, tc := range tcs {
 			var cur *comparisonCursor
-			if cur, err = newComparisonCursor(txn, []byte(tc.relationshipKey), tc.isMatch); err != nil {
+			opts := MakeComparisonOpts([]byte(tc.relationshipKey), tc.isMatch)
+			if cur, err = newComparisonCursor(txn, opts); err != nil {
 				return
 			}
 
@@ -534,7 +539,7 @@ func Test_comparisonCursor_Last(t *testing.T) {
 
 	type testcase struct {
 		relationshipKey string
-		isMatch         comparisonFn
+		isMatch         ComparisonFn
 		expected        expected
 	}
 
@@ -584,7 +589,8 @@ func Test_comparisonCursor_Last(t *testing.T) {
 
 		for i, tc := range tcs {
 			var cur *comparisonCursor
-			if cur, err = newComparisonCursor(txn, []byte(tc.relationshipKey), tc.isMatch); err != nil {
+			opts := MakeComparisonOpts([]byte(tc.relationshipKey), tc.isMatch)
+			if cur, err = newComparisonCursor(txn, opts); err != nil {
 				return
 			}
 
