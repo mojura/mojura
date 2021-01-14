@@ -271,7 +271,7 @@ func (c *comparisonCursor) last() (entryID []byte, err error) {
 		return
 	}
 
-	if entryID, _ = c.cur.First(); entryID == nil {
+	if entryID, _ = c.cur.Last(); entryID == nil {
 		err = Break
 		return
 	}
@@ -299,6 +299,58 @@ func (c *comparisonCursor) setCursor(relationshipID []byte) (err error) {
 	c.cur = bkt.Cursor()
 	c.currentRelationshipID = bktKey
 	return
+}
+
+func (c *comparisonCursor) hasForward(entryID []byte) (ok bool, err error) {
+	var iteratingEntryID []byte
+	if iteratingEntryID, err = c.first(); err != nil {
+		return
+	}
+
+	if iteratingEntryID, err = c.nextUntilMatch(iteratingEntryID); err != nil {
+		return
+	}
+
+	for {
+		if bytes.Compare(entryID, iteratingEntryID) == 0 {
+			ok = true
+			return
+		}
+
+		if iteratingEntryID, err = c.next(); err != nil {
+			return
+		}
+
+		if iteratingEntryID, err = c.nextUntilMatch(iteratingEntryID); err != nil {
+			return
+		}
+	}
+}
+
+func (c *comparisonCursor) hasReverse(entryID []byte) (ok bool, err error) {
+	var iteratingEntryID []byte
+	if iteratingEntryID, err = c.last(); err != nil {
+		return
+	}
+
+	if iteratingEntryID, err = c.prevUntilMatch(iteratingEntryID); err != nil {
+		return
+	}
+
+	for {
+		if bytes.Compare(entryID, iteratingEntryID) == 0 {
+			ok = true
+			return
+		}
+
+		if iteratingEntryID, err = c.prev(); err != nil {
+			return
+		}
+
+		if iteratingEntryID, err = c.prevUntilMatch(iteratingEntryID); err != nil {
+			return
+		}
+	}
 }
 
 // SeekForward will seek the provided ID in a forward direction
@@ -398,29 +450,11 @@ func (c *comparisonCursor) HasForward(entryID []byte) (ok bool, err error) {
 		return
 	}
 
-	var iteratingEntryID []byte
-	if iteratingEntryID, err = c.first(); err != nil {
-		return
+	if ok, err = c.hasForward(entryID); err == Break {
+		err = nil
 	}
 
-	if iteratingEntryID, err = c.nextUntilMatch(iteratingEntryID); err != nil {
-		return
-	}
-
-	for {
-		if bytes.Compare(entryID, iteratingEntryID) == 0 {
-			ok = true
-			return
-		}
-
-		if iteratingEntryID, err = c.next(); err != nil {
-			return
-		}
-
-		if iteratingEntryID, err = c.nextUntilMatch(iteratingEntryID); err != nil {
-			return
-		}
-	}
+	return
 }
 
 // HasReverse will determine if an entry exists in a reverse direction
@@ -429,29 +463,11 @@ func (c *comparisonCursor) HasReverse(entryID []byte) (ok bool, err error) {
 		return
 	}
 
-	var iteratingEntryID []byte
-	if iteratingEntryID, err = c.last(); err != nil {
-		return
+	if ok, err = c.hasReverse(entryID); err == Break {
+		err = nil
 	}
 
-	if iteratingEntryID, err = c.nextUntilMatch(iteratingEntryID); err != nil {
-		return
-	}
-
-	for {
-		if bytes.Compare(entryID, iteratingEntryID) == 0 {
-			ok = true
-			return
-		}
-
-		if iteratingEntryID, err = c.prev(); err != nil {
-			return
-		}
-
-		if iteratingEntryID, err = c.prevUntilMatch(iteratingEntryID); err != nil {
-			return
-		}
-	}
+	return
 }
 
 // ComparisonFn is used for comparison filters
