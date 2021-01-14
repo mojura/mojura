@@ -7,8 +7,7 @@ import (
 )
 
 var (
-	_ primaryCursor   = &matchCursor{}
-	_ secondaryCursor = &matchCursor{}
+	_ filterCursor = &matchCursor{}
 )
 
 func newMatchCursor(txn *Transaction, relationshipKey, relationshipID []byte) (m *matchCursor, err error) {
