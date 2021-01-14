@@ -208,14 +208,13 @@ func (c *comparisonCursor) SeekForward(relationshipID, seekID []byte) (entryID [
 		return
 	}
 
-	k, v := c.cur.Seek([]byte(seekID))
-	if k == nil && v == nil {
+	entryID, _ = c.cur.Seek([]byte(seekID))
+	if entryID == nil {
 		err = Break
 		return
 	}
 
-	entryID = v
-	return
+	return c.nextUntilMatch(entryID)
 }
 
 // SeekReverse will seek the provided ID in a reverse direction
@@ -228,14 +227,13 @@ func (c *comparisonCursor) SeekReverse(relationshipID, seekID []byte) (entryID [
 		return
 	}
 
-	k, v := c.cur.Seek([]byte(seekID))
-	if k == nil && v == nil {
+	entryID, _ = c.cur.Seek([]byte(seekID))
+	if entryID == nil {
 		err = Break
 		return
 	}
 
-	entryID = v
-	return
+	return c.prevUntilMatch(entryID)
 }
 
 // First will return the first entry
