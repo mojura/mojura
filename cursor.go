@@ -141,5 +141,6 @@ type primaryCursor interface {
 }
 
 type secondaryCursor interface {
-	Has(entryID []byte) (ok bool, err error)
+	HasForward(entryID []byte) (ok bool, err error)
+	HasReverse(entryID []byte) (ok bool, err error)
 }
