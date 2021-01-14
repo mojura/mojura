@@ -217,16 +217,26 @@ func (c *comparisonCursor) teardown() {
 	c.cur = nil
 }
 
-func (c *comparisonCursor) first() (entryID []byte, err error) {
-	bktKey := c.rangeStart
-	if bktKey == nil {
-		if bktKey, _ = c.bktCur.First(); bktKey == nil {
-			err = Break
-			return
-		}
+func (c *comparisonCursor) firstBktKey() (bktKey []byte, err error) {
+	if bktKey = c.rangeStart; bktKey != nil {
+		return
 	}
 
-	if err = c.setCursor(c.rangeStart); err != nil {
+	if bktKey, _ = c.bktCur.First(); bktKey == nil {
+		err = Break
+		return
+	}
+
+	return
+}
+
+func (c *comparisonCursor) first() (entryID []byte, err error) {
+	var bktKey []byte
+	if bktKey, err = c.firstBktKey(); err != nil {
+		return
+	}
+
+	if err = c.setCursor(bktKey); err != nil {
 		return
 	}
 
@@ -238,16 +248,26 @@ func (c *comparisonCursor) first() (entryID []byte, err error) {
 	return
 }
 
-func (c *comparisonCursor) last() (entryID []byte, err error) {
-	bktKey := c.rangeEnd
-	if bktKey == nil {
-		if bktKey, _ = c.bktCur.Last(); bktKey == nil {
-			err = Break
-			return
-		}
+func (c *comparisonCursor) lastBktKey() (bktKey []byte, err error) {
+	if bktKey = c.rangeEnd; bktKey != nil {
+		return
 	}
 
-	if err = c.setCursor(c.rangeStart); err != nil {
+	if bktKey, _ = c.bktCur.Last(); bktKey == nil {
+		err = Break
+		return
+	}
+
+	return
+}
+
+func (c *comparisonCursor) last() (entryID []byte, err error) {
+	var bktKey []byte
+	if bktKey, err = c.lastBktKey(); err != nil {
+		return
+	}
+
+	if err = c.setCursor(bktKey); err != nil {
 		return
 	}
 
