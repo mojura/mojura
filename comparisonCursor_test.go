@@ -383,9 +383,14 @@ func Test_comparisonCursor_Next(t *testing.T) {
 				return
 			}
 
-			for _, exp := range tc.expected {
+			for j, exp := range tc.expected {
+				fn := cur.Next
+				if j == 0 {
+					fn = cur.First
+				}
+
 				var idBytes []byte
-				if idBytes, err = cur.Next(); err != exp.expectedErr {
+				if idBytes, err = fn(); err != exp.expectedErr {
 					err = fmt.Errorf("invalid error, expected <%v> and received <%v> (test case #%d)", exp.expectedErr, err, i)
 					return
 				}
@@ -486,9 +491,14 @@ func Test_comparisonCursor_Prev(t *testing.T) {
 				return
 			}
 
-			for _, exp := range tc.expected {
+			for j, exp := range tc.expected {
+				fn := cur.Prev
+				if j == 0 {
+					fn = cur.Last
+				}
+
 				var idBytes []byte
-				if idBytes, err = cur.Prev(); err != exp.expectedErr {
+				if idBytes, err = fn(); err != exp.expectedErr {
 					err = fmt.Errorf("invalid error, expected <%v> and received <%v> (test case #%d)", exp.expectedErr, err, i)
 					return
 				}

@@ -34,10 +34,13 @@ type comparisonCursor struct {
 }
 
 func (c *comparisonCursor) next() (entryID []byte, err error) {
-	if c.cur != nil {
-		if entryID, _ = c.cur.Next(); entryID != nil {
-			return
-		}
+	if c.cur == nil {
+		err = Break
+		return
+	}
+
+	if entryID, _ = c.cur.Next(); entryID != nil {
+		return
 	}
 
 	for entryID == nil {
@@ -103,10 +106,13 @@ func (c *comparisonCursor) nextUntilMatch(entryID []byte) (matchingEntryID []byt
 }
 
 func (c *comparisonCursor) prev() (entryID []byte, err error) {
-	if c.cur != nil {
-		if entryID, _ = c.cur.Prev(); entryID != nil {
-			return
-		}
+	if c.cur == nil {
+		err = Break
+		return
+	}
+
+	if entryID, _ = c.cur.Prev(); entryID != nil {
+		return
 	}
 
 	for entryID == nil {
@@ -176,6 +182,54 @@ func (c *comparisonCursor) teardown() {
 	c.cur = nil
 }
 
+func (c *comparisonCursor) first() (entryID []byte, err error) {
+	bktKey, _ := c.bktCur.First()
+	if bktKey == nil {
+		err = Break
+		return
+	}
+
+	bkt := c.parent.GetBucket(bktKey)
+	if bkt == nil {
+		err = Break
+		return
+	}
+
+	c.cur = bkt.Cursor()
+	c.currentRelationshipID = bktKey
+
+	if entryID, _ = c.cur.First(); entryID == nil {
+		err = Break
+		return
+	}
+
+	return
+}
+
+func (c *comparisonCursor) last() (entryID []byte, err error) {
+	bktKey, _ := c.bktCur.Last()
+	if bktKey == nil {
+		err = Break
+		return
+	}
+
+	bkt := c.parent.GetBucket(bktKey)
+	if bkt == nil {
+		err = Break
+		return
+	}
+
+	c.cur = bkt.Cursor()
+	c.currentRelationshipID = bktKey
+
+	if entryID, _ = c.cur.Last(); entryID == nil {
+		err = Break
+		return
+	}
+
+	return
+}
+
 func (c *comparisonCursor) setBkt(relationshipID []byte) (err error) {
 	if bytes.Compare(relationshipID, c.currentRelationshipID) == 0 {
 		return
@@ -242,13 +296,12 @@ func (c *comparisonCursor) First() (entryID []byte, err error) {
 		return
 	}
 
-	c.cur = nil
-
-	if entryID, err = c.next(); err != nil {
+	if entryID, err = c.first(); err != nil {
 		return
 	}
 
 	return c.nextUntilMatch(entryID)
+
 }
 
 // Next will return the next entry
@@ -283,14 +336,11 @@ func (c *comparisonCursor) Last() (entryID []byte, err error) {
 		return
 	}
 
-	c.cur = nil
-
-	if entryID, err = c.prev(); err != nil {
+	if entryID, err = c.last(); err != nil {
 		return
 	}
 
 	return c.prevUntilMatch(entryID)
-
 }
 
 type comparisonFn func(relationshipID []byte) (ok bool, err error)
