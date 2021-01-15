@@ -551,8 +551,8 @@ func (t *Transaction) getFirstByRelationship(relationship, relationshipID []byte
 	}
 
 	var match bool
-	if err = t.cursorRelationship(relationship, relationshipID, func(cur *Cursor) (err error) {
-		if err = cur.First(val); err == Break {
+	if err = t.cursorRelationship(relationship, relationshipID, func(cursor Cursor) (err error) {
+		if err = cursor.First(val); err == Break {
 			err = ErrEntryNotFound
 			return
 		}
@@ -576,8 +576,8 @@ func (t *Transaction) getLastByRelationship(relationship, relationshipID []byte,
 	}
 
 	var match bool
-	if err = t.cursorRelationship(relationship, relationshipID, func(cur *Cursor) (err error) {
-		if err = cur.Last(val); err == Break {
+	if err = t.cursorRelationship(relationship, relationshipID, func(cursor Cursor) (err error) {
+		if err = cursor.Last(val); err == Break {
 			err = ErrEntryNotFound
 			return
 		}

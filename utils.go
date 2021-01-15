@@ -135,7 +135,7 @@ func (f ForEachEntryIDFn) toIDIteratingFn() idIteratingFn {
 type ForEachEntryIDFn func(entryID string) error
 
 // CursorFn is called during cursor iteration
-type CursorFn func(*Cursor) error
+type CursorFn func(Cursor) error
 
 // ForEachRelationshipIDFn is called during relationship ID iteration
 type ForEachRelationshipIDFn func(relationshipID string) error

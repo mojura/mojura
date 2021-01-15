@@ -1331,7 +1331,7 @@ func TestMojura_Cursor(t *testing.T) {
 	}
 
 	var cnt int
-	if err = c.Cursor(func(cursor *Cursor) (err error) {
+	if err = c.Cursor(func(cursor Cursor) (err error) {
 		var fb testStruct
 		for err = cursor.Seek("", &fb); err == nil; err = cursor.Next(&fb) {
 			// We are not checking ID correctness in this test
@@ -1382,7 +1382,7 @@ func TestMojura_Cursor_First(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err = c.Cursor(func(cursor *Cursor) (err error) {
+	if err = c.Cursor(func(cursor Cursor) (err error) {
 		var fb testStruct
 		if err = cursor.First(&fb); err != nil {
 			return
@@ -1427,7 +1427,7 @@ func TestMojura_Cursor_Last(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err = c.Cursor(func(cursor *Cursor) (err error) {
+	if err = c.Cursor(func(cursor Cursor) (err error) {
 		var fb testStruct
 		if err = cursor.Last(&fb); err != nil {
 			return
@@ -1472,7 +1472,7 @@ func TestMojura_Cursor_Seek(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err = c.Cursor(func(cursor *Cursor) (err error) {
+	if err = c.Cursor(func(cursor Cursor) (err error) {
 		var fb testStruct
 		if err = cursor.Seek("00000001", &fb); err != nil {
 			return
@@ -1521,7 +1521,7 @@ func TestMojura_CursorRelationship(t *testing.T) {
 	}
 
 	var cnt int
-	if err = c.CursorRelationship("contacts", foobar.ContactID, func(cursor *Cursor) (err error) {
+	if err = c.CursorRelationship("contacts", foobar.ContactID, func(cursor Cursor) (err error) {
 		var fb testStruct
 		for err = cursor.Seek("", &fb); err == nil; err = cursor.Next(&fb) {
 			// We are not checking ID correctness in this test

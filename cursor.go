@@ -2,22 +2,24 @@ package mojura
 
 import "github.com/mojura/backend"
 
-func newCursor(txn *Transaction, cur backend.Cursor, relationship bool) (c Cursor) {
+var _ Cursor = &cursor{}
+
+func newCursor(txn *Transaction, cur backend.Cursor, relationship bool) (c cursor) {
 	c.txn = txn
 	c.cur = cur
 	c.relationship = relationship
 	return
 }
 
-// Cursor is an iterating structure
-type Cursor struct {
+// cursor is an iterating structure
+type cursor struct {
 	txn *Transaction
 	cur backend.Cursor
 
 	relationship bool
 }
 
-func (c *Cursor) get(key, bs []byte, val Value) (err error) {
+func (c *cursor) get(key, bs []byte, val Value) (err error) {
 	if !c.relationship {
 		return c.txn.m.unmarshal(bs, val)
 	}
@@ -30,13 +32,13 @@ func (c *Cursor) get(key, bs []byte, val Value) (err error) {
 	return
 }
 
-func (c *Cursor) teardown() {
+func (c *cursor) teardown() {
 	c.txn = nil
 	c.cur = nil
 }
 
 // Seek will seek the provided ID
-func (c *Cursor) Seek(id string, val Value) (err error) {
+func (c *cursor) Seek(id string, val Value) (err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -55,7 +57,7 @@ func (c *Cursor) Seek(id string, val Value) (err error) {
 }
 
 // First will return the first entry
-func (c *Cursor) First(val Value) (err error) {
+func (c *cursor) First(val Value) (err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -74,7 +76,7 @@ func (c *Cursor) First(val Value) (err error) {
 }
 
 // Last will return the last entry
-func (c *Cursor) Last(val Value) (err error) {
+func (c *cursor) Last(val Value) (err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -93,7 +95,7 @@ func (c *Cursor) Last(val Value) (err error) {
 }
 
 // Next will return the next entry
-func (c *Cursor) Next(val Value) (err error) {
+func (c *cursor) Next(val Value) (err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -112,7 +114,7 @@ func (c *Cursor) Next(val Value) (err error) {
 }
 
 // Prev will return the previous entry
-func (c *Cursor) Prev(val Value) (err error) {
+func (c *cursor) Prev(val Value) (err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -128,4 +130,13 @@ func (c *Cursor) Prev(val Value) (err error) {
 	}
 
 	return
+}
+
+// Cursor is used to iterate through entries
+type Cursor interface {
+	Seek(seekID string, value Value) (err error)
+	First(value Value) (err error)
+	Last(value Value) (err error)
+	Next(value Value) (err error)
+	Prev(value Value) (err error)
 }
