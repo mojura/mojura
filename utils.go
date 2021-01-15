@@ -6,8 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
-
-	"github.com/mojura/backend"
+	"strings"
 )
 
 func getReflectedSlice(t reflect.Type, v interface{}) (slice reflect.Value, err error) {
@@ -111,104 +110,10 @@ func isDone(ctx context.Context) (done bool) {
 	return
 }
 
-// ForEachFn is called during iteration
-type ForEachFn func(key string, val Value) error
-
-func (f ForEachFn) toEntryIteratingFn(txn *Transaction) entryIteratingFn {
-	return func(entryID, entryValue []byte) (err error) {
-		var val Value
-		if val, err = txn.m.newValueFromBytes(entryValue); err != nil {
-			return
-		}
-
-		return f(string(entryID), val)
-	}
-}
-
-func (f ForEachEntryIDFn) toIDIteratingFn() idIteratingFn {
-	return func(entryID []byte) (err error) {
-		return f(string(entryID))
-	}
-}
-
-// ForEachEntryIDFn is called during iteration
-type ForEachEntryIDFn func(entryID string) error
-
-// CursorFn is called during cursor iteration
-type CursorFn func(Cursor) error
-
-// ForEachRelationshipIDFn is called during relationship ID iteration
-type ForEachRelationshipIDFn func(relationshipID string) error
-
-// ForEachRelationshipValueFn is called during relationship value iteration
-type ForEachRelationshipValueFn func(relationshipID, entryID string) error
-
-type forEachEntryIDBytesFn func(entryID []byte) error
-
-func toForEachEntryIDBytesFn(fn ForEachEntryIDFn) forEachEntryIDBytesFn {
-	return func(entryID []byte) (err error) {
-		return fn(string(entryID))
-	}
-}
-
-func newEntryIteratingFn(fn entryIteratingFn, t *Transaction, fs []Filter) entryIteratingFn {
-	if len(fs) == 0 {
-		// No additional filters exist, no wrapping is necessary
-		return fn
-	}
-
-	return func(entryID, entryValue []byte) (err error) {
-		var isMatch bool
-		if isMatch, err = t.matchesAllPairs(fs, entryID); !isMatch || err != nil {
-			return
-		}
-
-		return fn(entryID, entryValue)
-	}
-}
-
-type entryIteratingFn func(entryID, entryValue []byte) (err error)
-
-func (e entryIteratingFn) toIDIteratingFn(txn *Transaction) idIteratingFn {
-	return func(entryID []byte) (err error) {
-		var entryValue []byte
-		if entryValue, err = txn.getBytes(entryID); err != nil {
-			return
-		}
-
-		return e(entryID, entryValue)
-	}
-}
-
-func newIDIteratingFn(fn idIteratingFn, t *Transaction, fs []Filter) idIteratingFn {
-	if len(fs) == 0 {
-		// No additional filters exist, no wrapping is necessary
-		return fn
-	}
-
-	return func(entryID []byte) (err error) {
-		var isMatch bool
-		if isMatch, err = t.matchesAllPairs(fs, entryID); !isMatch || err != nil {
-			return
-		}
-
-		return fn(entryID)
-	}
-}
-
-type idIteratingFn func(entryID []byte) (err error)
-
-func (i idIteratingFn) toEntryIteratingFn() entryIteratingFn {
-	return func(entryID, _ []byte) (err error) {
-		return i(entryID)
-	}
-}
-
 func getPartedFilters(fs []Filter) (primary Filter, remaining []Filter, err error) {
 	// Set primary as the first entry
-	if primary = fs[0]; primary.InverseComparison {
-		// Primary filter cannot be set as an inverse comparison, return error
-		err = ErrInversePrimaryFilter
+	primary = fs[0]
+	if len(fs) == 1 {
 		return
 	}
 
@@ -242,44 +147,47 @@ func parseIDAsIndex(id []byte) (index uint64, err error) {
 	return
 }
 
-func getFirstPair(c backend.Cursor, seekTo []byte, reverse bool) (k, v []byte) {
+func getFirstID(c IDCursor, seekTo string, reverse bool) (entryID string, err error) {
 	switch {
-	case !reverse && len(seekTo) == 0:
-		// Current request is a forward-direction cursor AND has not provided a seek value.
-		// Seek to the first entry within the cursor set.
+	case len(seekTo) > 0 && !reverse:
+		return c.Seek(seekTo)
+	case len(seekTo) > 0 && reverse:
+		return c.SeekReverse(seekTo)
+
+	// Seek to does not exist
+	case reverse:
 		return c.First()
-	case reverse && len(seekTo) == 0:
-		// Current request is a reverse-direction cursor AND has not provided a seek value.
-		// Seek to the last entry within the cursor set.
+	case !reverse:
 		return c.Last()
-	}
-
-	// Seek to seekTo value, check to see if provided seekTo is a direct match
-	if k, v = c.Seek(seekTo); bytes.Compare(k, seekTo) != 0 {
-		// seekTo is not a direct match, return current K/V pair
-		return
-	}
-
-	// seekTo is a direct match, we must move to the next sibling
-
-	switch reverse {
-	case false:
-		// Forward-direction cursor, call Next
-		return c.Next()
-	case true:
-		// Reverse-direction cursor, call Prev
-		return c.Prev()
 	}
 
 	return
 }
 
-func getIteratorFunc(c backend.Cursor, reverse bool) (fn func() (k, v []byte)) {
-	if !reverse {
-		// Current request is a forward-direction cursor, return cursor.Next (incrementing)
-		return c.Next
+func getFirst(c Cursor, seekTo string, reverse bool) (v Value, err error) {
+	switch {
+	case len(seekTo) > 0 && !reverse:
+		return c.Seek(seekTo)
+	case len(seekTo) > 0 && reverse:
+		return c.SeekReverse(seekTo)
+
+	// Seek to does not exist
+	case reverse:
+		return c.First()
+	case !reverse:
+		return c.Last()
 	}
 
-	// Current request is a reverse-direction cursor, return cursor.Prev (decrementing)
-	return c.Prev
+	return
+}
+
+func splitSeekID(in string) (relationshipID, seekID string) {
+	if len(in) == 0 {
+		return
+	}
+
+	spl := strings.SplitN(in, "::", 2)
+	relationshipID = spl[0]
+	seekID = spl[1]
+	return
 }
