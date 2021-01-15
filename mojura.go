@@ -313,56 +313,21 @@ func (m *Mojura) Get(entryID string, val Value) (err error) {
 	return
 }
 
-// GetByRelationship will attempt to get all entries associated with a given relationship
-func (m *Mojura) GetByRelationship(relationship, relationshipID string, entries interface{}) (err error) {
-	var es reflect.Value
-	if es, err = getReflectedSlice(m.entryType, entries); err != nil {
-		return
-	}
-
-	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		return txn.getByRelationship([]byte(relationship), []byte(relationshipID), es)
-	})
-
-	return
-}
-
 // GetFiltered will attempt to get the filtered entries
-func (m *Mojura) GetFiltered(seekTo string, entries interface{}, limit int64, filters ...Filter) (err error) {
+func (m *Mojura) GetFiltered(entries interface{}, o *FilteringOpts) (nextSeekID string, err error) {
 	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		return txn.GetFiltered(seekTo, entries, limit, filters...)
+		nextSeekID, err = txn.GetFiltered(entries, o)
+		return
 	})
-
-	return
-}
-
-// GetFirstByRelationship will attempt to get the first entry associated with a given relationship and relationship ID
-func (m *Mojura) GetFirstByRelationship(relationship, relationshipID string, val Value) (err error) {
-	if err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		return txn.getFirstByRelationship([]byte(relationship), []byte(relationshipID), val)
-	}); err != nil {
-		return
-	}
-
-	return
-}
-
-// GetLastByRelationship will attempt to get the last entry associated with a given relationship and relationship ID
-func (m *Mojura) GetLastByRelationship(relationship, relationshipID string, val Value) (err error) {
-	if err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		return txn.getLastByRelationship([]byte(relationship), []byte(relationshipID), val)
-	}); err != nil {
-		return
-	}
 
 	return
 }
 
 // GetFirst will attempt to get the first entry which matches the provided filters
 // Note: Will return ErrEntryNotFound if no match is found
-func (m *Mojura) GetFirst(val Value, filters ...Filter) (err error) {
+func (m *Mojura) GetFirst(val Value, o *IteratingOpts) (err error) {
 	if err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		return txn.getFirst(val, filters)
+		return txn.getFirst(val, o)
 	}); err != nil {
 		return
 	}
@@ -372,9 +337,9 @@ func (m *Mojura) GetFirst(val Value, filters ...Filter) (err error) {
 
 // GetLast will attempt to get the last entry which matches the provided filters
 // Note: Will return ErrEntryNotFound if no match is found
-func (m *Mojura) GetLast(val Value, filters ...Filter) (err error) {
+func (m *Mojura) GetLast(val Value, o *IteratingOpts) (err error) {
 	if err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		return txn.getLast(val, filters)
+		return txn.getLast(val, o)
 	}); err != nil {
 		return
 	}
@@ -383,74 +348,32 @@ func (m *Mojura) GetLast(val Value, filters ...Filter) (err error) {
 }
 
 // ForEach will iterate through each of the entries
-func (m *Mojura) ForEach(seekTo string, fn ForEachFn, filters ...Filter) (err error) {
+func (m *Mojura) ForEach(fn ForEachFn, o *IteratingOpts) (err error) {
 	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		return txn.ForEach(seekTo, fn, filters...)
-	})
-
-	return
-}
-
-// ForEachReverse will iterate through each of the entries in reverse order
-func (m *Mojura) ForEachReverse(seekTo string, fn ForEachFn, filters ...Filter) (err error) {
-	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		return txn.ForEachReverse(seekTo, fn, filters...)
+		return txn.ForEach(fn, o)
 	})
 
 	return
 }
 
 // ForEachID will iterate through each of the entry IDs
-func (m *Mojura) ForEachID(seekTo string, fn ForEachEntryIDFn, filters ...Filter) (err error) {
+func (m *Mojura) ForEachID(fn ForEachIDFn, o *IteratingOpts) (err error) {
 	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		return txn.ForEachID(seekTo, fn, filters...)
-	})
-
-	return
-}
-
-// ForEachIDReverse will iterate through each of the entry IDs in reverse order
-func (m *Mojura) ForEachIDReverse(seekTo string, fn ForEachEntryIDFn, filters ...Filter) (err error) {
-	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		return txn.ForEachIDReverse(seekTo, fn, filters...)
-	})
-
-	return
-}
-
-// ForEachRelationshipID will iterate through the IDs of a given relationship
-func (m *Mojura) ForEachRelationshipID(seekTo, relationship string, reverse bool, fn ForEachRelationshipIDFn) (err error) {
-	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		return txn.ForEachRelationshipID(seekTo, relationship, reverse, fn)
-	})
-
-	return
-}
-
-// ForEachRelationshipValue will iterate through the values of a given relationship
-func (m *Mojura) ForEachRelationshipValue(seekTo, relationship string, reverse bool, fn ForEachRelationshipValueFn) (err error) {
-	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		return txn.ForEachRelationshipValue(seekTo, relationship, reverse, fn)
+		return txn.ForEachID(fn, o)
 	})
 
 	return
 }
 
 // Cursor will return an iterating cursor
-func (m *Mojura) Cursor(fn CursorFn) (err error) {
+func (m *Mojura) Cursor(fn func(Cursor) error, fs ...Filter) (err error) {
 	if err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		return txn.cursor(fn)
-	}); err == Break {
-		err = nil
-	}
+		var c Cursor
+		if c, err = txn.cursor(fs); err != nil {
+			return
+		}
 
-	return
-}
-
-// CursorRelationship will return an iterating cursor for a given relationship and relationship ID
-func (m *Mojura) CursorRelationship(relationship, relationshipID string, fn CursorFn) (err error) {
-	if err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		return txn.CursorRelationship(relationship, relationshipID, fn)
+		return fn(c)
 	}); err == Break {
 		err = nil
 	}
@@ -471,53 +394,6 @@ func (m *Mojura) Edit(entryID string, val Value) (err error) {
 func (m *Mojura) Remove(entryID string) (err error) {
 	err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.remove([]byte(entryID))
-	})
-
-	return
-}
-
-// SetLookup will set a lookup value
-func (m *Mojura) SetLookup(lookup, lookupID, key string) (err error) {
-	err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
-		return txn.setLookup([]byte(lookup), []byte(lookupID), []byte(key))
-	})
-
-	return
-}
-
-// GetLookup will retrieve the matching lookup keys
-func (m *Mojura) GetLookup(lookup, lookupID string) (keys []string, err error) {
-	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		keys, err = txn.getLookupKeys([]byte(lookup), []byte(lookupID))
-		return
-	})
-
-	return
-}
-
-// GetLookupKey will retrieve the first lookup key
-func (m *Mojura) GetLookupKey(lookup, lookupID string) (key string, err error) {
-	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		var keys []string
-		if keys, err = txn.getLookupKeys([]byte(lookup), []byte(lookupID)); err != nil {
-			return
-		}
-
-		if len(keys) == 0 {
-			err = ErrEntryNotFound
-			return
-		}
-
-		return
-	})
-
-	return
-}
-
-// RemoveLookup will set a lookup value
-func (m *Mojura) RemoveLookup(lookup, lookupID, key string) (err error) {
-	err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
-		return txn.removeLookup([]byte(lookup), []byte(lookupID), []byte(key))
 	})
 
 	return
