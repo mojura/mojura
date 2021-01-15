@@ -54,6 +54,10 @@ func (c *comparisonCursor) rangeEndCheck() (ok bool) {
 	return bytes.Compare(c.rangeEnd, c.currentRelationshipID) != -1
 }
 
+func (c *comparisonCursor) getCurrentRelationshipID() (relationshipID string) {
+	return string(c.currentRelationshipID)
+}
+
 func (c *comparisonCursor) next() (entryID []byte, err error) {
 	if c.cur == nil {
 		err = Break

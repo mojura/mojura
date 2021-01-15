@@ -51,6 +51,10 @@ func (c *matchCursor) has(entryID []byte) (ok bool, err error) {
 	return
 }
 
+func (c *matchCursor) getCurrentRelationshipID() (relationshipID string) {
+	return ""
+}
+
 func (c *matchCursor) teardown() {
 	c.txn = nil
 	c.cur = nil

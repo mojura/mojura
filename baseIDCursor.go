@@ -25,14 +25,22 @@ type baseIDCursor struct {
 	relationship bool
 }
 
-func (c *baseIDCursor) seek(id string) (entryID []byte, err error) {
-	entryID, _ = c.cur.Seek([]byte(id))
+func (c *baseIDCursor) getCurrentRelationshipID() (relationshipID string) {
+	return string("")
+}
+
+func (c *baseIDCursor) seek(seekID []byte) (entryID []byte, err error) {
+	entryID, _ = c.cur.Seek(seekID)
 	if entryID == nil {
 		err = Break
 		return
 	}
 
 	return
+}
+
+func (c *baseIDCursor) seekReverse(seekID []byte) (entryID []byte, err error) {
+	return c.seek(seekID)
 }
 
 // First will return the first entry
@@ -83,7 +91,7 @@ func (c *baseIDCursor) Seek(seekID string) (entryID string, err error) {
 	}
 
 	var eID []byte
-	if eID, err = c.seek(seekID); err != nil {
+	if eID, err = c.seek([]byte(seekID)); err != nil {
 		return
 	}
 

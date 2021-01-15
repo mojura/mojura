@@ -11,4 +11,6 @@ type filterCursor interface {
 
 	HasForward(entryID []byte) (ok bool, err error)
 	HasReverse(entryID []byte) (ok bool, err error)
+
+	getCurrentRelationshipID() (relationshipID string)
 }

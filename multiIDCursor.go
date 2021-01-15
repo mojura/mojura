@@ -42,6 +42,10 @@ func (c *multiIDCursor) teardown() {
 	c.secondary = nil
 }
 
+func (c *multiIDCursor) getCurrentRelationshipID() (relationshipID string) {
+	return c.primary.getCurrentRelationshipID()
+}
+
 func (c *multiIDCursor) isForwardMatch(entryID []byte, reverse bool) (isMatch bool, err error) {
 	for _, secondary := range c.secondary {
 		if isMatch, err = secondary.HasForward(entryID); err != nil {
@@ -110,26 +114,26 @@ func (c *multiIDCursor) prevUntilMatch(entryID []byte) (matchEntryID []byte, err
 	return
 }
 
-func (c *multiIDCursor) seek(seekID string) (entryID []byte, err error) {
-	var relationshipKey string
-	if relationshipKey, seekID = splitSeekID(seekID); err != nil {
+func (c *multiIDCursor) seek(seekID []byte) (entryID []byte, err error) {
+	var relationshipKey []byte
+	if relationshipKey, seekID = splitSeekIDBytes(seekID); err != nil {
 		return
 	}
 
-	if entryID, err = c.primary.SeekForward([]byte(relationshipKey), []byte(seekID)); err != nil {
+	if entryID, err = c.primary.SeekForward(relationshipKey, seekID); err != nil {
 		return
 	}
 
 	return c.nextUntilMatch(entryID)
 }
 
-func (c *multiIDCursor) seekReverse(seekID string) (entryID []byte, err error) {
-	var relationshipKey string
-	if relationshipKey, seekID = splitSeekID(seekID); err != nil {
+func (c *multiIDCursor) seekReverse(seekID []byte) (entryID []byte, err error) {
+	var relationshipKey []byte
+	if relationshipKey, seekID = splitSeekIDBytes(seekID); err != nil {
 		return
 	}
 
-	if entryID, err = c.primary.SeekReverse([]byte(relationshipKey), []byte(seekID)); err != nil {
+	if entryID, err = c.primary.SeekReverse(relationshipKey, seekID); err != nil {
 		return
 	}
 
@@ -175,7 +179,7 @@ func (c *multiIDCursor) Seek(seekID string) (entryID string, err error) {
 	}
 
 	var eID []byte
-	if eID, err = c.seek(seekID); err != nil {
+	if eID, err = c.seek([]byte(seekID)); err != nil {
 		return
 	}
 
@@ -190,7 +194,7 @@ func (c *multiIDCursor) SeekReverse(seekID string) (entryID string, err error) {
 	}
 
 	var eID []byte
-	if eID, err = c.seekReverse(seekID); err != nil {
+	if eID, err = c.seekReverse([]byte(seekID)); err != nil {
 		return
 	}
 

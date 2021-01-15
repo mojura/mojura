@@ -29,7 +29,7 @@ func (c *multiCursor) Seek(seekID string) (val Value, err error) {
 	}
 
 	var entryID []byte
-	if entryID, err = c.mid.seek(seekID); err != nil {
+	if entryID, err = c.mid.seek([]byte(seekID)); err != nil {
 		return
 	}
 
@@ -43,7 +43,7 @@ func (c *multiCursor) SeekReverse(seekID string) (val Value, err error) {
 	}
 
 	var entryID []byte
-	if entryID, err = c.mid.seekReverse(seekID); err != nil {
+	if entryID, err = c.mid.seekReverse([]byte(seekID)); err != nil {
 		return
 	}
 
@@ -125,4 +125,8 @@ func (c *multiCursor) get(entryID []byte) (val Value, err error) {
 
 	// Set value from bytes
 	return c.txn.m.newValueFromBytes(bs)
+}
+
+func (c *multiCursor) getCurrentRelationshipID() (relationshipID string) {
+	return c.mid.getCurrentRelationshipID()
 }

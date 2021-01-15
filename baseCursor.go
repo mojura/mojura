@@ -23,6 +23,10 @@ type baseCursor struct {
 	cur backend.Cursor
 }
 
+func (c *baseCursor) getCurrentRelationshipID() (relationshipID string) {
+	return string("")
+}
+
 // Seek will seek the provided ID
 func (c *baseCursor) Seek(seekID string) (val Value, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
