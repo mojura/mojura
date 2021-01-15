@@ -181,13 +181,42 @@ func getFirst(c Cursor, seekTo string, reverse bool) (v Value, err error) {
 	return
 }
 
-func splitSeekID(in string) (relationshipID, seekID string) {
-	if len(in) == 0 {
+func splitSeekID(seekID string) (relationshipID, entryID string) {
+	if len(seekID) == 0 {
 		return
 	}
 
-	spl := strings.SplitN(in, "::", 2)
+	spl := strings.SplitN(seekID, "::", 2)
+
+	// Set relationship ID
 	relationshipID = spl[0]
-	seekID = spl[1]
+
+	if len(spl) == 2 {
+		// Split is a length of 2, set entry ID
+		entryID = spl[1]
+	}
+
 	return
+}
+
+func splitSeekIDBytes(seekID []byte) (relationshipID, entryID []byte) {
+	if len(seekID) == 0 {
+		return
+	}
+
+	spl := bytes.SplitN(seekID, []byte("::"), 2)
+
+	// Set relationship ID
+	relationshipID = spl[0]
+
+	if len(spl) == 2 {
+		// Split is a length of 2, set entry ID
+		entryID = spl[1]
+	}
+
+	return
+}
+
+func joinSeekID(relationshipID, entryID string) (seekID string) {
+	return strings.Join([]string{relationshipID, entryID}, "::")
 }
