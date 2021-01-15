@@ -9,4 +9,6 @@ type Cursor interface {
 	Last() (value Value, err error)
 	Next() (value Value, err error)
 	Prev() (value Value, err error)
+
+	getCurrentRelationshipID() (relationshipID string)
 }
