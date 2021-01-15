@@ -110,7 +110,12 @@ func (c *multiIDCursor) prevUntilMatch(entryID []byte) (matchEntryID []byte, err
 	return
 }
 
-func (c *multiIDCursor) seekForward(relationshipKey, seekID string) (entryID []byte, err error) {
+func (c *multiIDCursor) seek(seekID string) (entryID []byte, err error) {
+	var relationshipKey string
+	if relationshipKey, seekID = splitSeekID(seekID); err != nil {
+		return
+	}
+
 	if entryID, err = c.primary.SeekForward([]byte(relationshipKey), []byte(seekID)); err != nil {
 		return
 	}
@@ -118,7 +123,12 @@ func (c *multiIDCursor) seekForward(relationshipKey, seekID string) (entryID []b
 	return c.nextUntilMatch(entryID)
 }
 
-func (c *multiIDCursor) seekReverse(relationshipKey, seekID string) (entryID []byte, err error) {
+func (c *multiIDCursor) seekReverse(seekID string) (entryID []byte, err error) {
+	var relationshipKey string
+	if relationshipKey, seekID = splitSeekID(seekID); err != nil {
+		return
+	}
+
 	if entryID, err = c.primary.SeekReverse([]byte(relationshipKey), []byte(seekID)); err != nil {
 		return
 	}
@@ -164,13 +174,8 @@ func (c *multiIDCursor) Seek(seekID string) (entryID string, err error) {
 		return
 	}
 
-	var relationshipKey string
-	if relationshipKey, seekID = splitSeekID(seekID); err != nil {
-		return
-	}
-
 	var eID []byte
-	if eID, err = c.seekForward(relationshipKey, seekID); err != nil {
+	if eID, err = c.seek(seekID); err != nil {
 		return
 	}
 
@@ -184,13 +189,8 @@ func (c *multiIDCursor) SeekReverse(seekID string) (entryID string, err error) {
 		return
 	}
 
-	var relationshipKey string
-	if relationshipKey, seekID = splitSeekID(seekID); err != nil {
-		return
-	}
-
 	var eID []byte
-	if eID, err = c.seekReverse(relationshipKey, seekID); err != nil {
+	if eID, err = c.seekReverse(seekID); err != nil {
 		return
 	}
 
