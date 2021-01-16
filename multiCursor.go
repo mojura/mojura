@@ -8,6 +8,7 @@ func newMultiCursor(txn *Transaction, fs []Filter) (c Cursor, err error) {
 		return
 	}
 
+	m.txn = txn
 	c = &m
 	return
 }
