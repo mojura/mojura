@@ -307,8 +307,6 @@ func (t *Transaction) getFiltered(es reflect.Value, o *FilteringOpts) (lastID st
 		return
 	}
 
-	fmt.Println("Get filtered")
-
 	var count int64
 	err = t.forEachWithCursor(c, &o.IteratingOpts, func(entryID string, val Value) (err error) {
 		rVal := reflect.ValueOf(val)
@@ -336,10 +334,8 @@ func (t *Transaction) forEachWithCursor(c Cursor, o *IteratingOpts, fn ForEachFn
 		}
 
 		val, err = iterator()
-		fmt.Println("err??", err)
 	}
 
-	fmt.Println("Loop broken", err)
 	if err == Break {
 		err = nil
 	}

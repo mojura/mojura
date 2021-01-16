@@ -1,7 +1,5 @@
 package mojura
 
-import "fmt"
-
 var _ IDCursor = &multiIDCursor{}
 
 func newMultiIDCursor(txn *Transaction, fs []Filter) (mp *multiIDCursor, err error) {
@@ -147,11 +145,7 @@ func (c *multiIDCursor) first() (entryID []byte, err error) {
 		return
 	}
 
-	fmt.Println("Multi id first", string(entryID))
-	entryID, err = c.nextUntilMatch(entryID)
-
-	fmt.Println("Multi id filtered", string(entryID))
-	return
+	return c.nextUntilMatch(entryID)
 }
 
 func (c *multiIDCursor) next() (entryID []byte, err error) {
