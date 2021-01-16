@@ -525,8 +525,12 @@ func (t *Transaction) ForEach(fn ForEachFn, o *IteratingOpts) (err error) {
 	var val Value
 	for val, err = getFirst(c, o.LastID, o.Reverse); err == nil; val, err = iterator() {
 		if err = fn(val.GetID(), val); err != nil {
-			return
+			break
 		}
+	}
+
+	if err == Break {
+		err = nil
 	}
 
 	return
@@ -547,8 +551,12 @@ func (t *Transaction) ForEachID(fn ForEachIDFn, o *IteratingOpts) (err error) {
 	var entryID string
 	for entryID, err = getFirstID(c, o.LastID, o.Reverse); err == nil; entryID, err = iterator() {
 		if err = fn(entryID); err != nil {
-			return
+			break
 		}
+	}
+
+	if err == Break {
+		err = nil
 	}
 
 	return
