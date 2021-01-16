@@ -69,7 +69,7 @@ func Test_matchCursor_SeekForward(t *testing.T) {
 		}
 
 		for i, tc := range tcs {
-			var cur *matchCursor
+			var cur filterCursor
 			if cur, err = newMatchCursor(txn, []byte(tc.relationshipKey), []byte(tc.relationshipID)); err != nil {
 				return
 			}
@@ -157,7 +157,7 @@ func Test_matchCursor_SeekReverse(t *testing.T) {
 		}
 
 		for i, tc := range tcs {
-			var cur *matchCursor
+			var cur filterCursor
 			if cur, err = newMatchCursor(txn, []byte(tc.relationshipKey), []byte(tc.relationshipID)); err != nil {
 				return
 			}
@@ -240,7 +240,7 @@ func Test_matchCursor_First(t *testing.T) {
 		}
 
 		for i, tc := range tcs {
-			var cur *matchCursor
+			var cur filterCursor
 			if cur, err = newMatchCursor(txn, []byte(tc.relationshipKey), []byte(tc.relationshipID)); err != nil {
 				return
 			}
@@ -333,7 +333,7 @@ func Test_matchCursor_Next(t *testing.T) {
 		}
 
 		for _, tc := range tcs {
-			var cur *matchCursor
+			var cur filterCursor
 			if cur, err = newMatchCursor(txn, []byte(tc.relationshipKey), []byte(tc.relationshipID)); err != nil {
 				return
 			}
@@ -431,7 +431,7 @@ func Test_matchCursor_Prev(t *testing.T) {
 		}
 
 		for _, tc := range tcs {
-			var cur *matchCursor
+			var cur filterCursor
 			if cur, err = newMatchCursor(txn, []byte(tc.relationshipKey), []byte(tc.relationshipID)); err != nil {
 				return
 			}
@@ -519,7 +519,7 @@ func Test_matchCursor_Last(t *testing.T) {
 		}
 
 		for i, tc := range tcs {
-			var cur *matchCursor
+			var cur filterCursor
 			if cur, err = newMatchCursor(txn, []byte(tc.relationshipKey), []byte(tc.relationshipID)); err != nil {
 				return
 			}
@@ -545,7 +545,7 @@ func Test_matchCursor_Last(t *testing.T) {
 }
 
 func Test_matchCursor_HasForward(t *testing.T) {
-	fn := func(c *matchCursor, entryID []byte) (value bool, err error) {
+	fn := func(c filterCursor, entryID []byte) (value bool, err error) {
 		return c.HasForward(entryID)
 	}
 
@@ -553,14 +553,14 @@ func Test_matchCursor_HasForward(t *testing.T) {
 }
 
 func Test_matchCursor_HasReverse(t *testing.T) {
-	fn := func(c *matchCursor, entryID []byte) (value bool, err error) {
+	fn := func(c filterCursor, entryID []byte) (value bool, err error) {
 		return c.HasReverse(entryID)
 	}
 
 	testMatchCursorHas(t, fn)
 }
 
-func testMatchCursorHas(t *testing.T, fn func(c *matchCursor, entryID []byte) (value bool, err error)) {
+func testMatchCursorHas(t *testing.T, fn func(c filterCursor, entryID []byte) (value bool, err error)) {
 	type expected struct {
 		value bool
 		err   error
@@ -596,7 +596,7 @@ func testMatchCursorHas(t *testing.T, fn func(c *matchCursor, entryID []byte) (v
 
 	testMatchCursor(t, func(txn *Transaction) (err error) {
 		for i, tc := range tcs {
-			var cur *matchCursor
+			var cur filterCursor
 			if cur, err = newMatchCursor(txn, []byte(tc.relationshipKey), []byte(tc.relationshipID)); err != nil {
 				return
 			}

@@ -158,11 +158,10 @@ func TestMojura_GetFiltered_many_to_many(t *testing.T) {
 
 	runCases := func(cases []testcase) (err error) {
 		for _, tc := range cases {
-			var o FilteringOpts
-			o.Filters = append(o.Filters, MakeMatchFilter("tags", tc.tag))
-
+			filter := MakeMatchFilter("tags", tc.tag)
+			o := NewFilteringOpts(filter)
 			var entries []*testStruct
-			if _, err = c.GetFiltered(&entries, &o); err != nil {
+			if _, err = c.GetFiltered(&entries, o); err != nil {
 				return
 			}
 

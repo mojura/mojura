@@ -10,7 +10,7 @@ var (
 	_ filterCursor = &matchCursor{}
 )
 
-func newMatchCursor(txn *Transaction, relationshipKey, relationshipID []byte) (m *matchCursor, err error) {
+func newMatchCursor(txn *Transaction, relationshipKey, relationshipID []byte) (c filterCursor, err error) {
 	var parentBkt backend.Bucket
 	if parentBkt, err = txn.getRelationshipBucket(relationshipKey); err != nil {
 		return
@@ -18,9 +18,14 @@ func newMatchCursor(txn *Transaction, relationshipKey, relationshipID []byte) (m
 
 	var match matchCursor
 	bkt := parentBkt.GetBucket(relationshipID)
+	if bkt == nil {
+		c = nopC
+		return
+	}
+
 	match.txn = txn
 	match.cur = bkt.Cursor()
-	m = &match
+	c = &match
 	return
 }
 
