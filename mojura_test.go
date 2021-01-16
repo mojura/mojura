@@ -572,20 +572,26 @@ func TestMojura_ForEach_with_multiple_filters(t *testing.T) {
 		{
 			filters: []Filter{
 				MakeMatchFilter("groups", "group_1"),
-				MakeMatchFilter("contacts", "contact_1"),
+				MakeComparisonFilter(MakeComparisonOpts("contacts", func(relationshipID []byte) (ok bool, err error) {
+					ok = string(relationshipID) != "contact_1"
+					return
+				})),
 			},
 			expectedIDs: []string{"00000002", "00000003"},
 		},
 		{
 			filters: []Filter{
 				MakeMatchFilter("groups", "group_1"),
-				MakeMatchFilter("contacts", "contact_2"),
+				MakeComparisonFilter(MakeComparisonOpts("contacts", func(relationshipID []byte) (ok bool, err error) {
+					ok = string(relationshipID) != "contact_2"
+					return
+				})),
 			},
 			expectedIDs: []string{"00000000", "00000001"},
 		},
 	}
 
-	for _, tc := range tcs {
+	for i, tc := range tcs {
 		ss := stringset.New()
 		fn := func(key string, v Value) (err error) {
 			ss.Set(key)
@@ -599,9 +605,9 @@ func TestMojura_ForEach_with_multiple_filters(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		for _, expectedID := range tc.expectedIDs {
+		for j, expectedID := range tc.expectedIDs {
 			if !ss.Has(expectedID) {
-				t.Fatalf("expected ID of %s was not found", expectedID)
+				t.Fatalf("expected ID of %s was not found, testcase #%d and expected ID #%d", expectedID, i, j)
 			}
 		}
 	}
@@ -709,20 +715,26 @@ func TestMojura_GetFirst_with_multiple_filters(t *testing.T) {
 		{
 			filters: []Filter{
 				MakeMatchFilter("groups", "group_1"),
-				MakeMatchFilter("contacts", "contact_1"),
+				MakeComparisonFilter(MakeComparisonOpts("contacts", func(relationshipID []byte) (ok bool, err error) {
+					ok = string(relationshipID) != "contact_1"
+					return
+				})),
 			},
 			expectedID: "00000002",
 		},
 		{
 			filters: []Filter{
 				MakeMatchFilter("groups", "group_1"),
-				MakeMatchFilter("contacts", "contact_2"),
+				MakeComparisonFilter(MakeComparisonOpts("contacts", func(relationshipID []byte) (ok bool, err error) {
+					ok = string(relationshipID) != "contact_2"
+					return
+				})),
 			},
 			expectedID: "00000000",
 		},
 	}
 
-	for _, tc := range tcs {
+	for i, tc := range tcs {
 		ss := stringset.New()
 		fn := func(key string, v Value) (err error) {
 			ss.Set(key)
@@ -738,11 +750,11 @@ func TestMojura_GetFirst_with_multiple_filters(t *testing.T) {
 
 		var match testStruct
 		if err = c.GetFirst(&match, &o); err != tc.err {
-			t.Fatalf("invalid error, expected <%v> and received <%v>", tc.err, err)
+			t.Fatalf("invalid error, expected <%v> and received <%v> (test #%d)", tc.err, err, i)
 		}
 
 		if match.ID != tc.expectedID {
-			t.Fatalf("invalid ID, expected <%s> and recieved <%s>", tc.expectedID, match.ID)
+			t.Fatalf("invalid ID, expected <%s> and recieved <%s> (test #%d)", tc.expectedID, match.ID, i)
 		}
 	}
 
@@ -849,20 +861,26 @@ func TestMojura_GetLast_with_multiple_filters(t *testing.T) {
 		{
 			filters: []Filter{
 				MakeMatchFilter("groups", "group_1"),
-				MakeMatchFilter("contacts", "contact_1"),
+				MakeComparisonFilter(MakeComparisonOpts("contacts", func(relationshipID []byte) (ok bool, err error) {
+					ok = string(relationshipID) != "contact_1"
+					return
+				})),
 			},
 			expectedID: "00000003",
 		},
 		{
 			filters: []Filter{
 				MakeMatchFilter("groups", "group_1"),
-				MakeMatchFilter("contacts", "contact_2"),
+				MakeComparisonFilter(MakeComparisonOpts("contacts", func(relationshipID []byte) (ok bool, err error) {
+					ok = string(relationshipID) != "contact_2"
+					return
+				})),
 			},
 			expectedID: "00000001",
 		},
 	}
 
-	for _, tc := range tcs {
+	for i, tc := range tcs {
 		ss := stringset.New()
 		fn := func(key string, v Value) (err error) {
 			ss.Set(key)
@@ -878,11 +896,11 @@ func TestMojura_GetLast_with_multiple_filters(t *testing.T) {
 
 		var match testStruct
 		if err = c.GetLast(&match, &o); err != tc.err {
-			t.Fatalf("invalid error, expected <%v> and received <%v>", tc.err, err)
+			t.Fatalf("invalid error, expected <%v> and received <%v> (test #%d)", tc.err, err, i)
 		}
 
 		if match.ID != tc.expectedID {
-			t.Fatalf("invalid ID, expected <%s> and recieved <%s>", tc.expectedID, match.ID)
+			t.Fatalf("invalid ID, expected <%s> and recieved <%s> (test #%d)", tc.expectedID, match.ID, i)
 		}
 	}
 }

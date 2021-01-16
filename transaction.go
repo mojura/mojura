@@ -256,7 +256,9 @@ func (t *Transaction) getFirst(value Value, o *IteratingOpts) (err error) {
 	}
 
 	var entryID string
-	if entryID, err = getFirstID(cur, o.LastID, false); err != nil {
+	if entryID, err = getFirstID(cur, o.LastID, false); err == Break {
+		return ErrEntryNotFound
+	} else if err != nil {
 		return
 	}
 
@@ -272,7 +274,9 @@ func (t *Transaction) getLast(value Value, o *IteratingOpts) (err error) {
 	}
 
 	var entryID string
-	if entryID, err = getFirstID(cur, o.LastID, false); err != nil {
+	if entryID, err = getFirstID(cur, o.LastID, true); err == Break {
+		return ErrEntryNotFound
+	} else if err != nil {
 		return
 	}
 
