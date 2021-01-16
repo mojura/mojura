@@ -1,5 +1,7 @@
 package mojura
 
+import "fmt"
+
 var _ IDCursor = &multiIDCursor{}
 
 func newMultiIDCursor(txn *Transaction, fs []Filter) (mp *multiIDCursor, err error) {
@@ -46,7 +48,7 @@ func (c *multiIDCursor) getCurrentRelationshipID() (relationshipID string) {
 	return c.primary.getCurrentRelationshipID()
 }
 
-func (c *multiIDCursor) isForwardMatch(entryID []byte, reverse bool) (isMatch bool, err error) {
+func (c *multiIDCursor) isForwardMatch(entryID []byte) (isMatch bool, err error) {
 	for _, secondary := range c.secondary {
 		if isMatch, err = secondary.HasForward(entryID); err != nil {
 			isMatch = false
@@ -58,10 +60,10 @@ func (c *multiIDCursor) isForwardMatch(entryID []byte, reverse bool) (isMatch bo
 		}
 	}
 
-	return
+	return true, nil
 }
 
-func (c *multiIDCursor) isReverseMatch(entryID []byte, reverse bool) (isMatch bool, err error) {
+func (c *multiIDCursor) isReverseMatch(entryID []byte) (isMatch bool, err error) {
 	for _, secondary := range c.secondary {
 		if isMatch, err = secondary.HasReverse(entryID); err != nil {
 			isMatch = false
@@ -73,13 +75,13 @@ func (c *multiIDCursor) isReverseMatch(entryID []byte, reverse bool) (isMatch bo
 		}
 	}
 
-	return
+	return true, nil
 }
 
 func (c *multiIDCursor) nextUntilMatch(entryID []byte) (matchEntryID []byte, err error) {
 	var isMatch bool
 	for err == nil {
-		isMatch, err = c.isForwardMatch(entryID, false)
+		isMatch, err = c.isForwardMatch(entryID)
 		switch {
 		case err != nil:
 			return
@@ -98,7 +100,7 @@ func (c *multiIDCursor) nextUntilMatch(entryID []byte) (matchEntryID []byte, err
 func (c *multiIDCursor) prevUntilMatch(entryID []byte) (matchEntryID []byte, err error) {
 	var isMatch bool
 	for err == nil {
-		isMatch, err = c.isReverseMatch(entryID, true)
+		isMatch, err = c.isReverseMatch(entryID)
 		switch {
 		case err != nil:
 			return
@@ -145,7 +147,11 @@ func (c *multiIDCursor) first() (entryID []byte, err error) {
 		return
 	}
 
-	return c.nextUntilMatch(entryID)
+	fmt.Println("Multi id first", string(entryID))
+	entryID, err = c.nextUntilMatch(entryID)
+
+	fmt.Println("Multi id filtered", string(entryID))
+	return
 }
 
 func (c *multiIDCursor) next() (entryID []byte, err error) {

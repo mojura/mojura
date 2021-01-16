@@ -147,34 +147,53 @@ func parseIDAsIndex(id []byte) (index uint64, err error) {
 	return
 }
 
-func getFirstID(c IDCursor, seekTo string, reverse bool) (entryID string, err error) {
+func getFirstID(c IDCursor, lastID string, reverse bool) (entryID string, err error) {
+	// If last ID is set, we need to seek
+	isSeeking := len(lastID) > 0
+
 	switch {
-	case len(seekTo) > 0 && !reverse:
-		return c.Seek(seekTo)
-	case len(seekTo) > 0 && reverse:
-		return c.SeekReverse(seekTo)
+	case isSeeking && !reverse:
+		if _, err = c.Seek(lastID); err != nil {
+			return
+		}
+
+		return c.Next()
+	case isSeeking && reverse:
+		if _, err = c.SeekReverse(lastID); err != nil {
+			return
+		}
+
+		return c.Prev()
 
 	// Seek to does not exist
-	case reverse:
-		return c.First()
 	case !reverse:
+		return c.First()
+	case reverse:
 		return c.Last()
 	}
 
 	return
 }
 
-func getFirst(c Cursor, seekTo string, reverse bool) (v Value, err error) {
+func getFirst(c Cursor, lastID string, reverse bool) (v Value, err error) {
 	switch {
-	case len(seekTo) > 0 && !reverse:
-		return c.Seek(seekTo)
-	case len(seekTo) > 0 && reverse:
-		return c.SeekReverse(seekTo)
+	case len(lastID) > 0 && !reverse:
+		if _, err = c.Seek(lastID); err != nil {
+			return
+		}
+
+		return c.Next()
+	case len(lastID) > 0 && reverse:
+		if _, err = c.SeekReverse(lastID); err != nil {
+			return
+		}
+
+		return c.Prev()
 
 	// Seek to does not exist
-	case reverse:
-		return c.First()
 	case !reverse:
+		return c.First()
+	case reverse:
 		return c.Last()
 	}
 

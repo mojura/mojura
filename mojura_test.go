@@ -305,7 +305,7 @@ func TestMojura_GetFiltered_seek(t *testing.T) {
 	o.Limit = 1
 
 	var filtered []*testStruct
-	if o.SeekTo, err = c.GetFiltered(&filtered, &o); err != nil {
+	if o.LastID, err = c.GetFiltered(&filtered, &o); err != nil {
 		t.Fatal(err)
 	}
 
@@ -316,18 +316,17 @@ func TestMojura_GetFiltered_seek(t *testing.T) {
 
 	filtered = filtered[:0]
 
-	if o.SeekTo, err = c.GetFiltered(&filtered, &o); err != nil {
+	if o.LastID, err = c.GetFiltered(&filtered, &o); err != nil {
 		t.Fatal(err)
 	}
 
 	target = filtered[0]
-
 	if target.ID != entries[1].ID {
 		t.Fatalf("invalid ID, expected <%s> and received <%s>", entries[0].ID, target.ID)
 	}
 
 	filtered = filtered[:0]
-	if o.SeekTo, err = c.GetFiltered(&filtered, &o); err != nil {
+	if o.LastID, err = c.GetFiltered(&filtered, &o); err != nil {
 		t.Fatal(err)
 	}
 
@@ -338,7 +337,7 @@ func TestMojura_GetFiltered_seek(t *testing.T) {
 	}
 
 	filtered = filtered[:0]
-	if o.SeekTo, err = c.GetFiltered(&filtered, &o); err != nil {
+	if o.LastID, err = c.GetFiltered(&filtered, &o); err != nil {
 		t.Fatal(err)
 	}
 

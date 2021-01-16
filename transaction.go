@@ -270,7 +270,7 @@ func (t *Transaction) getFirst(value Value, o *IteratingOpts) (err error) {
 	}
 
 	var entryID string
-	if entryID, err = getFirstID(cur, o.SeekTo, false); err != nil {
+	if entryID, err = getFirstID(cur, o.LastID, false); err != nil {
 		return
 	}
 
@@ -286,14 +286,14 @@ func (t *Transaction) getLast(value Value, o *IteratingOpts) (err error) {
 	}
 
 	var entryID string
-	if entryID, err = getFirstID(cur, o.SeekTo, false); err != nil {
+	if entryID, err = getFirstID(cur, o.LastID, false); err != nil {
 		return
 	}
 
 	return t.get([]byte(entryID), value)
 }
 
-func (t *Transaction) getFiltered(es reflect.Value, o *FilteringOpts) (nextSeekID string, err error) {
+func (t *Transaction) getFiltered(es reflect.Value, o *FilteringOpts) (lastID string, err error) {
 	if o == nil {
 		o = defaultFilteringOpts
 	}
@@ -303,21 +303,23 @@ func (t *Transaction) getFiltered(es reflect.Value, o *FilteringOpts) (nextSeekI
 	}
 
 	var c Cursor
-	if c, err = t.Cursor(o.Filters...); err != nil {
+	if c, err = t.cursor(o.Filters); err != nil {
 		return
 	}
 
+	fmt.Println("Get filtered")
+
 	var count int64
 	err = t.forEachWithCursor(c, &o.IteratingOpts, func(entryID string, val Value) (err error) {
-		if count == o.Limit {
-			nextSeekID = joinSeekID(c.getCurrentRelationshipID(), entryID)
-			return Break
-		}
-
 		rVal := reflect.ValueOf(val)
 		appended := reflect.Append(es, rVal)
 		es.Set(appended)
-		count++
+
+		if count++; count == o.Limit {
+			lastID = joinSeekID(c.getCurrentRelationshipID(), entryID)
+			return Break
+		}
+
 		return
 	})
 
@@ -327,10 +329,19 @@ func (t *Transaction) getFiltered(es reflect.Value, o *FilteringOpts) (nextSeekI
 func (t *Transaction) forEachWithCursor(c Cursor, o *IteratingOpts, fn ForEachFn) (err error) {
 	var val Value
 	iterator := getIteratorFunc(c, o.Reverse)
-	for val, err = getFirst(c, o.SeekTo, o.Reverse); err == nil; val, err = iterator() {
+	val, err = getFirst(c, o.LastID, o.Reverse)
+	for err == nil {
 		if err = fn(val.GetID(), val); err != nil {
-			return
+			break
 		}
+
+		val, err = iterator()
+		fmt.Println("err??", err)
+	}
+
+	fmt.Println("Loop broken", err)
+	if err == Break {
+		err = nil
 	}
 
 	return
@@ -339,10 +350,17 @@ func (t *Transaction) forEachWithCursor(c Cursor, o *IteratingOpts, fn ForEachFn
 func (t *Transaction) forEachIDWithCursor(c IDCursor, o *IteratingOpts, fn ForEachIDFn) (err error) {
 	var entryID string
 	iterator := getIDIteratorFunc(c, o.Reverse)
-	for entryID, err = getFirstID(c, o.SeekTo, o.Reverse); err == nil; entryID, err = iterator() {
+	entryID, err = getFirstID(c, o.LastID, o.Reverse)
+	for err == nil {
 		if err = fn(entryID); err != nil {
-			return
+			break
 		}
+
+		entryID, err = iterator()
+	}
+
+	if err == Break {
+		err = nil
 	}
 
 	return
@@ -509,7 +527,7 @@ func (t *Transaction) ForEach(fn ForEachFn, o *IteratingOpts) (err error) {
 	iterator := getIteratorFunc(c, o.Reverse)
 
 	var val Value
-	for val, err = getFirst(c, o.SeekTo, o.Reverse); err == nil; val, err = iterator() {
+	for val, err = getFirst(c, o.LastID, o.Reverse); err == nil; val, err = iterator() {
 		if err = fn(val.GetID(), val); err != nil {
 			return
 		}
@@ -531,7 +549,7 @@ func (t *Transaction) ForEachID(fn ForEachIDFn, o *IteratingOpts) (err error) {
 
 	iterator := getIDIteratorFunc(c, o.Reverse)
 	var entryID string
-	for entryID, err = getFirstID(c, o.SeekTo, o.Reverse); err == nil; entryID, err = iterator() {
+	for entryID, err = getFirstID(c, o.LastID, o.Reverse); err == nil; entryID, err = iterator() {
 		if err = fn(entryID); err != nil {
 			return
 		}
