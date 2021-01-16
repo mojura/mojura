@@ -47,30 +47,6 @@ func (t *Transaction) getRelationshipBucket(relationship []byte) (bkt backend.Bu
 	return
 }
 
-func (t *Transaction) getRelationshipIDBucket(relationship, relationshipID []byte) (bkt backend.Bucket, ok bool, err error) {
-	var relationshipBkt backend.Bucket
-	if relationshipBkt, err = t.getRelationshipBucket(relationship); err != nil {
-		return
-	}
-
-	if bkt = relationshipBkt.GetBucket(relationshipID); bkt == nil {
-		return
-	}
-
-	ok = true
-	return
-}
-
-func (t *Transaction) get(entryID []byte, val interface{}) (err error) {
-	var bs []byte
-	if bs, err = t.getBytes(entryID); err != nil {
-		return
-	}
-
-	err = t.m.unmarshal(bs, val)
-	return
-}
-
 func (t *Transaction) getEntriesBucket() (bkt backend.Bucket, err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
@@ -81,6 +57,16 @@ func (t *Transaction) getEntriesBucket() (bkt backend.Bucket, err error) {
 		return
 	}
 
+	return
+}
+
+func (t *Transaction) get(entryID []byte, val interface{}) (err error) {
+	var bs []byte
+	if bs, err = t.getBytes(entryID); err != nil {
+		return
+	}
+
+	err = t.m.unmarshal(bs, val)
 	return
 }
 

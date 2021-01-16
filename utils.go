@@ -200,25 +200,7 @@ func getFirst(c Cursor, lastID string, reverse bool) (v Value, err error) {
 	return
 }
 
-func splitSeekID(seekID string) (relationshipID, entryID string) {
-	if len(seekID) == 0 {
-		return
-	}
-
-	spl := strings.SplitN(seekID, "::", 2)
-
-	// Set relationship ID
-	relationshipID = spl[0]
-
-	if len(spl) == 2 {
-		// Split is a length of 2, set entry ID
-		entryID = spl[1]
-	}
-
-	return
-}
-
-func splitSeekIDBytes(seekID []byte) (relationshipID, entryID []byte) {
+func splitSeekID(seekID []byte) (relationshipID, entryID []byte) {
 	if len(seekID) == 0 {
 		return
 	}
