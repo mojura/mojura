@@ -158,7 +158,7 @@ func TestMojura_GetFiltered_many_to_many(t *testing.T) {
 
 	runCases := func(cases []testcase) (err error) {
 		for _, tc := range cases {
-			filter := MakeMatchFilter("tags", tc.tag)
+			filter := NewMatchFilter("tags", tc.tag)
 			o := NewFilteringOpts(filter)
 			var entries []*testStruct
 			if _, err = c.GetFiltered(&entries, o); err != nil {
@@ -297,7 +297,7 @@ func TestMojura_GetFiltered_seek(t *testing.T) {
 		}
 	}
 
-	filter := MakeMatchFilter("users", "user_1")
+	filter := NewMatchFilter("users", "user_1")
 
 	var o FilteringOpts
 	o.Filters = append(o.Filters, filter)
@@ -462,7 +462,7 @@ func TestMojura_ForEach_with_filter(t *testing.T) {
 	}
 
 	var o IteratingOpts
-	filter := MakeMatchFilter("contacts", foobar.ContactID)
+	filter := NewMatchFilter("contacts", foobar.ContactID)
 	o.Filters = append(o.Filters, filter)
 	if err = c.ForEach(fn, &o); err != nil {
 		t.Fatal(err)
@@ -515,77 +515,77 @@ func TestMojura_ForEach_with_multiple_filters(t *testing.T) {
 	tcs := []testcase{
 		{
 			filters: []Filter{
-				MakeMatchFilter("contacts", "contact_1"),
+				NewMatchFilter("contacts", "contact_1"),
 			},
 			expectedIDs: []string{"00000000", "00000001"},
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("contacts", "contact_2"),
+				NewMatchFilter("contacts", "contact_2"),
 			},
 			expectedIDs: []string{"00000002", "00000003"},
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("contacts", "contact_1"),
-				MakeMatchFilter("groups", "group_1"),
+				NewMatchFilter("contacts", "contact_1"),
+				NewMatchFilter("groups", "group_1"),
 			},
 			expectedIDs: []string{"00000000", "00000001"},
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("contacts", "contact_2"),
-				MakeMatchFilter("groups", "group_1"),
+				NewMatchFilter("contacts", "contact_2"),
+				NewMatchFilter("groups", "group_1"),
 			},
 			expectedIDs: []string{"00000002", "00000003"},
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("contacts", "contact_1"),
-				MakeMatchFilter("users", "user_1"),
+				NewMatchFilter("contacts", "contact_1"),
+				NewMatchFilter("users", "user_1"),
 			},
 			expectedIDs: []string{"00000000"},
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("contacts", "contact_2"),
-				MakeMatchFilter("users", "user_2"),
+				NewMatchFilter("contacts", "contact_2"),
+				NewMatchFilter("users", "user_2"),
 			},
 			expectedIDs: []string{},
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("contacts", "contact_1"),
-				MakeMatchFilter("users", "user_1"),
-				MakeMatchFilter("groups", "group_1"),
+				NewMatchFilter("contacts", "contact_1"),
+				NewMatchFilter("users", "user_1"),
+				NewMatchFilter("groups", "group_1"),
 			},
 			expectedIDs: []string{"00000000"},
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("contacts", "contact_2"),
-				MakeMatchFilter("users", "user_2"),
-				MakeMatchFilter("groups", "group_1"),
+				NewMatchFilter("contacts", "contact_2"),
+				NewMatchFilter("users", "user_2"),
+				NewMatchFilter("groups", "group_1"),
 			},
 			expectedIDs: []string{},
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("groups", "group_1"),
-				MakeComparisonFilter(MakeComparisonOpts("contacts", func(relationshipID []byte) (ok bool, err error) {
+				NewMatchFilter("groups", "group_1"),
+				NewComparisonFilter("contacts", func(relationshipID []byte) (ok bool, err error) {
 					ok = string(relationshipID) != "contact_1"
 					return
-				})),
+				}),
 			},
 			expectedIDs: []string{"00000002", "00000003"},
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("groups", "group_1"),
-				MakeComparisonFilter(MakeComparisonOpts("contacts", func(relationshipID []byte) (ok bool, err error) {
+				NewMatchFilter("groups", "group_1"),
+				NewComparisonFilter("contacts", func(relationshipID []byte) (ok bool, err error) {
 					ok = string(relationshipID) != "contact_2"
 					return
-				})),
+				}),
 			},
 			expectedIDs: []string{"00000000", "00000001"},
 		},
@@ -656,79 +656,79 @@ func TestMojura_GetFirst_with_multiple_filters(t *testing.T) {
 	tcs := []testcase{
 		{
 			filters: []Filter{
-				MakeMatchFilter("contacts", "contact_1"),
+				NewMatchFilter("contacts", "contact_1"),
 			},
 			expectedID: "00000000",
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("contacts", "contact_2"),
+				NewMatchFilter("contacts", "contact_2"),
 			},
 			expectedID: "00000002",
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("contacts", "contact_1"),
-				MakeMatchFilter("groups", "group_1"),
+				NewMatchFilter("contacts", "contact_1"),
+				NewMatchFilter("groups", "group_1"),
 			},
 			expectedID: "00000000",
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("contacts", "contact_2"),
-				MakeMatchFilter("groups", "group_1"),
+				NewMatchFilter("contacts", "contact_2"),
+				NewMatchFilter("groups", "group_1"),
 			},
 			expectedID: "00000002",
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("contacts", "contact_1"),
-				MakeMatchFilter("users", "user_1"),
+				NewMatchFilter("contacts", "contact_1"),
+				NewMatchFilter("users", "user_1"),
 			},
 			expectedID: "00000000",
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("contacts", "contact_2"),
-				MakeMatchFilter("users", "user_2"),
+				NewMatchFilter("contacts", "contact_2"),
+				NewMatchFilter("users", "user_2"),
 			},
 			expectedID: "",
 			err:        ErrEntryNotFound,
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("contacts", "contact_1"),
-				MakeMatchFilter("users", "user_1"),
-				MakeMatchFilter("groups", "group_1"),
+				NewMatchFilter("contacts", "contact_1"),
+				NewMatchFilter("users", "user_1"),
+				NewMatchFilter("groups", "group_1"),
 			},
 			expectedID: "00000000",
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("contacts", "contact_2"),
-				MakeMatchFilter("users", "user_2"),
-				MakeMatchFilter("groups", "group_1"),
+				NewMatchFilter("contacts", "contact_2"),
+				NewMatchFilter("users", "user_2"),
+				NewMatchFilter("groups", "group_1"),
 			},
 			expectedID: "",
 			err:        ErrEntryNotFound,
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("groups", "group_1"),
-				MakeComparisonFilter(MakeComparisonOpts("contacts", func(relationshipID []byte) (ok bool, err error) {
+				NewMatchFilter("groups", "group_1"),
+				NewComparisonFilter("contacts", func(relationshipID []byte) (ok bool, err error) {
 					ok = string(relationshipID) != "contact_1"
 					return
-				})),
+				}),
 			},
 			expectedID: "00000002",
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("groups", "group_1"),
-				MakeComparisonFilter(MakeComparisonOpts("contacts", func(relationshipID []byte) (ok bool, err error) {
+				NewMatchFilter("groups", "group_1"),
+				NewComparisonFilter("contacts", func(relationshipID []byte) (ok bool, err error) {
 					ok = string(relationshipID) != "contact_2"
 					return
-				})),
+				}),
 			},
 			expectedID: "00000000",
 		},
@@ -802,79 +802,79 @@ func TestMojura_GetLast_with_multiple_filters(t *testing.T) {
 	tcs := []testcase{
 		{
 			filters: []Filter{
-				MakeMatchFilter("contacts", "contact_1"),
+				NewMatchFilter("contacts", "contact_1"),
 			},
 			expectedID: "00000001",
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("contacts", "contact_2"),
+				NewMatchFilter("contacts", "contact_2"),
 			},
 			expectedID: "00000003",
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("contacts", "contact_1"),
-				MakeMatchFilter("groups", "group_1"),
+				NewMatchFilter("contacts", "contact_1"),
+				NewMatchFilter("groups", "group_1"),
 			},
 			expectedID: "00000001",
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("contacts", "contact_2"),
-				MakeMatchFilter("groups", "group_1"),
+				NewMatchFilter("contacts", "contact_2"),
+				NewMatchFilter("groups", "group_1"),
 			},
 			expectedID: "00000003",
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("contacts", "contact_1"),
-				MakeMatchFilter("users", "user_1"),
+				NewMatchFilter("contacts", "contact_1"),
+				NewMatchFilter("users", "user_1"),
 			},
 			expectedID: "00000000",
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("contacts", "contact_2"),
-				MakeMatchFilter("users", "user_2"),
+				NewMatchFilter("contacts", "contact_2"),
+				NewMatchFilter("users", "user_2"),
 			},
 			expectedID: "",
 			err:        ErrEntryNotFound,
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("contacts", "contact_1"),
-				MakeMatchFilter("users", "user_1"),
-				MakeMatchFilter("groups", "group_1"),
+				NewMatchFilter("contacts", "contact_1"),
+				NewMatchFilter("users", "user_1"),
+				NewMatchFilter("groups", "group_1"),
 			},
 			expectedID: "00000000",
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("contacts", "contact_2"),
-				MakeMatchFilter("users", "user_2"),
-				MakeMatchFilter("groups", "group_1"),
+				NewMatchFilter("contacts", "contact_2"),
+				NewMatchFilter("users", "user_2"),
+				NewMatchFilter("groups", "group_1"),
 			},
 			expectedID: "",
 			err:        ErrEntryNotFound,
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("groups", "group_1"),
-				MakeComparisonFilter(MakeComparisonOpts("contacts", func(relationshipID []byte) (ok bool, err error) {
+				NewMatchFilter("groups", "group_1"),
+				NewComparisonFilter("contacts", func(relationshipID []byte) (ok bool, err error) {
 					ok = string(relationshipID) != "contact_1"
 					return
-				})),
+				}),
 			},
 			expectedID: "00000003",
 		},
 		{
 			filters: []Filter{
-				MakeMatchFilter("groups", "group_1"),
-				MakeComparisonFilter(MakeComparisonOpts("contacts", func(relationshipID []byte) (ok bool, err error) {
+				NewMatchFilter("groups", "group_1"),
+				NewComparisonFilter("contacts", func(relationshipID []byte) (ok bool, err error) {
 					ok = string(relationshipID) != "contact_2"
 					return
-				})),
+				}),
 			},
 			expectedID: "00000001",
 		},
@@ -1343,7 +1343,7 @@ func ExampleMojura_Get() {
 
 func ExampleMojura_ForEach() {
 	var err error
-	filter := MakeMatchFilter("users", "user_1")
+	filter := NewMatchFilter("users", "user_1")
 	opts := NewIteratingOpts(filter)
 	if err = c.ForEach(func(entryID string, val Value) (err error) {
 		fmt.Printf("Iterating entry (%s)! %+v\n", entryID, val)
@@ -1355,7 +1355,7 @@ func ExampleMojura_ForEach() {
 
 func ExampleMojura_ForEach_with_filter() {
 	var err error
-	filter := MakeMatchFilter("users", "user_1")
+	filter := NewMatchFilter("users", "user_1")
 	opts := NewIteratingOpts(filter)
 	if err = c.ForEach(func(entryID string, val Value) (err error) {
 		fmt.Printf("Iterating entry (%s)! %+v\n", entryID, val)

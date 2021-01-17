@@ -1,8 +1,6 @@
 package mojura
 
-// MakeComparisonOpts will create a new set of comparison opts with the required fields
-// Note: RangeStart and RangeEnd can be set after creation
-func MakeComparisonOpts(relationshipKey string, comparison ComparisonFn) (o ComparisonOpts) {
+func makeComparisonOpts(relationshipKey string, comparison ComparisonFn) (o ComparisonOpts) {
 	o.RelationshipKey = []byte(relationshipKey)
 	o.Comparison = comparison
 	return
