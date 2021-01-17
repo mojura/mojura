@@ -2,14 +2,14 @@ package mojura
 
 var _ Filter = &ComparisonFilter{}
 
-// NewComparisonFilter create a relationship pair
-func NewComparisonFilter(relationshipKey string, comparison ComparisonFn) (f Filter) {
+// Comparison creates a new comparison Filter
+func Comparison(relationshipKey string, comparison ComparisonFn) (f Filter) {
 	opts := makeComparisonOpts(relationshipKey, comparison)
 	return newComparisonFilter(opts)
 }
 
-// NewComparisonFilterWithRange create a relationship pair with range options
-func NewComparisonFilterWithRange(relationshipKey, rangeStart, rangeEnd string, comparison ComparisonFn) (f Filter) {
+// ComparisonWithRange creates a new comparison Filter with a range
+func ComparisonWithRange(relationshipKey, rangeStart, rangeEnd string, comparison ComparisonFn) (f Filter) {
 	opts := makeComparisonOpts(relationshipKey, comparison)
 	opts.RangeStart = []byte(rangeStart)
 	opts.RangeEnd = []byte(rangeEnd)

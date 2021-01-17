@@ -1,7 +1,7 @@
 package mojura
 
-// NewMatchFilter create a relationship pair
-func NewMatchFilter(relationship, relationshipID string) (f Filter) {
+// Match creates a new match filter
+func Match(relationship, relationshipID string) (f Filter) {
 	var m MatchFilter
 	m.Relationship = relationship
 	m.RelationshipID = relationshipID
