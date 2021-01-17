@@ -12,7 +12,7 @@ func newMultiIDCursor(txn *Transaction, fs []Filter) (mp *multiIDCursor, err err
 	fcs := make([]filterCursor, 0, len(fs))
 	for _, f := range fs {
 		var fc filterCursor
-		if fc, err = f.cursor(txn); err != nil {
+		if fc, err = newFilterCursor(txn, f); err != nil {
 			return
 		}
 

@@ -4,22 +4,23 @@ import (
 	"bytes"
 
 	"github.com/mojura/backend"
+	"github.com/mojura/mojura/filters"
 )
 
 var _ filterCursor = &comparisonCursor{}
 
-func newComparisonCursor(txn *Transaction, opts ComparisonOpts) (cur *comparisonCursor, err error) {
+func newComparisonCursor(txn *Transaction, f *filters.ComparisonFilter) (cur *comparisonCursor, err error) {
 	var c comparisonCursor
-	if c.parent, err = txn.getRelationshipBucket(opts.RelationshipKey); err != nil {
+	if c.parent, err = txn.getRelationshipBucket([]byte(f.RelationshipKey)); err != nil {
 		return
 	}
 
 	c.txn = txn
 	c.bktCur = c.parent.Cursor()
-	c.isMatch = opts.Comparison
+	c.isMatch = filters.ComparisonFn(f.Comparison)
 
-	c.rangeStart = opts.RangeStart
-	c.rangeEnd = opts.RangeEnd
+	c.rangeStart = []byte(f.RangeStart)
+	c.rangeEnd = []byte(f.RangeEnd)
 	cur = &c
 	return
 }
@@ -35,11 +36,11 @@ type comparisonCursor struct {
 	rangeEnd              []byte
 	currentRelationshipID []byte
 
-	isMatch ComparisonFn
+	isMatch filters.ComparisonFn
 }
 
 func (c *comparisonCursor) rangeStartCheck() (ok bool) {
-	if c.rangeStart == nil {
+	if len(c.rangeStart) == 0 {
 		return true
 	}
 
@@ -47,7 +48,7 @@ func (c *comparisonCursor) rangeStartCheck() (ok bool) {
 }
 
 func (c *comparisonCursor) rangeEndCheck() (ok bool) {
-	if c.rangeEnd == nil {
+	if len(c.rangeEnd) == 0 {
 		return true
 	}
 
@@ -224,7 +225,7 @@ func (c *comparisonCursor) teardown() {
 }
 
 func (c *comparisonCursor) firstBktKey() (bktKey []byte, err error) {
-	if bktKey = c.rangeStart; bktKey != nil {
+	if bktKey = c.rangeStart; len(bktKey) > 0 {
 		return
 	}
 
@@ -255,7 +256,7 @@ func (c *comparisonCursor) first() (entryID []byte, err error) {
 }
 
 func (c *comparisonCursor) lastBktKey() (bktKey []byte, err error) {
-	if bktKey = c.rangeEnd; bktKey != nil {
+	if bktKey = c.rangeEnd; len(bktKey) > 0 {
 		return
 	}
 
@@ -475,6 +476,3 @@ func (c *comparisonCursor) HasReverse(entryID []byte) (ok bool, err error) {
 
 	return
 }
-
-// ComparisonFn is used for comparison filters
-type ComparisonFn func(relationshipID string) (ok bool, err error)

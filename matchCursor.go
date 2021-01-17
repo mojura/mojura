@@ -4,20 +4,21 @@ import (
 	"bytes"
 
 	"github.com/mojura/backend"
+	"github.com/mojura/mojura/filters"
 )
 
 var (
 	_ filterCursor = &matchCursor{}
 )
 
-func newMatchCursor(txn *Transaction, relationshipKey, relationshipID []byte) (c filterCursor, err error) {
+func newMatchCursor(txn *Transaction, f *filters.MatchFilter) (c filterCursor, err error) {
 	var parentBkt backend.Bucket
-	if parentBkt, err = txn.getRelationshipBucket(relationshipKey); err != nil {
+	if parentBkt, err = txn.getRelationshipBucket([]byte(f.RelationshipKey)); err != nil {
 		return
 	}
 
 	var match matchCursor
-	bkt := parentBkt.GetBucket(relationshipID)
+	bkt := parentBkt.GetBucket([]byte(f.RelationshipID))
 	if bkt == nil {
 		c = nopC
 		return

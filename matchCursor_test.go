@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"testing"
+
+	"github.com/mojura/mojura/filters"
 )
 
 func Test_matchCursor_SeekForward(t *testing.T) {
@@ -70,7 +72,8 @@ func Test_matchCursor_SeekForward(t *testing.T) {
 
 		for i, tc := range tcs {
 			var cur filterCursor
-			if cur, err = newMatchCursor(txn, []byte(tc.relationshipKey), []byte(tc.relationshipID)); err != nil {
+			f := filters.Match(tc.relationshipKey, tc.relationshipID)
+			if cur, err = newMatchCursor(txn, f); err != nil {
 				return
 			}
 
@@ -158,7 +161,8 @@ func Test_matchCursor_SeekReverse(t *testing.T) {
 
 		for i, tc := range tcs {
 			var cur filterCursor
-			if cur, err = newMatchCursor(txn, []byte(tc.relationshipKey), []byte(tc.relationshipID)); err != nil {
+			f := filters.Match(tc.relationshipKey, tc.relationshipID)
+			if cur, err = newMatchCursor(txn, f); err != nil {
 				return
 			}
 
@@ -241,7 +245,8 @@ func Test_matchCursor_First(t *testing.T) {
 
 		for i, tc := range tcs {
 			var cur filterCursor
-			if cur, err = newMatchCursor(txn, []byte(tc.relationshipKey), []byte(tc.relationshipID)); err != nil {
+			f := filters.Match(tc.relationshipKey, tc.relationshipID)
+			if cur, err = newMatchCursor(txn, f); err != nil {
 				return
 			}
 
@@ -334,7 +339,8 @@ func Test_matchCursor_Next(t *testing.T) {
 
 		for _, tc := range tcs {
 			var cur filterCursor
-			if cur, err = newMatchCursor(txn, []byte(tc.relationshipKey), []byte(tc.relationshipID)); err != nil {
+			f := filters.Match(tc.relationshipKey, tc.relationshipID)
+			if cur, err = newMatchCursor(txn, f); err != nil {
 				return
 			}
 
@@ -432,7 +438,8 @@ func Test_matchCursor_Prev(t *testing.T) {
 
 		for _, tc := range tcs {
 			var cur filterCursor
-			if cur, err = newMatchCursor(txn, []byte(tc.relationshipKey), []byte(tc.relationshipID)); err != nil {
+			f := filters.Match(tc.relationshipKey, tc.relationshipID)
+			if cur, err = newMatchCursor(txn, f); err != nil {
 				return
 			}
 
@@ -520,7 +527,8 @@ func Test_matchCursor_Last(t *testing.T) {
 
 		for i, tc := range tcs {
 			var cur filterCursor
-			if cur, err = newMatchCursor(txn, []byte(tc.relationshipKey), []byte(tc.relationshipID)); err != nil {
+			f := filters.Match(tc.relationshipKey, tc.relationshipID)
+			if cur, err = newMatchCursor(txn, f); err != nil {
 				return
 			}
 
@@ -597,7 +605,8 @@ func testMatchCursorHas(t *testing.T, fn func(c filterCursor, entryID []byte) (v
 	testMatchCursor(t, func(txn *Transaction) (err error) {
 		for i, tc := range tcs {
 			var cur filterCursor
-			if cur, err = newMatchCursor(txn, []byte(tc.relationshipKey), []byte(tc.relationshipID)); err != nil {
+			f := filters.Match(tc.relationshipKey, tc.relationshipID)
+			if cur, err = newMatchCursor(txn, f); err != nil {
 				return
 			}
 

@@ -1,5 +1,23 @@
 package mojura
 
+import (
+	"fmt"
+
+	"github.com/mojura/mojura/filters"
+)
+
+func newFilterCursor(txn *Transaction, f Filter) (fc filterCursor, err error) {
+	switch n := f.(type) {
+	case *filters.MatchFilter:
+		return newMatchCursor(txn, n)
+	case *filters.ComparisonFilter:
+		return newComparisonCursor(txn, n)
+	default:
+		err = fmt.Errorf("filter of %T is not supported", n)
+		return
+	}
+}
+
 type filterCursor interface {
 	SeekForward(relationshipKey, seekID []byte) (entryID []byte, err error)
 	SeekReverse(relationshipKey, seekID []byte) (entryID []byte, err error)

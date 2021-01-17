@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"testing"
+
+	"github.com/mojura/mojura/filters"
 )
 
 func Test_comparisonCursor_SeekForward(t *testing.T) {
@@ -27,7 +29,7 @@ func Test_comparisonCursor_SeekForward(t *testing.T) {
 		relationshipID  string
 		seekID          string
 
-		isMatch  ComparisonFn
+		isMatch  filters.ComparisonFn
 		expected expected
 	}
 
@@ -41,7 +43,7 @@ func Test_comparisonCursor_SeekForward(t *testing.T) {
 			relationshipID:  "user_0",
 			seekID:          "00000000",
 			isMatch: func(relationshipID string) (ok bool, err error) {
-				ok = string(relationshipID) != "user_2"
+				ok = relationshipID != "user_2"
 				return
 			},
 			expected: expected{expectedID: "00000000"},
@@ -51,7 +53,7 @@ func Test_comparisonCursor_SeekForward(t *testing.T) {
 			relationshipID:  "contact_2",
 			seekID:          "00000001",
 			isMatch: func(relationshipID string) (ok bool, err error) {
-				ok = string(relationshipID) != "contact_2"
+				ok = relationshipID != "contact_2"
 				return
 			},
 			expected: expected{expectedErr: Break},
@@ -61,7 +63,7 @@ func Test_comparisonCursor_SeekForward(t *testing.T) {
 			relationshipID:  "group_1",
 			seekID:          "00000002",
 			isMatch: func(relationshipID string) (ok bool, err error) {
-				ok = string(relationshipID) != "group_2"
+				ok = relationshipID != "group_2"
 				return
 			},
 			expected: expected{expectedID: "00000002"},
@@ -83,8 +85,8 @@ func Test_comparisonCursor_SeekForward(t *testing.T) {
 
 		for i, tc := range tcs {
 			var cur *comparisonCursor
-			opts := makeComparisonOpts(tc.relationshipKey, tc.isMatch)
-			if cur, err = newComparisonCursor(txn, opts); err != nil {
+			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
+			if cur, err = newComparisonCursor(txn, f); err != nil {
 				return
 			}
 
@@ -129,7 +131,7 @@ func Test_comparisonCursor_SeekReverse(t *testing.T) {
 		relationshipID  string
 		seekID          string
 
-		isMatch  ComparisonFn
+		isMatch  filters.ComparisonFn
 		expected expected
 	}
 
@@ -143,7 +145,7 @@ func Test_comparisonCursor_SeekReverse(t *testing.T) {
 			relationshipID:  "user_2",
 			seekID:          "00000002",
 			isMatch: func(relationshipID string) (ok bool, err error) {
-				ok = string(relationshipID) != "user_2"
+				ok = relationshipID != "user_2"
 				return
 			},
 			expected: expected{expectedID: "00000001"},
@@ -153,7 +155,7 @@ func Test_comparisonCursor_SeekReverse(t *testing.T) {
 			relationshipID:  "contact_2",
 			seekID:          "00000001",
 			isMatch: func(relationshipID string) (ok bool, err error) {
-				ok = string(relationshipID) != "contact_2"
+				ok = relationshipID != "contact_2"
 				return
 			},
 			expected: expected{expectedID: "00000000"},
@@ -163,7 +165,7 @@ func Test_comparisonCursor_SeekReverse(t *testing.T) {
 			relationshipID:  "group_1",
 			seekID:          "00000002",
 			isMatch: func(relationshipID string) (ok bool, err error) {
-				ok = string(relationshipID) != "group_2"
+				ok = relationshipID != "group_2"
 				return
 			},
 			expected: expected{expectedID: "00000002"},
@@ -185,8 +187,8 @@ func Test_comparisonCursor_SeekReverse(t *testing.T) {
 
 		for i, tc := range tcs {
 			var cur *comparisonCursor
-			opts := makeComparisonOpts(tc.relationshipKey, tc.isMatch)
-			if cur, err = newComparisonCursor(txn, opts); err != nil {
+			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
+			if cur, err = newComparisonCursor(txn, f); err != nil {
 				return
 			}
 
@@ -228,7 +230,7 @@ func Test_comparisonCursor_First(t *testing.T) {
 
 	type testcase struct {
 		relationshipKey string
-		isMatch         ComparisonFn
+		isMatch         filters.ComparisonFn
 		expected        expected
 	}
 
@@ -240,7 +242,7 @@ func Test_comparisonCursor_First(t *testing.T) {
 		{
 			relationshipKey: "users",
 			isMatch: func(relationshipID string) (ok bool, err error) {
-				ok = string(relationshipID) != "user_2"
+				ok = relationshipID != "user_2"
 				return
 			},
 			expected: expected{expectedID: "00000000"},
@@ -248,7 +250,7 @@ func Test_comparisonCursor_First(t *testing.T) {
 		{
 			relationshipKey: "contacts",
 			isMatch: func(relationshipID string) (ok bool, err error) {
-				ok = string(relationshipID) != "contact_2"
+				ok = relationshipID != "contact_2"
 				return
 			},
 			expected: expected{expectedID: "00000000"},
@@ -256,7 +258,7 @@ func Test_comparisonCursor_First(t *testing.T) {
 		{
 			relationshipKey: "groups",
 			isMatch: func(relationshipID string) (ok bool, err error) {
-				ok = string(relationshipID) != "group_2"
+				ok = relationshipID != "group_2"
 				return
 			},
 			expected: expected{expectedID: "00000002"},
@@ -278,8 +280,8 @@ func Test_comparisonCursor_First(t *testing.T) {
 
 		for i, tc := range tcs {
 			var cur *comparisonCursor
-			opts := makeComparisonOpts(tc.relationshipKey, tc.isMatch)
-			if cur, err = newComparisonCursor(txn, opts); err != nil {
+			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
+			if cur, err = newComparisonCursor(txn, f); err != nil {
 				return
 			}
 
@@ -321,7 +323,7 @@ func Test_comparisonCursor_Next(t *testing.T) {
 
 	type testcase struct {
 		relationshipKey string
-		isMatch         ComparisonFn
+		isMatch         filters.ComparisonFn
 		expected        []expected
 	}
 
@@ -333,7 +335,7 @@ func Test_comparisonCursor_Next(t *testing.T) {
 		{
 			relationshipKey: "users",
 			isMatch: func(relationshipID string) (ok bool, err error) {
-				ok = string(relationshipID) != "user_2"
+				ok = relationshipID != "user_2"
 				return
 			},
 			expected: []expected{
@@ -345,7 +347,7 @@ func Test_comparisonCursor_Next(t *testing.T) {
 		{
 			relationshipKey: "contacts",
 			isMatch: func(relationshipID string) (ok bool, err error) {
-				ok = string(relationshipID) != "contact_2"
+				ok = relationshipID != "contact_2"
 				return
 			},
 			expected: []expected{
@@ -356,7 +358,7 @@ func Test_comparisonCursor_Next(t *testing.T) {
 		{
 			relationshipKey: "groups",
 			isMatch: func(relationshipID string) (ok bool, err error) {
-				ok = string(relationshipID) != "group_2"
+				ok = relationshipID != "group_2"
 				return
 			},
 			expected: []expected{
@@ -382,8 +384,8 @@ func Test_comparisonCursor_Next(t *testing.T) {
 
 		for i, tc := range tcs {
 			var cur *comparisonCursor
-			opts := makeComparisonOpts(tc.relationshipKey, tc.isMatch)
-			if cur, err = newComparisonCursor(txn, opts); err != nil {
+			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
+			if cur, err = newComparisonCursor(txn, f); err != nil {
 				return
 			}
 
@@ -430,7 +432,7 @@ func Test_comparisonCursor_Prev(t *testing.T) {
 
 	type testcase struct {
 		relationshipKey string
-		isMatch         ComparisonFn
+		isMatch         filters.ComparisonFn
 		expected        []expected
 	}
 
@@ -442,7 +444,7 @@ func Test_comparisonCursor_Prev(t *testing.T) {
 		{
 			relationshipKey: "users",
 			isMatch: func(relationshipID string) (ok bool, err error) {
-				ok = string(relationshipID) != "user_2"
+				ok = relationshipID != "user_2"
 				return
 			},
 			expected: []expected{
@@ -454,7 +456,7 @@ func Test_comparisonCursor_Prev(t *testing.T) {
 		{
 			relationshipKey: "contacts",
 			isMatch: func(relationshipID string) (ok bool, err error) {
-				ok = string(relationshipID) != "contact_2"
+				ok = relationshipID != "contact_2"
 				return
 			},
 			expected: []expected{
@@ -465,7 +467,7 @@ func Test_comparisonCursor_Prev(t *testing.T) {
 		{
 			relationshipKey: "groups",
 			isMatch: func(relationshipID string) (ok bool, err error) {
-				ok = string(relationshipID) != "group_2"
+				ok = relationshipID != "group_2"
 				return
 			},
 			expected: []expected{
@@ -491,8 +493,8 @@ func Test_comparisonCursor_Prev(t *testing.T) {
 
 		for i, tc := range tcs {
 			var cur *comparisonCursor
-			opts := makeComparisonOpts(tc.relationshipKey, tc.isMatch)
-			if cur, err = newComparisonCursor(txn, opts); err != nil {
+			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
+			if cur, err = newComparisonCursor(txn, f); err != nil {
 				return
 			}
 
@@ -539,7 +541,7 @@ func Test_comparisonCursor_Last(t *testing.T) {
 
 	type testcase struct {
 		relationshipKey string
-		isMatch         ComparisonFn
+		isMatch         filters.ComparisonFn
 		expected        expected
 	}
 
@@ -551,7 +553,7 @@ func Test_comparisonCursor_Last(t *testing.T) {
 		{
 			relationshipKey: "users",
 			isMatch: func(relationshipID string) (ok bool, err error) {
-				ok = string(relationshipID) != "user_2"
+				ok = relationshipID != "user_2"
 				return
 			},
 			expected: expected{expectedID: "00000001"},
@@ -559,7 +561,7 @@ func Test_comparisonCursor_Last(t *testing.T) {
 		{
 			relationshipKey: "contacts",
 			isMatch: func(relationshipID string) (ok bool, err error) {
-				ok = string(relationshipID) != "contact_2"
+				ok = relationshipID != "contact_2"
 				return
 			},
 			expected: expected{expectedID: "00000000"},
@@ -567,7 +569,7 @@ func Test_comparisonCursor_Last(t *testing.T) {
 		{
 			relationshipKey: "groups",
 			isMatch: func(relationshipID string) (ok bool, err error) {
-				ok = string(relationshipID) != "group_2"
+				ok = relationshipID != "group_2"
 				return
 			},
 			expected: expected{expectedID: "00000000"},
@@ -589,8 +591,8 @@ func Test_comparisonCursor_Last(t *testing.T) {
 
 		for i, tc := range tcs {
 			var cur *comparisonCursor
-			opts := makeComparisonOpts(tc.relationshipKey, tc.isMatch)
-			if cur, err = newComparisonCursor(txn, opts); err != nil {
+			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
+			if cur, err = newComparisonCursor(txn, f); err != nil {
 				return
 			}
 
@@ -638,7 +640,7 @@ func testComparisonCursorHas(t *testing.T, fn func(c *comparisonCursor, entryID 
 
 	type testcase struct {
 		relationshipKey string
-		isMatch         ComparisonFn
+		isMatch         filters.ComparisonFn
 		entryID         string
 		expected        expected
 	}
@@ -647,7 +649,7 @@ func testComparisonCursorHas(t *testing.T, fn func(c *comparisonCursor, entryID 
 		{
 			relationshipKey: "users",
 			isMatch: func(relationshipID string) (ok bool, err error) {
-				ok = string(relationshipID) == "user_1"
+				ok = relationshipID == "user_1"
 				return
 			},
 			entryID:  "00000001",
@@ -656,7 +658,7 @@ func testComparisonCursorHas(t *testing.T, fn func(c *comparisonCursor, entryID 
 		{
 			relationshipKey: "users",
 			isMatch: func(relationshipID string) (ok bool, err error) {
-				ok = string(relationshipID) == "user_2"
+				ok = relationshipID == "user_2"
 				return
 			},
 			entryID:  "00000001",
@@ -665,7 +667,7 @@ func testComparisonCursorHas(t *testing.T, fn func(c *comparisonCursor, entryID 
 		{
 			relationshipKey: "contacts",
 			isMatch: func(relationshipID string) (ok bool, err error) {
-				ok = string(relationshipID) == "contact_2"
+				ok = relationshipID == "contact_2"
 				return
 			},
 			entryID:  "00000000",
@@ -674,7 +676,7 @@ func testComparisonCursorHas(t *testing.T, fn func(c *comparisonCursor, entryID 
 		{
 			relationshipKey: "contacts",
 			isMatch: func(relationshipID string) (ok bool, err error) {
-				ok = string(relationshipID) == "contact_2"
+				ok = relationshipID == "contact_2"
 				return
 			},
 			entryID:  "00000001",
@@ -683,7 +685,7 @@ func testComparisonCursorHas(t *testing.T, fn func(c *comparisonCursor, entryID 
 		{
 			relationshipKey: "contacts",
 			isMatch: func(relationshipID string) (ok bool, err error) {
-				ok = string(relationshipID) == "contact_2"
+				ok = relationshipID == "contact_2"
 				return
 			},
 			entryID:  "00000002",
@@ -692,7 +694,7 @@ func testComparisonCursorHas(t *testing.T, fn func(c *comparisonCursor, entryID 
 		{
 			relationshipKey: "groups",
 			isMatch: func(relationshipID string) (ok bool, err error) {
-				ok = string(relationshipID) == "group_1"
+				ok = relationshipID == "group_1"
 				return
 			},
 			entryID:  "00000002",
@@ -701,7 +703,7 @@ func testComparisonCursorHas(t *testing.T, fn func(c *comparisonCursor, entryID 
 		{
 			relationshipKey: "groups",
 			isMatch: func(relationshipID string) (ok bool, err error) {
-				ok = string(relationshipID) == "group_1"
+				ok = relationshipID == "group_1"
 				return
 			},
 			entryID:  "00000001",
@@ -712,8 +714,8 @@ func testComparisonCursorHas(t *testing.T, fn func(c *comparisonCursor, entryID 
 	testComparisonCursor(t, func(txn *Transaction) (err error) {
 		for i, tc := range tcs {
 			var cur *comparisonCursor
-			opts := makeComparisonOpts(tc.relationshipKey, tc.isMatch)
-			if cur, err = newComparisonCursor(txn, opts); err != nil {
+			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
+			if cur, err = newComparisonCursor(txn, f); err != nil {
 				return
 			}
 
