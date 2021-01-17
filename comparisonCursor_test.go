@@ -40,7 +40,7 @@ func Test_comparisonCursor_SeekForward(t *testing.T) {
 			relationshipKey: "users",
 			relationshipID:  "user_0",
 			seekID:          "00000000",
-			isMatch: func(relationshipID []byte) (ok bool, err error) {
+			isMatch: func(relationshipID string) (ok bool, err error) {
 				ok = string(relationshipID) != "user_2"
 				return
 			},
@@ -50,7 +50,7 @@ func Test_comparisonCursor_SeekForward(t *testing.T) {
 			relationshipKey: "contacts",
 			relationshipID:  "contact_2",
 			seekID:          "00000001",
-			isMatch: func(relationshipID []byte) (ok bool, err error) {
+			isMatch: func(relationshipID string) (ok bool, err error) {
 				ok = string(relationshipID) != "contact_2"
 				return
 			},
@@ -60,7 +60,7 @@ func Test_comparisonCursor_SeekForward(t *testing.T) {
 			relationshipKey: "groups",
 			relationshipID:  "group_1",
 			seekID:          "00000002",
-			isMatch: func(relationshipID []byte) (ok bool, err error) {
+			isMatch: func(relationshipID string) (ok bool, err error) {
 				ok = string(relationshipID) != "group_2"
 				return
 			},
@@ -142,7 +142,7 @@ func Test_comparisonCursor_SeekReverse(t *testing.T) {
 			relationshipKey: "users",
 			relationshipID:  "user_2",
 			seekID:          "00000002",
-			isMatch: func(relationshipID []byte) (ok bool, err error) {
+			isMatch: func(relationshipID string) (ok bool, err error) {
 				ok = string(relationshipID) != "user_2"
 				return
 			},
@@ -152,7 +152,7 @@ func Test_comparisonCursor_SeekReverse(t *testing.T) {
 			relationshipKey: "contacts",
 			relationshipID:  "contact_2",
 			seekID:          "00000001",
-			isMatch: func(relationshipID []byte) (ok bool, err error) {
+			isMatch: func(relationshipID string) (ok bool, err error) {
 				ok = string(relationshipID) != "contact_2"
 				return
 			},
@@ -162,7 +162,7 @@ func Test_comparisonCursor_SeekReverse(t *testing.T) {
 			relationshipKey: "groups",
 			relationshipID:  "group_1",
 			seekID:          "00000002",
-			isMatch: func(relationshipID []byte) (ok bool, err error) {
+			isMatch: func(relationshipID string) (ok bool, err error) {
 				ok = string(relationshipID) != "group_2"
 				return
 			},
@@ -239,7 +239,7 @@ func Test_comparisonCursor_First(t *testing.T) {
 	tcs := []testcase{
 		{
 			relationshipKey: "users",
-			isMatch: func(relationshipID []byte) (ok bool, err error) {
+			isMatch: func(relationshipID string) (ok bool, err error) {
 				ok = string(relationshipID) != "user_2"
 				return
 			},
@@ -247,7 +247,7 @@ func Test_comparisonCursor_First(t *testing.T) {
 		},
 		{
 			relationshipKey: "contacts",
-			isMatch: func(relationshipID []byte) (ok bool, err error) {
+			isMatch: func(relationshipID string) (ok bool, err error) {
 				ok = string(relationshipID) != "contact_2"
 				return
 			},
@@ -255,7 +255,7 @@ func Test_comparisonCursor_First(t *testing.T) {
 		},
 		{
 			relationshipKey: "groups",
-			isMatch: func(relationshipID []byte) (ok bool, err error) {
+			isMatch: func(relationshipID string) (ok bool, err error) {
 				ok = string(relationshipID) != "group_2"
 				return
 			},
@@ -332,7 +332,7 @@ func Test_comparisonCursor_Next(t *testing.T) {
 	tcs := []testcase{
 		{
 			relationshipKey: "users",
-			isMatch: func(relationshipID []byte) (ok bool, err error) {
+			isMatch: func(relationshipID string) (ok bool, err error) {
 				ok = string(relationshipID) != "user_2"
 				return
 			},
@@ -344,7 +344,7 @@ func Test_comparisonCursor_Next(t *testing.T) {
 		},
 		{
 			relationshipKey: "contacts",
-			isMatch: func(relationshipID []byte) (ok bool, err error) {
+			isMatch: func(relationshipID string) (ok bool, err error) {
 				ok = string(relationshipID) != "contact_2"
 				return
 			},
@@ -355,7 +355,7 @@ func Test_comparisonCursor_Next(t *testing.T) {
 		},
 		{
 			relationshipKey: "groups",
-			isMatch: func(relationshipID []byte) (ok bool, err error) {
+			isMatch: func(relationshipID string) (ok bool, err error) {
 				ok = string(relationshipID) != "group_2"
 				return
 			},
@@ -441,7 +441,7 @@ func Test_comparisonCursor_Prev(t *testing.T) {
 	tcs := []testcase{
 		{
 			relationshipKey: "users",
-			isMatch: func(relationshipID []byte) (ok bool, err error) {
+			isMatch: func(relationshipID string) (ok bool, err error) {
 				ok = string(relationshipID) != "user_2"
 				return
 			},
@@ -453,7 +453,7 @@ func Test_comparisonCursor_Prev(t *testing.T) {
 		},
 		{
 			relationshipKey: "contacts",
-			isMatch: func(relationshipID []byte) (ok bool, err error) {
+			isMatch: func(relationshipID string) (ok bool, err error) {
 				ok = string(relationshipID) != "contact_2"
 				return
 			},
@@ -464,7 +464,7 @@ func Test_comparisonCursor_Prev(t *testing.T) {
 		},
 		{
 			relationshipKey: "groups",
-			isMatch: func(relationshipID []byte) (ok bool, err error) {
+			isMatch: func(relationshipID string) (ok bool, err error) {
 				ok = string(relationshipID) != "group_2"
 				return
 			},
@@ -550,7 +550,7 @@ func Test_comparisonCursor_Last(t *testing.T) {
 	tcs := []testcase{
 		{
 			relationshipKey: "users",
-			isMatch: func(relationshipID []byte) (ok bool, err error) {
+			isMatch: func(relationshipID string) (ok bool, err error) {
 				ok = string(relationshipID) != "user_2"
 				return
 			},
@@ -558,7 +558,7 @@ func Test_comparisonCursor_Last(t *testing.T) {
 		},
 		{
 			relationshipKey: "contacts",
-			isMatch: func(relationshipID []byte) (ok bool, err error) {
+			isMatch: func(relationshipID string) (ok bool, err error) {
 				ok = string(relationshipID) != "contact_2"
 				return
 			},
@@ -566,7 +566,7 @@ func Test_comparisonCursor_Last(t *testing.T) {
 		},
 		{
 			relationshipKey: "groups",
-			isMatch: func(relationshipID []byte) (ok bool, err error) {
+			isMatch: func(relationshipID string) (ok bool, err error) {
 				ok = string(relationshipID) != "group_2"
 				return
 			},
@@ -646,7 +646,7 @@ func testComparisonCursorHas(t *testing.T, fn func(c *comparisonCursor, entryID 
 	tcs := []testcase{
 		{
 			relationshipKey: "users",
-			isMatch: func(relationshipID []byte) (ok bool, err error) {
+			isMatch: func(relationshipID string) (ok bool, err error) {
 				ok = string(relationshipID) == "user_1"
 				return
 			},
@@ -655,7 +655,7 @@ func testComparisonCursorHas(t *testing.T, fn func(c *comparisonCursor, entryID 
 		},
 		{
 			relationshipKey: "users",
-			isMatch: func(relationshipID []byte) (ok bool, err error) {
+			isMatch: func(relationshipID string) (ok bool, err error) {
 				ok = string(relationshipID) == "user_2"
 				return
 			},
@@ -664,7 +664,7 @@ func testComparisonCursorHas(t *testing.T, fn func(c *comparisonCursor, entryID 
 		},
 		{
 			relationshipKey: "contacts",
-			isMatch: func(relationshipID []byte) (ok bool, err error) {
+			isMatch: func(relationshipID string) (ok bool, err error) {
 				ok = string(relationshipID) == "contact_2"
 				return
 			},
@@ -673,7 +673,7 @@ func testComparisonCursorHas(t *testing.T, fn func(c *comparisonCursor, entryID 
 		},
 		{
 			relationshipKey: "contacts",
-			isMatch: func(relationshipID []byte) (ok bool, err error) {
+			isMatch: func(relationshipID string) (ok bool, err error) {
 				ok = string(relationshipID) == "contact_2"
 				return
 			},
@@ -682,7 +682,7 @@ func testComparisonCursorHas(t *testing.T, fn func(c *comparisonCursor, entryID 
 		},
 		{
 			relationshipKey: "contacts",
-			isMatch: func(relationshipID []byte) (ok bool, err error) {
+			isMatch: func(relationshipID string) (ok bool, err error) {
 				ok = string(relationshipID) == "contact_2"
 				return
 			},
@@ -691,7 +691,7 @@ func testComparisonCursorHas(t *testing.T, fn func(c *comparisonCursor, entryID 
 		},
 		{
 			relationshipKey: "groups",
-			isMatch: func(relationshipID []byte) (ok bool, err error) {
+			isMatch: func(relationshipID string) (ok bool, err error) {
 				ok = string(relationshipID) == "group_1"
 				return
 			},
@@ -700,7 +700,7 @@ func testComparisonCursorHas(t *testing.T, fn func(c *comparisonCursor, entryID 
 		},
 		{
 			relationshipKey: "groups",
-			isMatch: func(relationshipID []byte) (ok bool, err error) {
+			isMatch: func(relationshipID string) (ok bool, err error) {
 				ok = string(relationshipID) == "group_1"
 				return
 			},

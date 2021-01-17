@@ -122,7 +122,8 @@ func (c *comparisonCursor) setNextCursor() (err error) {
 func (c *comparisonCursor) nextUntilMatch(entryID []byte) (matchingEntryID []byte, err error) {
 	var isMatch bool
 	for err == nil {
-		isMatch, err = c.isMatch(c.currentRelationshipID)
+		// This []byte -> string conversion should be non-existent after the compier pass
+		isMatch, err = c.isMatch(string(c.currentRelationshipID))
 		switch {
 		case err != nil:
 			return
@@ -201,7 +202,8 @@ func (c *comparisonCursor) setPrevCursor() (err error) {
 func (c *comparisonCursor) prevUntilMatch(entryID []byte) (matchingEntryID []byte, err error) {
 	var isMatch bool
 	for err == nil {
-		isMatch, err = c.isMatch(c.currentRelationshipID)
+		// This []byte -> string conversion should be non-existent after the compier pass
+		isMatch, err = c.isMatch(string(c.currentRelationshipID))
 		switch {
 		case err != nil:
 			return
@@ -475,4 +477,4 @@ func (c *comparisonCursor) HasReverse(entryID []byte) (ok bool, err error) {
 }
 
 // ComparisonFn is used for comparison filters
-type ComparisonFn func(relationshipID []byte) (ok bool, err error)
+type ComparisonFn func(relationshipID string) (ok bool, err error)

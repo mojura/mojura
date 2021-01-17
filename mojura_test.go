@@ -572,7 +572,7 @@ func TestMojura_ForEach_with_multiple_filters(t *testing.T) {
 		{
 			filters: []Filter{
 				Match("groups", "group_1"),
-				Comparison("contacts", func(relationshipID []byte) (ok bool, err error) {
+				Comparison("contacts", func(relationshipID string) (ok bool, err error) {
 					ok = string(relationshipID) != "contact_1"
 					return
 				}),
@@ -582,7 +582,7 @@ func TestMojura_ForEach_with_multiple_filters(t *testing.T) {
 		{
 			filters: []Filter{
 				Match("groups", "group_1"),
-				Comparison("contacts", func(relationshipID []byte) (ok bool, err error) {
+				Comparison("contacts", func(relationshipID string) (ok bool, err error) {
 					ok = string(relationshipID) != "contact_2"
 					return
 				}),
@@ -715,7 +715,7 @@ func TestMojura_GetFirst_with_multiple_filters(t *testing.T) {
 		{
 			filters: []Filter{
 				Match("groups", "group_1"),
-				Comparison("contacts", func(relationshipID []byte) (ok bool, err error) {
+				Comparison("contacts", func(relationshipID string) (ok bool, err error) {
 					ok = string(relationshipID) != "contact_1"
 					return
 				}),
@@ -725,7 +725,7 @@ func TestMojura_GetFirst_with_multiple_filters(t *testing.T) {
 		{
 			filters: []Filter{
 				Match("groups", "group_1"),
-				Comparison("contacts", func(relationshipID []byte) (ok bool, err error) {
+				Comparison("contacts", func(relationshipID string) (ok bool, err error) {
 					ok = string(relationshipID) != "contact_2"
 					return
 				}),
@@ -861,7 +861,7 @@ func TestMojura_GetLast_with_multiple_filters(t *testing.T) {
 		{
 			filters: []Filter{
 				Match("groups", "group_1"),
-				Comparison("contacts", func(relationshipID []byte) (ok bool, err error) {
+				Comparison("contacts", func(relationshipID string) (ok bool, err error) {
 					ok = string(relationshipID) != "contact_1"
 					return
 				}),
@@ -871,7 +871,7 @@ func TestMojura_GetLast_with_multiple_filters(t *testing.T) {
 		{
 			filters: []Filter{
 				Match("groups", "group_1"),
-				Comparison("contacts", func(relationshipID []byte) (ok bool, err error) {
+				Comparison("contacts", func(relationshipID string) (ok bool, err error) {
 					ok = string(relationshipID) != "contact_2"
 					return
 				}),
