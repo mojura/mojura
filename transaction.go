@@ -1,7 +1,6 @@
 package mojura
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"reflect"
@@ -48,32 +47,16 @@ func (t *Transaction) getRelationshipBucket(relationship []byte) (bkt backend.Bu
 	return
 }
 
-func (t *Transaction) getRelationshipIDBucket(relationship, relationshipID []byte) (bkt backend.Bucket, ok bool, err error) {
-	var relationshipBkt backend.Bucket
-	if relationshipBkt, err = t.getRelationshipBucket(relationship); err != nil {
-		return
-	}
-
-	if bkt = relationshipBkt.GetBucket(relationshipID); bkt == nil {
-		return
-	}
-
-	ok = true
-	return
-}
-
-func (t *Transaction) getLookupBucket(lookup []byte) (bkt backend.Bucket, err error) {
+func (t *Transaction) getEntriesBucket() (bkt backend.Bucket, err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
 
-	var lookupsBkt backend.Bucket
-	if lookupsBkt = t.txn.GetBucket(lookupsBktKey); lookupsBkt == nil {
+	if bkt = t.txn.GetBucket(entriesBktKey); bkt == nil {
 		err = ErrNotInitialized
 		return
 	}
 
-	bkt = lookupsBkt.GetBucket(lookup)
 	return
 }
 
@@ -88,13 +71,8 @@ func (t *Transaction) get(entryID []byte, val interface{}) (err error) {
 }
 
 func (t *Transaction) getBytes(entryID []byte) (bs []byte, err error) {
-	if err = t.cc.isDone(); err != nil {
-		return
-	}
-
 	var bkt backend.Bucket
-	if bkt = t.txn.GetBucket(entriesBktKey); bkt == nil {
-		err = ErrNotInitialized
+	if bkt, err = t.getEntriesBucket(); err != nil {
 		return
 	}
 
@@ -106,95 +84,20 @@ func (t *Transaction) getBytes(entryID []byte) (bs []byte, err error) {
 	return
 }
 
-func (t *Transaction) getIDsByRelationship(relationship, relationshipID []byte) (entryIDs [][]byte, err error) {
-	if err = t.cc.isDone(); err != nil {
-		return
+func (t *Transaction) idCursor(fs []Filter) (c IDCursor, err error) {
+	if len(fs) == 0 {
+		return newBaseIDCursor(t)
 	}
 
-	var relationshipBkt backend.Bucket
-	if relationshipBkt, err = t.getRelationshipBucket(relationship); err != nil {
-		return
-	}
-
-	var bkt backend.Bucket
-	if bkt = relationshipBkt.GetBucket(relationshipID); bkt == nil {
-		return
-	}
-
-	err = bkt.ForEach(func(entryID, _ []byte) (err error) {
-		entryIDs = append(entryIDs, entryID)
-		return
-	})
-
-	return
+	return newMultiIDCursor(t, fs)
 }
 
-func (t *Transaction) getByRelationship(relationship, relationshipID []byte, entries reflect.Value) (err error) {
-	if err = t.cc.isDone(); err != nil {
-		return
+func (t *Transaction) cursor(fs []Filter) (c Cursor, err error) {
+	if len(fs) == 0 {
+		return newBaseCursor(t)
 	}
 
-	var relationshipBkt backend.Bucket
-	if relationshipBkt, err = t.getRelationshipBucket(relationship); err != nil {
-		return
-	}
-
-	var bkt backend.Bucket
-	if bkt = relationshipBkt.GetBucket(relationshipID); bkt == nil {
-		return
-	}
-
-	c := bkt.Cursor()
-	for k, _ := c.First(); k != nil; k, _ = c.Next() {
-		val := reflect.New(t.m.entryType)
-		if err = t.get(k, val.Interface()); err != nil {
-			return
-		}
-
-		entries.Set(reflect.Append(entries, val))
-	}
-
-	return
-}
-
-func (t *Transaction) getFirstID(reverse bool, filters []Filter) (entryID string, err error) {
-	if err = t.forEachID(nil, reverse, func(id []byte) (err error) {
-		entryID = string(id)
-		return Break
-	}, filters); err != nil {
-		return
-	}
-
-	if entryID == "" {
-		err = ErrEntryNotFound
-		return
-	}
-
-	return
-}
-
-func (t *Transaction) getFiltered(seekTo []byte, reverse bool, entries reflect.Value, limit int64, filters []Filter) (err error) {
-	if limit == 0 {
-		return
-	}
-
-	var count int64
-	err = t.forEachID(seekTo, reverse, func(entryID []byte) (err error) {
-		val := t.m.newEntryValue()
-		if err = t.get(entryID, &val); err != nil {
-			return
-		}
-
-		entries.Set(reflect.Append(entries, reflect.ValueOf(val)))
-
-		if count++; count == limit {
-			return Break
-		}
-
-		return
-	}, filters)
-
-	return
+	return newMultiCursor(t, fs)
 }
 
 func (t *Transaction) exists(entryID []byte) (ok bool, err error) {
@@ -210,207 +113,6 @@ func (t *Transaction) exists(entryID []byte) (ok bool, err error) {
 
 	bs := bkt.Get(entryID)
 	ok = len(bs) > 0
-	return
-}
-
-func (t *Transaction) matchesAllPairs(fs []Filter, entryID []byte) (isMatch bool, err error) {
-	eid := []byte(entryID)
-	for _, pair := range fs {
-		isMatch, err = t.isPairMatch(&pair, eid)
-		switch {
-		case err != nil:
-			return
-		case !isMatch:
-			return
-		}
-
-	}
-
-	// We've made it through all the pairs without failing, entry is a match
-	return
-}
-
-func (t *Transaction) isPairMatch(pair *Filter, entryID []byte) (isMatch bool, err error) {
-	if err = t.cc.isDone(); err != nil {
-		return
-	}
-
-	var relationshipBkt backend.Bucket
-	if relationshipBkt, err = t.getRelationshipBucket(pair.relationship()); err != nil {
-		return
-	}
-
-	var bkt backend.Bucket
-	if bkt = relationshipBkt.GetBucket(pair.id()); bkt == nil {
-		return
-	}
-
-	// Initialize new cursor
-	c := bkt.Cursor()
-
-	// Get the first key matching entryID (will get next key if entryID does not exist)
-	firstKey, _ := c.Seek(entryID)
-
-	// Check to see if the entry exists within the relationship
-	isMatch = bytes.Compare(entryID, firstKey) == 0
-
-	// Check for an inverse comparison
-	if pair.InverseComparison {
-		// Inverse comparison exists, invert the match
-		isMatch = !isMatch
-	}
-
-	return
-}
-
-// ForEach will iterate through each of the entries
-func (t *Transaction) newForEach(seekTo string, reverse bool, fn ForEachFn, filters []Filter) (err error) {
-	// Wrap the provided func with an entry iterating func
-	entryFn := fn.toEntryIteratingFn(t)
-
-	// Check to see if any filters exist
-	if len(filters) == 0 {
-		// Fast path for raw ForEach (non-filtered) calls. This will utilize the value bytes seen during the cursor pass
-		return t.forEach([]byte(seekTo), reverse, entryFn)
-	}
-
-	// Wrap the entry iterating func with an id iterating func
-	idFn := entryFn.toIDIteratingFn(t)
-
-	// Call forEachID
-	return t.forEachID([]byte(seekTo), reverse, idFn, filters)
-}
-
-func (t *Transaction) forEach(seekTo []byte, reverse bool, fn entryIteratingFn) (err error) {
-	var bkt backend.Bucket
-	if bkt = t.txn.GetBucket(entriesBktKey); bkt == nil {
-		err = ErrNotInitialized
-		return
-	}
-
-	return t.iterateBucket(bkt, seekTo, reverse, fn)
-}
-
-func (t *Transaction) forEachID(seekTo []byte, reverse bool, fn idIteratingFn, fs []Filter) (err error) {
-	if err = t.cc.isDone(); err != nil {
-		return
-	}
-
-	if len(fs) == 0 {
-		return t.forEach(seekTo, reverse, fn.toEntryIteratingFn())
-	}
-
-	var primary Filter
-	if primary, fs, err = getPartedFilters(fs); err != nil {
-		return
-	}
-
-	// Wrap iterator with a filtered iterator (if needed)
-	fn = newIDIteratingFn(fn, t, fs)
-
-	// Iterate through each relationship item
-	err = t.forEachIDByRelationship(seekTo, primary.relationship(), primary.id(), reverse, fn)
-	return
-}
-
-func (t *Transaction) forEachIDByRelationship(seekTo, relationship, relationshipID []byte, reverse bool, fn idIteratingFn) (err error) {
-	var (
-		bkt backend.Bucket
-		ok  bool
-	)
-
-	if bkt, ok, err = t.getRelationshipIDBucket(relationship, relationshipID); !ok || err != nil {
-		return
-	}
-
-	return t.iterateBucket(bkt, seekTo, reverse, fn.toEntryIteratingFn())
-}
-
-func (t *Transaction) iterateBucket(bkt backend.Bucket, seekTo []byte, reverse bool, fn entryIteratingFn) (err error) {
-	// Check to see if context has expired
-	if err = t.cc.isDone(); err != nil {
-		return
-	}
-
-	// Initialize cursor for targeting bucket
-	c := bkt.Cursor()
-
-	// Set iterating function
-	iteratingFunc := getIteratorFunc(c, reverse)
-
-	// Iterate through the entries by:
-	// - Set initial KV pair using getFirstPair
-	// - Continuing while key is not nil
-	// - Incrementing KV pairs using iteratingFunc
-	for k, v := getFirstPair(c, seekTo, reverse); k != nil; k, v = iteratingFunc() {
-		// Check to see if context has expired
-		if err = t.cc.isDone(); err != nil {
-			return
-		}
-
-		err = fn(k, v)
-
-		switch {
-		case err == nil:
-		case err == Break:
-			// Error is a break statement, set error to nil and return
-			err = nil
-			return
-
-		default:
-			// Error is not nil, nor is it break - return.
-			return
-		}
-	}
-
-	return
-}
-
-func (t *Transaction) cursor(fn CursorFn) (err error) {
-	if err = t.cc.isDone(); err != nil {
-		return
-	}
-
-	var bkt backend.Bucket
-	if bkt = t.txn.GetBucket(entriesBktKey); bkt == nil {
-		err = ErrNotInitialized
-		return
-	}
-
-	cur := newCursor(t, bkt.Cursor(), false)
-	err = fn(&cur)
-	cur.teardown()
-
-	if err == Break {
-		err = nil
-	}
-
-	return
-}
-
-func (t *Transaction) cursorRelationship(relationship, relationshipID []byte, fn CursorFn) (err error) {
-	if err = t.cc.isDone(); err != nil {
-		return
-	}
-
-	var relationshipBkt backend.Bucket
-	if relationshipBkt, err = t.getRelationshipBucket(relationship); err != nil {
-		return
-	}
-
-	var bkt backend.Bucket
-	if bkt = relationshipBkt.GetBucket(relationshipID); bkt == nil {
-		return
-	}
-
-	cur := newCursor(t, bkt.Cursor(), true)
-	err = fn(&cur)
-	cur.teardown()
-
-	if err == Break {
-		err = nil
-	}
-
 	return
 }
 
@@ -545,162 +247,106 @@ func (t *Transaction) updateRelationships(entryID []byte, orig, val Value) (err 
 	return
 }
 
-func (t *Transaction) getFirstByRelationship(relationship, relationshipID []byte, val Value) (err error) {
-	if err = t.cc.isDone(); err != nil {
-		return
-	}
-
-	var match bool
-	if err = t.cursorRelationship(relationship, relationshipID, func(cur *Cursor) (err error) {
-		if err = cur.First(val); err == Break {
-			err = ErrEntryNotFound
-			return
-		}
-
-		match = true
-		return
-	}); err != nil {
-		return
-	}
-
-	if !match {
-		err = ErrEntryNotFound
-	}
-
-	return
-}
-
-func (t *Transaction) getLastByRelationship(relationship, relationshipID []byte, val Value) (err error) {
-	if err = t.cc.isDone(); err != nil {
-		return
-	}
-
-	var match bool
-	if err = t.cursorRelationship(relationship, relationshipID, func(cur *Cursor) (err error) {
-		if err = cur.Last(val); err == Break {
-			err = ErrEntryNotFound
-			return
-		}
-
-		match = true
-		return
-	}); err != nil {
-		return
-	}
-
-	if !match {
-		err = ErrEntryNotFound
-	}
-
-	return
-}
-
 // getLast will attempt to get the first entry which matches the provided filters
 // Note: Will return ErrEntryNotFound if no match is found
-func (t *Transaction) getFirst(value Value, filters []Filter) (err error) {
-	var match string
-	// Get the first ID match of the provided filters as a forward-direction look-up
-	if match, err = t.getFirstID(false, filters); err != nil {
-		// Error encountered while finding match, return
+func (t *Transaction) getFirst(value Value, o *IteratingOpts) (err error) {
+	var cur IDCursor
+	if cur, err = t.idCursor(o.Filters); err != nil {
 		return
 	}
 
-	// Retrieve entry for the matching entry ID
-	return t.get([]byte(match), value)
+	var entryID string
+	if entryID, err = getFirstID(cur, o.LastID, false); err == Break {
+		return ErrEntryNotFound
+	} else if err != nil {
+		return
+	}
+
+	return t.get([]byte(entryID), value)
 }
 
 // getLast will attempt to get the last entry which matches the provided filters
 // Note: Will return ErrEntryNotFound if no match is found
-func (t *Transaction) getLast(value Value, filters []Filter) (err error) {
-	var match string
-	// Get the first ID match of the provided filters as a reverse-direction look-up
-	if match, err = t.getFirstID(true, filters); err != nil {
-		// Error encountered while finding match, return
+func (t *Transaction) getLast(value Value, o *IteratingOpts) (err error) {
+	var cur IDCursor
+	if cur, err = t.idCursor(o.Filters); err != nil {
 		return
 	}
 
-	// Retrieve entry for the matching entry ID
-	return t.get([]byte(match), value)
+	var entryID string
+	if entryID, err = getFirstID(cur, o.LastID, true); err == Break {
+		return ErrEntryNotFound
+	} else if err != nil {
+		return
+	}
+
+	return t.get([]byte(entryID), value)
 }
 
-func (t *Transaction) setLookup(lookup, lookupID, key []byte) (err error) {
-	if err = t.cc.isDone(); err != nil {
+func (t *Transaction) getFiltered(es reflect.Value, o *FilteringOpts) (lastID string, err error) {
+	if o == nil {
+		o = defaultFilteringOpts
+	}
+
+	if o.Limit == 0 {
 		return
 	}
 
-	var lookupsBkt backend.Bucket
-	if lookupsBkt = t.txn.GetBucket(lookupsBktKey); lookupsBkt == nil {
-		err = ErrNotInitialized
+	var c Cursor
+	if c, err = t.cursor(o.Filters); err != nil {
 		return
 	}
 
-	var lookupBkt backend.Bucket
-	if lookupBkt, err = lookupsBkt.GetOrCreateBucket(lookup); err != nil {
-		return
-	}
+	var count int64
+	err = t.forEachWithCursor(c, &o.IteratingOpts, func(entryID string, val Value) (err error) {
+		rVal := reflect.ValueOf(val)
+		appended := reflect.Append(es, rVal)
+		es.Set(appended)
 
-	var bkt backend.Bucket
-	if bkt, err = lookupBkt.GetOrCreateBucket(lookupID); err != nil {
-		return
-	}
+		if count++; count == o.Limit {
+			lastID = joinSeekID(c.getCurrentRelationshipID(), entryID)
+			return Break
+		}
 
-	if err = bkt.Put(key, nil); err != nil {
-		return
-	}
-
-	logKey := getLogKey(lookupsBktKey, lookupID)
-	if err = t.atxn.LogJSON(actions.ActionCreate, logKey, key); err != nil {
-		return
-	}
-
-	return
-}
-
-func (t *Transaction) getLookupKeys(lookup, lookupID []byte) (keys []string, err error) {
-	if err = t.cc.isDone(); err != nil {
-		return
-	}
-
-	var lookupBkt backend.Bucket
-	if lookupBkt, err = t.getLookupBucket(lookup); lookupBkt == nil || err != nil {
-		return
-	}
-
-	var bkt backend.Bucket
-	if bkt = lookupBkt.GetBucket(lookupID); bkt == nil {
-		return
-	}
-
-	err = bkt.ForEach(func(key, _ []byte) (err error) {
-		keys = append(keys, string(key))
 		return
 	})
 
 	return
 }
 
-func (t *Transaction) removeLookup(lookup, lookupID, key []byte) (err error) {
-	if err = t.cc.isDone(); err != nil {
-		return
+func (t *Transaction) forEachWithCursor(c Cursor, o *IteratingOpts, fn ForEachFn) (err error) {
+	var val Value
+	iterator := getIteratorFunc(c, o.Reverse)
+	val, err = getFirst(c, o.LastID, o.Reverse)
+	for err == nil {
+		if err = fn(val.GetID(), val); err != nil {
+			break
+		}
+
+		val, err = iterator()
 	}
 
-	var lookupBkt backend.Bucket
-	if lookupBkt, err = t.getLookupBucket(lookup); lookupBkt == nil || err != nil {
-		return
+	if err == Break {
+		err = nil
 	}
 
-	var bkt backend.Bucket
-	if bkt = lookupBkt.GetBucket(lookupID); bkt == nil {
-		return
+	return
+}
+
+func (t *Transaction) forEachIDWithCursor(c IDCursor, o *IteratingOpts, fn ForEachIDFn) (err error) {
+	var entryID string
+	iterator := getIDIteratorFunc(c, o.Reverse)
+	entryID, err = getFirstID(c, o.LastID, o.Reverse)
+	for err == nil {
+		if err = fn(entryID); err != nil {
+			break
+		}
+
+		entryID, err = iterator()
 	}
 
-	if err = bkt.Delete(key); err != nil {
-		return
-	}
-
-	logKey := getLogKey(lookupsBktKey, lookupID)
-	if err = t.atxn.LogJSON(actions.ActionDelete, logKey, key); err != nil {
-		return
+	if err == Break {
+		err = nil
 	}
 
 	return
@@ -821,117 +467,85 @@ func (t *Transaction) Get(entryID string, val Value) (err error) {
 	return t.get([]byte(entryID), val)
 }
 
-// GetByRelationship will attempt to get all entries associated with a given relationship
-func (t *Transaction) GetByRelationship(relationship, relationshipID string, entries interface{}) (err error) {
-	var es reflect.Value
-	if es, err = getReflectedSlice(t.m.entryType, entries); err != nil {
-		return
-	}
-
-	return t.getByRelationship([]byte(relationship), []byte(relationshipID), es)
-}
-
 // GetFiltered will attempt to get all entries associated with a set of given filters
-func (t *Transaction) GetFiltered(seekTo string, entries interface{}, limit int64, filters ...Filter) (err error) {
+func (t *Transaction) GetFiltered(entries interface{}, o *FilteringOpts) (nextSeekID string, err error) {
 	var es reflect.Value
 	if es, err = getReflectedSlice(t.m.entryType, entries); err != nil {
 		return
 	}
 
-	return t.getFiltered([]byte(seekTo), false, es, limit, filters)
+	return t.getFiltered(es, o)
 }
 
 // GetFirst will attempt to get the first entry associated with a set of given filters
 // Note: Will return ErrEntryNotFound if no match is found
-func (t *Transaction) GetFirst(value Value, filters ...Filter) (err error) {
-	return t.getFirst(value, filters)
+func (t *Transaction) GetFirst(value Value, o *IteratingOpts) (err error) {
+	return t.getFirst(value, o)
 }
 
 // GetLast will attempt to get the last entry associated with a set of given filters
 // Note: Will return ErrEntryNotFound if no match is found
-func (t *Transaction) GetLast(value Value, filters ...Filter) (err error) {
-	return t.getLast(value, filters)
-
+func (t *Transaction) GetLast(value Value, o *IteratingOpts) (err error) {
+	return t.getLast(value, o)
 }
 
-// GetFirstByRelationship will attempt to get the first entry associated with a given relationship and relationship ID
-func (t *Transaction) GetFirstByRelationship(relationship, relationshipID string, val Value) (err error) {
-	return t.getFirstByRelationship([]byte(relationship), []byte(relationshipID), val)
-}
-
-// GetLastByRelationship will attempt to get the last entry associated with a given relationship and relationship ID
-func (t *Transaction) GetLastByRelationship(relationship, relationshipID string, val Value) (err error) {
-	return t.getLastByRelationship([]byte(relationship), []byte(relationshipID), val)
-}
-
-// ForEach will iterate through each of the entries
-func (t *Transaction) ForEach(seekTo string, fn ForEachFn, filters ...Filter) (err error) {
-	return t.newForEach(seekTo, false, fn, filters)
-}
-
-// ForEachReverse will iterate through each of the entries in reverse order
-func (t *Transaction) ForEachReverse(seekTo string, fn ForEachFn, filters ...Filter) (err error) {
-	return t.newForEach(seekTo, true, fn, filters)
-}
-
-// ForEachID will iterate through each of the entry IDs
-func (t *Transaction) ForEachID(seekTo string, fn ForEachEntryIDFn, filters ...Filter) (err error) {
-	return t.forEachID([]byte(seekTo), false, fn.toIDIteratingFn(), filters)
-}
-
-// ForEachIDReverse will iterate through each of the entry IDs in reverse order
-func (t *Transaction) ForEachIDReverse(seekTo string, fn ForEachEntryIDFn, filters ...Filter) (err error) {
-	return t.forEachID([]byte(seekTo), true, fn.toIDIteratingFn(), filters)
-}
-
-// ForEachRelationshipID will iterate through the IDs of a given relationship
-func (t *Transaction) ForEachRelationshipID(seekTo, relationship string, reverse bool, fn ForEachRelationshipIDFn) (err error) {
-	var relationshipBkt backend.Bucket
-	if relationshipBkt, err = t.getRelationshipBucket([]byte(relationship)); err != nil {
-		return
-	}
-
-	iterFn := func(relationshipID, _ []byte) (err error) {
-		return fn(string(relationshipID))
-	}
-
-	err = t.iterateBucket(relationshipBkt, []byte(seekTo), reverse, iterFn)
-	return
-}
-
-// ForEachRelationshipValue will iterate through the values for each ID of a given relationship
-func (t *Transaction) ForEachRelationshipValue(seekTo, relationship string, reverse bool, fn ForEachRelationshipValueFn) (err error) {
-	var relationshipBkt backend.Bucket
-	if relationshipBkt, err = t.getRelationshipBucket([]byte(relationship)); err != nil {
-		return
-	}
-
-	var currentRelationshipID string
-	iterFn := func(entryID, _ []byte) (err error) {
-		return fn(currentRelationshipID, string(entryID))
-	}
-
-	bktIterFn := func(relationshipID, _ []byte) (err error) {
-		currentRelationshipID = string(relationshipID)
-		return t.iterateBucket(relationshipBkt.GetBucket(relationshipID), nil, reverse, iterFn)
-	}
-
-	err = t.iterateBucket(relationshipBkt, []byte(seekTo), reverse, bktIterFn)
-	return
+// IDCursor will return an ID iterating cursor
+func (t *Transaction) IDCursor(fs ...Filter) (c IDCursor, err error) {
+	return t.idCursor(fs)
 }
 
 // Cursor will return an iterating cursor
-func (t *Transaction) Cursor(fn CursorFn) (err error) {
-	if err = t.cursor(fn); err == Break {
+func (t *Transaction) Cursor(fs ...Filter) (c Cursor, err error) {
+	return t.cursor(fs)
+}
+
+// ForEach will iterate through entries
+func (t *Transaction) ForEach(fn ForEachFn, o *IteratingOpts) (err error) {
+	if o == nil {
+		o = defaultIteratingOpts
+	}
+
+	var c Cursor
+	if c, err = t.Cursor(o.Filters...); err != nil {
+		return
+	}
+
+	iterator := getIteratorFunc(c, o.Reverse)
+
+	var val Value
+	for val, err = getFirst(c, o.LastID, o.Reverse); err == nil; val, err = iterator() {
+		if err = fn(val.GetID(), val); err != nil {
+			break
+		}
+	}
+
+	if err == Break {
 		err = nil
 	}
 
 	return
 }
 
-// CursorRelationship will return an iterating cursor for a given relationship and relationship ID
-func (t *Transaction) CursorRelationship(relationship, relationshipID string, fn CursorFn) (err error) {
-	if err = t.cursorRelationship([]byte(relationship), []byte(relationshipID), fn); err == Break {
+// ForEachID will iterate through entry IDs
+func (t *Transaction) ForEachID(fn ForEachIDFn, o *IteratingOpts) (err error) {
+	if o == nil {
+		o = defaultIteratingOpts
+	}
+
+	var c IDCursor
+	if c, err = t.IDCursor(o.Filters...); err != nil {
+		return
+	}
+
+	iterator := getIDIteratorFunc(c, o.Reverse)
+	var entryID string
+	for entryID, err = getFirstID(c, o.LastID, o.Reverse); err == nil; entryID, err = iterator() {
+		if err = fn(entryID); err != nil {
+			break
+		}
+	}
+
+	if err == Break {
 		err = nil
 	}
 
@@ -946,37 +560,6 @@ func (t *Transaction) Edit(entryID string, val Value) (err error) {
 // Remove will remove a relationship ID and it's related relationship IDs
 func (t *Transaction) Remove(entryID string) (err error) {
 	return t.remove([]byte(entryID))
-}
-
-// SetLookup will set a lookup value
-func (t *Transaction) SetLookup(lookup, lookupID, key string) (err error) {
-	return t.setLookup([]byte(lookup), []byte(lookupID), []byte(key))
-}
-
-// GetLookup will retrieve the matching lookup keys
-func (t *Transaction) GetLookup(lookup, lookupID string) (keys []string, err error) {
-	keys, err = t.getLookupKeys([]byte(lookup), []byte(lookupID))
-	return
-}
-
-// GetLookupKey will retrieve the first lookup key
-func (t *Transaction) GetLookupKey(lookup, lookupID string) (key string, err error) {
-	var keys []string
-	if keys, err = t.getLookupKeys([]byte(lookup), []byte(lookupID)); err != nil {
-		return
-	}
-
-	if len(keys) == 0 {
-		err = ErrEntryNotFound
-		return
-	}
-
-	return
-}
-
-// RemoveLookup will set a lookup value
-func (t *Transaction) RemoveLookup(lookup, lookupID, key string) (err error) {
-	return t.removeLookup([]byte(lookup), []byte(lookupID), []byte(key))
 }
 
 // TransactionFn represents a transaction function
