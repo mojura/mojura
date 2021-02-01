@@ -212,16 +212,30 @@ func (t *Transaction) unsetRelationship(relationship, relationshipID, entryID []
 	}
 
 	var relationshipBkt backend.Bucket
+	// Get relationship key parent bucket
 	if relationshipBkt, err = t.getRelationshipBucket(relationship); err != nil {
 		return
 	}
 
 	var bkt backend.Bucket
+	// Get bucket for the given relationship ID within the relationship key parent bucket
 	if bkt = relationshipBkt.GetBucket(relationshipID); bkt == nil {
 		return
 	}
 
-	return bkt.Delete(entryID)
+	// Delete entry in bucket by entry ID
+	if err = bkt.Delete(entryID); err != nil {
+		return
+	}
+
+	// Check to see if relationship ID bucket has any entries left
+	if hasEntries(bkt) {
+		// Bucket has entries, return
+		return
+	}
+
+	// No more entries exist for this relationship, delete bucket
+	return relationshipBkt.Delete(relationshipID)
 }
 
 func (t *Transaction) updateRelationships(entryID []byte, orig, val Value) (err error) {
