@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/mojura/backend"
 )
 
 func getReflectedSlice(t reflect.Type, v interface{}) (slice reflect.Value, err error) {
@@ -220,4 +222,9 @@ func splitSeekID(seekID []byte) (relationshipID, entryID []byte) {
 
 func joinSeekID(relationshipID, entryID string) (seekID string) {
 	return strings.Join([]string{relationshipID, entryID}, "::")
+}
+
+func hasEntries(bkt backend.Bucket) (ok bool) {
+	k, _ := bkt.Cursor().First()
+	return len(k) > 0
 }
