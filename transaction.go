@@ -212,16 +212,30 @@ func (t *Transaction) unsetRelationship(relationship, relationshipID, entryID []
 	}
 
 	var relationshipBkt backend.Bucket
+	// Get relationship key parent bucket
 	if relationshipBkt, err = t.getRelationshipBucket(relationship); err != nil {
 		return
 	}
 
 	var bkt backend.Bucket
+	// Get bucket for the given relationship ID within the relationship key parent bucket
 	if bkt = relationshipBkt.GetBucket(relationshipID); bkt == nil {
 		return
 	}
 
-	return bkt.Delete(entryID)
+	// Delete entry in bucket by entry ID
+	if err = bkt.Delete(entryID); err != nil {
+		return
+	}
+
+	// Check to see if relationship ID bucket has any entries left
+	if hasEntries(bkt) {
+		// Bucket has entries, return
+		return
+	}
+
+	// No more entries exist for this relationship, delete bucket
+	return relationshipBkt.DeleteBucket(relationshipID)
 }
 
 func (t *Transaction) updateRelationships(entryID []byte, orig, val Value) (err error) {
@@ -423,18 +437,22 @@ func (t *Transaction) remove(entryID []byte) (err error) {
 
 	val := t.m.newEntryValue()
 	if err = t.get(entryID, val); err != nil {
+		err = fmt.Errorf("error finding entry <%s>: %v", entryID, err)
 		return
 	}
 
 	if err = t.delete(entryID); err != nil {
+		err = fmt.Errorf("error removing entry <%s>: %v", entryID, err)
 		return
 	}
 
 	if err = t.unsetRelationships(val.GetRelationships(), entryID); err != nil {
+		err = fmt.Errorf("error unsetting relationships: %v", err)
 		return
 	}
 
 	if err = t.atxn.LogJSON(actions.ActionDelete, getLogKey(entriesBktKey, entryID), nil); err != nil {
+		err = fmt.Errorf("error logging transaction actions: %v", err)
 		return
 	}
 

@@ -305,6 +305,103 @@ func Test_comparisonCursor_First(t *testing.T) {
 	}
 }
 
+func Test_comparisonCursor_First_with_deletion(t *testing.T) {
+	var (
+		m   *Mojura
+		err error
+	)
+
+	if m, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(m)
+
+	type expected struct {
+		expectedID  string
+		expectedErr error
+	}
+
+	type testcase struct {
+		relationshipKey string
+		isMatch         filters.ComparisonFn
+		expected        expected
+	}
+
+	a := newTestStruct("user_0", "contact_0", "group_3", "1")
+	b := newTestStruct("user_1", "contact_2", "group_2", "2")
+	c := newTestStruct("user_2", "contact_2", "group_1", "3")
+
+	tcs := []testcase{
+		{
+			relationshipKey: "users",
+			isMatch: func(relationshipID string) (ok bool, err error) {
+				ok = relationshipID != "user_2"
+				return
+			},
+			expected: expected{expectedID: "00000001"},
+		},
+		{
+			relationshipKey: "contacts",
+			isMatch: func(relationshipID string) (ok bool, err error) {
+				ok = relationshipID != "contact_0"
+				return
+			},
+			expected: expected{expectedID: "00000001"},
+		},
+		{
+			relationshipKey: "groups",
+			isMatch: func(relationshipID string) (ok bool, err error) {
+				ok = relationshipID != "group_2"
+				return
+			},
+			expected: expected{expectedID: "00000002"},
+		},
+	}
+
+	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+		if _, err = txn.New(a); err != nil {
+			return
+		}
+
+		if _, err = txn.New(b); err != nil {
+			return
+		}
+
+		if _, err = txn.New(c); err != nil {
+			return
+		}
+
+		if err = txn.Remove("00000000"); err != nil {
+			return
+		}
+
+		for i, tc := range tcs {
+			var cur *comparisonCursor
+			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
+			if cur, err = newComparisonCursor(txn, f); err != nil {
+				return
+			}
+
+			exp := tc.expected
+
+			var idBytes []byte
+			if idBytes, err = cur.First(); err != exp.expectedErr {
+				err = fmt.Errorf("invalid error, expected <%v> and received <%v> (test case #%d)", exp.expectedErr, err, i)
+				return
+			}
+
+			if id := string(idBytes); id != exp.expectedID {
+				err = fmt.Errorf("invalid ID, expected <%s> and received <%s> (test case #%d)", exp.expectedID, id, i)
+				return
+			}
+		}
+
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func Test_comparisonCursor_Next(t *testing.T) {
 	var (
 		m   *Mojura
@@ -586,6 +683,103 @@ func Test_comparisonCursor_Last(t *testing.T) {
 		}
 
 		if _, err = txn.New(c); err != nil {
+			return
+		}
+
+		for i, tc := range tcs {
+			var cur *comparisonCursor
+			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
+			if cur, err = newComparisonCursor(txn, f); err != nil {
+				return
+			}
+
+			exp := tc.expected
+
+			var idBytes []byte
+			if idBytes, err = cur.Last(); err != exp.expectedErr {
+				err = fmt.Errorf("invalid error, expected <%v> and received <%v> (test case #%d)", exp.expectedErr, err, i)
+				return
+			}
+
+			if id := string(idBytes); id != exp.expectedID {
+				err = fmt.Errorf("invalid ID, expected <%s> and received <%s> (test case #%d)", exp.expectedID, id, i)
+				return
+			}
+		}
+
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func Test_comparisonCursor_Last_with_deletion(t *testing.T) {
+	var (
+		m   *Mojura
+		err error
+	)
+
+	if m, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(m)
+
+	type expected struct {
+		expectedID  string
+		expectedErr error
+	}
+
+	type testcase struct {
+		relationshipKey string
+		isMatch         filters.ComparisonFn
+		expected        expected
+	}
+
+	a := newTestStruct("user_0", "contact_0", "group_3", "1")
+	b := newTestStruct("user_1", "contact_2", "group_2", "2")
+	c := newTestStruct("user_2", "contact_2", "group_1", "3")
+
+	tcs := []testcase{
+		{
+			relationshipKey: "users",
+			isMatch: func(relationshipID string) (ok bool, err error) {
+				ok = relationshipID != "user_2"
+				return
+			},
+			expected: expected{expectedID: "00000000"},
+		},
+		{
+			relationshipKey: "contacts",
+			isMatch: func(relationshipID string) (ok bool, err error) {
+				ok = relationshipID != "contact_2"
+				return
+			},
+			expected: expected{expectedID: "00000000"},
+		},
+		{
+			relationshipKey: "groups",
+			isMatch: func(relationshipID string) (ok bool, err error) {
+				ok = relationshipID == "group_2"
+				return
+			},
+			expected: expected{expectedErr: Break},
+		},
+	}
+
+	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+		if _, err = txn.New(a); err != nil {
+			return
+		}
+
+		if _, err = txn.New(b); err != nil {
+			return
+		}
+
+		if _, err = txn.New(c); err != nil {
+			return
+		}
+
+		if err = txn.Remove("00000001"); err != nil {
 			return
 		}
 
