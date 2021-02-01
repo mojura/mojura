@@ -235,7 +235,7 @@ func (t *Transaction) unsetRelationship(relationship, relationshipID, entryID []
 	}
 
 	// No more entries exist for this relationship, delete bucket
-	return relationshipBkt.Delete(relationshipID)
+	return relationshipBkt.DeleteBucket(relationshipID)
 }
 
 func (t *Transaction) updateRelationships(entryID []byte, orig, val Value) (err error) {
@@ -437,18 +437,22 @@ func (t *Transaction) remove(entryID []byte) (err error) {
 
 	val := t.m.newEntryValue()
 	if err = t.get(entryID, val); err != nil {
+		err = fmt.Errorf("error finding entry <%s>: %v", entryID, err)
 		return
 	}
 
 	if err = t.delete(entryID); err != nil {
+		err = fmt.Errorf("error removing entry <%s>: %v", entryID, err)
 		return
 	}
 
 	if err = t.unsetRelationships(val.GetRelationships(), entryID); err != nil {
+		err = fmt.Errorf("error unsetting relationships: %v", err)
 		return
 	}
 
 	if err = t.atxn.LogJSON(actions.ActionDelete, getLogKey(entriesBktKey, entryID), nil); err != nil {
+		err = fmt.Errorf("error logging transaction actions: %v", err)
 		return
 	}
 
