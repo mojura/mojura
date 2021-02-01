@@ -8,6 +8,6 @@ require (
 	github.com/gdbu/indexer v0.1.4
 	github.com/gdbu/stringset v0.1.5
 	github.com/hatchify/errors v0.4.82
-	github.com/mojura-backends/bolt v0.1.6
-	github.com/mojura/backend v0.1.1
+	github.com/mojura-backends/bolt v0.2.0
+	github.com/mojura/backend v0.2.0
 )
