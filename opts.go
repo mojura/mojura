@@ -15,6 +15,8 @@ const (
 	DefaultMaxBatchDuration = time.Millisecond * 10
 	// DefaultRetryBatchFail is the default value for if a batch call will retry when a batch sibling fails
 	DefaultRetryBatchFail = true
+	// DefaultIndexLength is the default index length
+	DefaultIndexLength = 8
 )
 
 const (
@@ -36,6 +38,8 @@ type Opts struct {
 	MaxBatchCalls    int
 	MaxBatchDuration time.Duration
 	RetryBatchFail   bool
+
+	IndexLength int
 
 	Initializer backend.Initializer
 	Encoder     Encoder
@@ -62,5 +66,9 @@ func (o *Opts) init() {
 
 	if o.MaxBatchDuration == 0 {
 		o.MaxBatchDuration = DefaultMaxBatchDuration
+	}
+
+	if o.IndexLength == 0 {
+		o.IndexLength = DefaultIndexLength
 	}
 }

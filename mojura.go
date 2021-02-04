@@ -76,7 +76,7 @@ func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...st
 	m.opts = &opts
 	m.entryType = getMojuraType(example)
 	m.logsDir = path.Join(dir, "logs")
-	m.indexFmt = fmt.Sprintf("%s0%dd", "%", 8)
+	m.indexFmt = fmt.Sprintf("%s0%dd", "%", opts.IndexLength)
 
 	if err = os.MkdirAll(m.logsDir, 0744); err != nil {
 		return
