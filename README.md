@@ -4,6 +4,8 @@
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 Mojura is a service helper library for DB ancillary methods
 
+![billboard](https://github.com/mojura/mojura/blob/master/mojura-billboard.png?raw=true "Mojura billboard")
+
 ## Usage
 
 ### New
