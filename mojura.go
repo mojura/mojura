@@ -43,8 +43,6 @@ const (
 	ErrInversePrimaryFilter = errors.Error("invalid primary filter, cannot be an inverse comparison")
 	// ErrContextCancelled is returned when a transaction ends early from context
 	ErrContextCancelled = errors.Error("context cancelled")
-	// ErrTransactionTimedOut is returned when a transaction times out
-	ErrTransactionTimedOut = errors.Error("transaction timed out")
 
 	// Break is a non-error which will cause a ForEach loop to break early
 	Break = errors.Error("break!")

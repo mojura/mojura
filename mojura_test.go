@@ -110,14 +110,18 @@ func TestMojura_Get_context(t *testing.T) {
 	}
 
 	tcs := []testcase{
-		{iterations: 1, timeout: time.Millisecond * 200, err: ErrTransactionTimedOut},
-		{iterations: 5, timeout: time.Millisecond * 100, err: nil},
-		{iterations: 10, timeout: time.Millisecond * 180, err: nil},
-		{iterations: 3, timeout: time.Millisecond * 500, err: ErrTransactionTimedOut},
+		{iterations: 1, timeout: time.Millisecond * 190, err: nil},
+		{iterations: 1, timeout: time.Millisecond * 210, err: context.DeadlineExceeded},
+		{iterations: 5, timeout: time.Millisecond * 100, err: context.DeadlineExceeded},
+		{iterations: 10, timeout: time.Millisecond * 180, err: context.DeadlineExceeded},
+		{iterations: 5, timeout: time.Millisecond * 35, err: nil},
+		{iterations: 10, timeout: time.Millisecond * 15, err: nil},
+		{iterations: 3, timeout: time.Millisecond * 500, err: context.DeadlineExceeded},
 	}
 
 	for _, tc := range tcs {
-		ctx := NewTouchContext(context.Background(), time.Millisecond*200)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*200)
+		defer cancel()
 		if err = c.ReadTransaction(ctx, func(txn *Transaction) (err error) {
 			var fb testStruct
 			for i := 0; i < tc.iterations; i++ {
