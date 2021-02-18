@@ -26,8 +26,10 @@ func ExampleNew() {
 
 ### Mojura.New
 ```go
+
 func ExampleMojura_New() {
 	var ts testStruct
+	ts.UserID = "user_1"
 	ts.Value = "Foo bar"
 
 	var (
