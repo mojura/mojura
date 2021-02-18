@@ -28,15 +28,14 @@ func ExampleNew() {
 ```go
 func ExampleMojura_New() {
 	var ts testStruct
-	ts.Foo = "Foo foo"
-	ts.Bar = "Bar bar"
+	ts.Value = "Foo bar"
 
 	var (
 		entryID string
 		err     error
 	)
 
-	if entryID, err = c.New(&ts, "user_1", "contact_3"); err != nil {
+	if entryID, err = c.New(&ts); err != nil {
 		return
 	}
 
@@ -94,12 +93,17 @@ func ExampleMojura_ForEach_with_filter() {
 ### Mojura.Edit
 ```go
 func ExampleMojura_Edit() {
-	var err error
-	if err = c.Edit("00000000", func(v interface{}) (err error) {
-		ts := v.(*testStruct)
-		ts.Foo = "New foo value"
-		return
-	}); err != nil {
+	var (
+		ts  *testStruct
+		err error
+	)
+
+	// We will pretend the test struct is already populated
+
+	// Let's update the Value field to "New foo value"
+	ts.Value = "New foo value"
+
+	if err = c.Edit("00000000", ts); err != nil {
 		return
 	}
 
