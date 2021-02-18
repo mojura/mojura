@@ -60,46 +60,32 @@ func ExampleMojura_Get() {
 }
 ```
 
-### Mojura.GetByRelationship
-```go
-func ExampleMojura_GetByRelationship() {
-	var (
-		tss []*testStruct
-		err error
-	)
-
-	if err = c.GetByRelationship("users", "user_1", &tss); err != nil {
-		return
-	}
-
-	for i, ts := range tss {
-		fmt.Printf("Retrieved entry #%d! %+v\n", i, ts)
-	}
-}
-```
 
 ### Mojura.ForEach
 ```go
-
 func ExampleMojura_ForEach() {
 	var err error
-	if err = c.ForEach(func(key string, val Value) (err error) {
-		fmt.Printf("Iterating entry (%s)! %+v\n", key, val)
+	filter := filters.Match("users", "user_1")
+	opts := NewIteratingOpts(filter)
+	if err = c.ForEach(func(entryID string, val Value) (err error) {
+		fmt.Printf("Iterating entry (%s)! %+v\n", entryID, val)
 		return
-	}); err != nil {
+	}, opts); err != nil {
 		return
 	}
 }
 ```
 
-### Mojura.ForEachRelationship
+### Mojura.ForEach (with filter)
 ```go
-func ExampleMojura_ForEachRelationship() {
+func ExampleMojura_ForEach_with_filter() {
 	var err error
-	if err = c.ForEachRelationship("users", "user_1", func(key string, val Value) (err error) {
-		fmt.Printf("Iterating entry (%s)! %+v\n", key, val)
+	filter := filters.Match("users", "user_1")
+	opts := NewIteratingOpts(filter)
+	if err = c.ForEach(func(entryID string, val Value) (err error) {
+		fmt.Printf("Iterating entry (%s)! %+v\n", entryID, val)
 		return
-	}); err != nil {
+	}, opts); err != nil {
 		return
 	}
 }
