@@ -314,9 +314,9 @@ func (m *Mojura) Get(entryID string, val Value) (err error) {
 }
 
 // GetFiltered will attempt to get the filtered entries
-func (m *Mojura) GetFiltered(entries interface{}, o *FilteringOpts) (nextSeekID string, err error) {
+func (m *Mojura) GetFiltered(entries interface{}, o *FilteringOpts) (lastID string, err error) {
 	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		nextSeekID, err = txn.GetFiltered(entries, o)
+		lastID, err = txn.GetFiltered(entries, o)
 		return
 	})
 

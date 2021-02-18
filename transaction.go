@@ -486,7 +486,7 @@ func (t *Transaction) Get(entryID string, val Value) (err error) {
 }
 
 // GetFiltered will attempt to get all entries associated with a set of given filters
-func (t *Transaction) GetFiltered(entries interface{}, o *FilteringOpts) (nextSeekID string, err error) {
+func (t *Transaction) GetFiltered(entries interface{}, o *FilteringOpts) (lastID string, err error) {
 	var es reflect.Value
 	if es, err = getReflectedSlice(t.m.entryType, entries); err != nil {
 		return
