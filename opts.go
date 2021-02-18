@@ -6,6 +6,7 @@ import (
 	"github.com/hatchify/errors"
 	"github.com/mojura-backends/bolt"
 	"github.com/mojura/backend"
+	"github.com/mojura/kiroku"
 )
 
 const (
@@ -35,14 +36,17 @@ var defaultOpts = Opts{
 
 // Opts represent mojura options
 type Opts struct {
-	MaxBatchCalls    int
-	MaxBatchDuration time.Duration
-	RetryBatchFail   bool
+	Initializer backend.Initializer
+	Encoder     Encoder
+
+	Importer func(kiroku.Processor)
+	Exporter kiroku.Processor
 
 	IndexLength int
 
-	Initializer backend.Initializer
-	Encoder     Encoder
+	MaxBatchCalls    int
+	MaxBatchDuration time.Duration
+	RetryBatchFail   bool
 }
 
 // Validate will validate a set of Options

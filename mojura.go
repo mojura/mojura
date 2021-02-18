@@ -3,19 +3,15 @@ package mojura
 import (
 	"context"
 	"fmt"
-	"log"
-	"os"
 	"path"
 	"reflect"
-	"time"
 
-	"github.com/gdbu/actions"
 	"github.com/gdbu/atoms"
-	"github.com/gdbu/indexer"
 
 	"github.com/hatchify/errors"
 
 	"github.com/mojura/backend"
+	"github.com/mojura/kiroku"
 )
 
 const (
@@ -73,25 +69,16 @@ func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...st
 
 	m.opts = &opts
 	m.entryType = getMojuraType(example)
-	m.logsDir = path.Join(dir, "logs")
 	m.indexFmt = fmt.Sprintf("%s0%dd", "%", opts.IndexLength)
-
-	if err = os.MkdirAll(m.logsDir, 0744); err != nil {
-		return
-	}
 
 	if err = m.init(name, dir, relationships); err != nil {
 		return
 	}
 
-	if m.a, err = actions.New(m.logsDir, name); err != nil {
+	if m.k, err = kiroku.New(dir, name, opts.Exporter); err != nil {
 		return
 	}
 
-	m.a.SetRotateFn(m.handleLogRotation)
-	m.a.SetRotateInterval(time.Minute)
-	// Set maximum number of lines to 10,000
-	m.a.SetNumLines(100000)
 	// Initialize new batcher
 	m.b = newBatcher(&m)
 	// Set return pointer
@@ -101,13 +88,11 @@ func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...st
 
 // Mojura is the DB manager
 type Mojura struct {
-	db  backend.Backend
-	idx *indexer.Indexer
-	a   *actions.Actions
-	b   *batcher
+	db backend.Backend
+	k  *kiroku.Kiroku
+	b  *batcher
 
 	opts     *Opts
-	logsDir  string
 	indexFmt string
 
 	// Element type
@@ -120,20 +105,13 @@ type Mojura struct {
 }
 
 func (m *Mojura) init(name, dir string, relationships []string) (err error) {
-	indexFilename := path.Join(dir, name+".idb")
 	filename := path.Join(dir, name+".bdb")
-
-	if m.idx, err = indexer.New(indexFilename); err != nil {
-		return fmt.Errorf("error opening index db for %s (%s): %v", name, dir, err)
-	}
-
 	if m.db, err = m.opts.Initializer.New(filename); err != nil {
 		return fmt.Errorf("error opening db for %s (%s): %v", name, dir, err)
 	}
 
 	err = m.db.Transaction(func(txn backend.Transaction) (err error) {
-		var entriesBkt backend.Bucket
-		if entriesBkt, err = txn.GetOrCreateBucket(entriesBktKey); err != nil {
+		if _, err = txn.GetOrCreateBucket(entriesBktKey); err != nil {
 			return
 		}
 
@@ -155,11 +133,6 @@ func (m *Mojura) init(name, dir string, relationships []string) (err error) {
 			m.relationships = append(m.relationships, rbs)
 		}
 
-		if err = m.setIndexer(entriesBkt); err != nil {
-			err = fmt.Errorf("error reading last ID: %v", err)
-			return
-		}
-
 		return
 	})
 
@@ -171,23 +144,12 @@ func (m *Mojura) newReflectValue() (value reflect.Value) {
 	return reflect.New(m.entryType)
 }
 
-func (m *Mojura) setIndexer(entriesBkt backend.Bucket) (err error) {
-	if m.idx.Get() != 0 {
-		// Indexer has already been set, bail out
-		return
-	}
-
-	// Since indexer has not been set it, set the index value from the current last entry
-
+func (m *Mojura) getLastIDAsIndex(entriesBkt backend.Bucket) (lastIndex uint64, err error) {
+	// Grab ID from the last Entry
+	// Note: We ignore the value because we do not need it
 	lastID, _ := entriesBkt.Cursor().Last()
 
-	var value uint64
-	if value, err = parseIDAsIndex(lastID); err != nil {
-		return
-	}
-
-	m.idx.Set(value)
-	return m.idx.Flush()
+	return parseIDAsIndex(lastID)
 }
 
 func (m *Mojura) newEntryValue() (value Value) {
@@ -217,31 +179,10 @@ func (m *Mojura) newValueFromBytes(bs []byte) (val Value, err error) {
 	return
 }
 
-func (m *Mojura) handleLogRotation(filename string) {
-	var err error
-	archiveDir := path.Join(m.logsDir, "archived")
-	name := path.Base(filename)
-	destination := path.Join(archiveDir, name)
-
-	if err = os.MkdirAll(archiveDir, 0744); err != nil {
-		// TODO: Add error logging here after we implement output interface to mojura
-		log.Printf("error creating archive directory: %v\n", err)
-		return
-	}
-
-	if err = os.Rename(filename, destination); err != nil {
-		// TODO: Add error logging here after we implement output interface to mojura
-		log.Printf("error renaming file: %v\n", err)
-		return
-	}
-
-	return
-}
-
-func (m *Mojura) transaction(fn func(backend.Transaction, *actions.Transaction) error) (err error) {
+func (m *Mojura) transaction(fn func(backend.Transaction, *kiroku.Writer) error) (err error) {
 	err = m.db.Transaction(func(txn backend.Transaction) (err error) {
-		err = m.a.Transaction(func(atxn *actions.Transaction) (err error) {
-			return fn(txn, atxn)
+		err = m.k.Transaction(func(w *kiroku.Writer) (err error) {
+			return fn(txn, w)
 		})
 
 		return
@@ -250,11 +191,9 @@ func (m *Mojura) transaction(fn func(backend.Transaction, *actions.Transaction) 
 	return
 }
 
-func (m *Mojura) runTransaction(ctx context.Context, txn backend.Transaction, atxn *actions.Transaction, fn TransactionFn) (err error) {
-	t := newTransaction(ctx, m, txn, atxn)
+func (m *Mojura) runTransaction(ctx context.Context, txn backend.Transaction, kw *kiroku.Writer, fn TransactionFn) (err error) {
+	t := newTransaction(ctx, m, txn, kw)
 	defer t.teardown()
-	// Always ensure index has been flushed
-	defer m.idx.Flush()
 	errCh := make(chan error)
 
 	// Call function from within goroutine
@@ -399,8 +338,8 @@ func (m *Mojura) Remove(entryID string) (err error) {
 
 // Transaction will initialize a transaction
 func (m *Mojura) Transaction(ctx context.Context, fn func(*Transaction) error) (err error) {
-	err = m.transaction(func(txn backend.Transaction, atxn *actions.Transaction) (err error) {
-		return m.runTransaction(ctx, txn, atxn, fn)
+	err = m.transaction(func(txn backend.Transaction, kw *kiroku.Writer) (err error) {
+		return m.runTransaction(ctx, txn, kw, fn)
 	})
 
 	return
@@ -428,6 +367,6 @@ func (m *Mojura) Close() (err error) {
 
 	var errs errors.ErrorList
 	errs.Push(m.db.Close())
-	errs.Push(m.a.Close())
+	errs.Push(m.k.Close())
 	return errs.Err()
 }

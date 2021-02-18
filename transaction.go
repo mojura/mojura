@@ -6,15 +6,15 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/gdbu/actions"
 	"github.com/mojura/backend"
+	"github.com/mojura/kiroku"
 )
 
-func newTransaction(ctx context.Context, m *Mojura, txn backend.Transaction, atxn *actions.Transaction) (t Transaction) {
+func newTransaction(ctx context.Context, m *Mojura, txn backend.Transaction, kw *kiroku.Writer) (t Transaction) {
 	t.m = m
 	t.cc = newContextContainer(ctx)
 	t.txn = txn
-	t.atxn = atxn
+	t.kw = kw
 	return
 }
 
@@ -24,8 +24,8 @@ type Transaction struct {
 
 	cc *contextContainer
 
-	txn  backend.Transaction
-	atxn *actions.Transaction
+	txn backend.Transaction
+	kw  *kiroku.Writer
 }
 
 func (t *Transaction) getRelationshipBucket(relationship []byte) (bkt backend.Bucket, err error) {
@@ -133,7 +133,11 @@ func (t *Transaction) put(entryID []byte, val Value) (err error) {
 		return
 	}
 
-	return bkt.Put(entryID, bs)
+	if err = bkt.Put(entryID, bs); err != nil {
+		return
+	}
+
+	return t.kw.AddRow(kiroku.TypeWriteAction, bs)
 }
 
 func (t *Transaction) delete(entryID []byte) (err error) {
@@ -372,7 +376,7 @@ func (t *Transaction) new(val Value) (entryID []byte, err error) {
 	}
 
 	var index uint64
-	if index = t.m.idx.Next(); err != nil {
+	if index, err = t.kw.NextIndex(); err != nil {
 		return
 	}
 
@@ -389,10 +393,6 @@ func (t *Transaction) new(val Value) (entryID []byte, err error) {
 	}
 
 	if err = t.setRelationships(val.GetRelationships(), entryID); err != nil {
-		return
-	}
-
-	if err = t.atxn.LogJSON(actions.ActionCreate, getLogKey(entriesBktKey, entryID), val); err != nil {
 		return
 	}
 
@@ -423,10 +423,6 @@ func (t *Transaction) edit(entryID []byte, val Value) (err error) {
 		return
 	}
 
-	if err = t.atxn.LogJSON(actions.ActionEdit, getLogKey(entriesBktKey, entryID), val); err != nil {
-		return
-	}
-
 	return
 }
 
@@ -451,12 +447,7 @@ func (t *Transaction) remove(entryID []byte) (err error) {
 		return
 	}
 
-	if err = t.atxn.LogJSON(actions.ActionDelete, getLogKey(entriesBktKey, entryID), nil); err != nil {
-		err = fmt.Errorf("error logging transaction actions: %v", err)
-		return
-	}
-
-	return
+	return t.kw.AddRow(kiroku.TypeDeleteAction, nil)
 }
 
 func (t *Transaction) teardown() {
