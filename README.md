@@ -61,6 +61,25 @@ func ExampleMojura_Get() {
 }
 ```
 
+### Mojura.GetFiltered
+```go
+func ExampleMojura_GetFiltered() {
+	var (
+		tss    []testStruct
+		lastID string
+		err    error
+	)
+
+	filter := filters.Match("users", "user_1")
+	opts := NewFilteringOpts(filter)
+
+	if lastID, err = c.GetFiltered(&tss, opts); err != nil {
+		return
+	}
+
+	fmt.Printf("Retrieved entries! %+v with a lastID of <%s>\n", tss, lastID)
+}
+```
 
 ### Mojura.ForEach
 ```go
