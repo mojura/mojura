@@ -2,7 +2,7 @@
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 [![All Contributors](https://img.shields.io/badge/all_contributors-4-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
-Mojura is a service helper library for DB ancillary methods
+Mojura is a filter-based programmatic relational DB which leverages any K/V store as it's backend.
 
 ![billboard](https://github.com/mojura/mojura/blob/main/mojura-billboard.png?raw=true "Mojura billboard")
 
