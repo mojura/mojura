@@ -69,7 +69,7 @@ func (c *contextContainer) update(ctx context.Context) (ok bool) {
 
 func (c *contextContainer) getContext() (ctx context.Context) {
 	c.mux.RLock()
-	c.mux.RUnlock()
+	defer c.mux.RUnlock()
 	ctx = c.ctx
 	return
 }
@@ -83,13 +83,11 @@ func (c *contextContainer) waitForClose() {
 		close(c.done)
 	case <-c.cancel:
 	}
-
-	return
 }
 
 func (c *contextContainer) setError(err error) {
 	c.mux.Lock()
-	c.mux.Unlock()
+	defer c.mux.Unlock()
 	c.err = err
 }
 

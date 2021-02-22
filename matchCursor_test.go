@@ -17,7 +17,7 @@ func Test_matchCursor_SeekForward(t *testing.T) {
 	if m, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(m)
+	defer testTeardown(m, t)
 
 	type expected struct {
 		expectedID  string
@@ -106,7 +106,7 @@ func Test_matchCursor_SeekReverse(t *testing.T) {
 	if m, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(m)
+	defer testTeardown(m, t)
 
 	type expected struct {
 		expectedID  string
@@ -195,7 +195,7 @@ func Test_matchCursor_First(t *testing.T) {
 	if m, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(m)
+	defer testTeardown(m, t)
 
 	type expected struct {
 		expectedID  string
@@ -279,7 +279,7 @@ func Test_matchCursor_Next(t *testing.T) {
 	if m, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(m)
+	defer testTeardown(m, t)
 
 	type expected struct {
 		expectedID  string
@@ -378,7 +378,7 @@ func Test_matchCursor_Prev(t *testing.T) {
 	if m, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(m)
+	defer testTeardown(m, t)
 
 	type expected struct {
 		expectedID  string
@@ -477,7 +477,7 @@ func Test_matchCursor_Last(t *testing.T) {
 	if m, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(m)
+	defer testTeardown(m, t)
 
 	type expected struct {
 		expectedID  string
@@ -637,7 +637,7 @@ func testMatchCursor(t *testing.T, fn func(*Transaction) error) {
 	if m, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(m)
+	defer testTeardown(m, t)
 
 	a := newTestStruct("user_0", "contact_0", "group_3", "1")
 	b := newTestStruct("user_1", "contact_2", "group_2", "2")

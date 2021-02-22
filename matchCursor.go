@@ -53,17 +53,12 @@ func (c *matchCursor) has(entryID []byte) (ok bool, err error) {
 	// Get the first key matching entryID (will get next key if entryID does not exist)
 	firstKey, _ := c.cur.Seek(entryID)
 	// If the first key matches the entry ID, we have a match
-	ok = bytes.Compare(entryID, firstKey) == 0
+	ok = bytes.Equal(entryID, firstKey)
 	return
 }
 
 func (c *matchCursor) getCurrentRelationshipID() (relationshipID string) {
 	return ""
-}
-
-func (c *matchCursor) teardown() {
-	c.txn = nil
-	c.cur = nil
 }
 
 // SeekForward will seek the provided ID
@@ -152,4 +147,8 @@ func (c *matchCursor) HasReverse(entryID []byte) (ok bool, err error) {
 	}
 
 	return c.has(entryID)
+}
+
+func (c *matchCursor) teardown() {
+	c.txn = nil
 }

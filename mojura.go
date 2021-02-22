@@ -2,6 +2,7 @@ package mojura
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"path"
 	"reflect"
@@ -19,8 +20,6 @@ const (
 	ErrNotInitialized = errors.Error("service has not been properly initialized")
 	// ErrRelationshipNotFound is returned when an relationship is not available for the given relationship key
 	ErrRelationshipNotFound = errors.Error("relationship was not found")
-	// ErrLookupNotFound is returned when a lookup is not available for the given lookup key
-	ErrLookupNotFound = errors.Error("lookup was not found")
 	// ErrEntryNotFound is returned when an entry is not available for the given ID
 	ErrEntryNotFound = errors.Error("entry was not found")
 	// ErrEndOfEntries is returned when a cursor has reached the end of entries
@@ -31,14 +30,12 @@ const (
 	ErrInvalidType = errors.Error("invalid type encountered, please check generators")
 	// ErrInvalidEntries is returned when a non-slice is presented to GetByRelationship
 	ErrInvalidEntries = errors.Error("invalid entries, slice expected")
-	// ErrInvalidLogKey is returned when an invalid log key is encountered
-	ErrInvalidLogKey = errors.Error("invalid log key, expecting a single :: delimiter")
 	// ErrEmptyFilters is returned when relationship pairs are empty for a filter or joined request
 	ErrEmptyFilters = errors.Error("invalid relationship pairs, cannot be empty")
-	// ErrInversePrimaryFilter is returned when the primary filter is set as an inverse comparison
-	ErrInversePrimaryFilter = errors.Error("invalid primary filter, cannot be an inverse comparison")
 	// ErrContextCancelled is returned when a transaction ends early from context
 	ErrContextCancelled = errors.Error("context cancelled")
+	// ErrInvalidBlockWriter is called when NextIndex is called on a nopBlockWriters
+	ErrInvalidBlockWriter = errors.Error("invalid block writer, cannot be used for the requested action")
 
 	// Break is a non-error which will cause a ForEach loop to break early
 	Break = errors.Error("break!")
@@ -48,6 +45,7 @@ var (
 	entriesBktKey       = []byte("entries")
 	relationshipsBktKey = []byte("relationships")
 	lookupsBktKey       = []byte("lookups")
+	metaBktKey          = []byte("meta")
 )
 
 // New will return a new instance of Mojura
@@ -73,6 +71,10 @@ func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...st
 
 	if err = m.init(name, dir, relationships); err != nil {
 		return
+	}
+
+	if opts.Importer != nil {
+		opts.Importer(m.onImport)
 	}
 
 	if m.k, err = kiroku.New(dir, name, opts.Exporter); err != nil {
@@ -110,6 +112,9 @@ func (m *Mojura) init(name, dir string, relationships []string) (err error) {
 		return fmt.Errorf("error opening db for %s (%s): %v", name, dir, err)
 	}
 
+	// Set relationships
+	m.relationships = getRelationshipsAsBytes(relationships)
+
 	err = m.db.Transaction(func(txn backend.Transaction) (err error) {
 		if _, err = txn.GetOrCreateBucket(entriesBktKey); err != nil {
 			return
@@ -119,18 +124,19 @@ func (m *Mojura) init(name, dir string, relationships []string) (err error) {
 			return
 		}
 
+		if _, err = txn.GetOrCreateBucket(metaBktKey); err != nil {
+			return
+		}
+
 		var relationshipsBkt backend.Bucket
 		if relationshipsBkt, err = txn.GetOrCreateBucket(relationshipsBktKey); err != nil {
 			return
 		}
 
-		for _, relationship := range relationships {
-			rbs := []byte(relationship)
-			if _, err = relationshipsBkt.GetOrCreateBucket(rbs); err != nil {
+		for _, relationship := range m.relationships {
+			if _, err = relationshipsBkt.GetOrCreateBucket(relationship); err != nil {
 				return
 			}
-
-			m.relationships = append(m.relationships, rbs)
 		}
 
 		return
@@ -139,17 +145,52 @@ func (m *Mojura) init(name, dir string, relationships []string) (err error) {
 	return
 }
 
+func (m *Mojura) initBuckets(txn backend.Transaction) (err error) {
+	if _, err = txn.GetOrCreateBucket(entriesBktKey); err != nil {
+		return
+	}
+
+	if _, err = txn.GetOrCreateBucket(lookupsBktKey); err != nil {
+		return
+	}
+
+	if _, err = txn.GetOrCreateBucket(metaBktKey); err != nil {
+		return
+	}
+
+	var relationshipsBkt backend.Bucket
+	if relationshipsBkt, err = txn.GetOrCreateBucket(relationshipsBktKey); err != nil {
+		return
+	}
+
+	for _, relationship := range m.relationships {
+		if _, err = relationshipsBkt.GetOrCreateBucket(relationship); err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+func (m *Mojura) purge(txn backend.Transaction) (err error) {
+	if err = txn.DeleteBucket(lookupsBktKey); err != nil {
+		return
+	}
+
+	if err = txn.DeleteBucket(metaBktKey); err != nil {
+		return
+	}
+
+	if err = txn.DeleteBucket(relationshipsBktKey); err != nil {
+		return
+	}
+
+	return m.initBuckets(txn)
+}
+
 func (m *Mojura) newReflectValue() (value reflect.Value) {
 	// Zero value of the entry type
 	return reflect.New(m.entryType)
-}
-
-func (m *Mojura) getLastIDAsIndex(entriesBkt backend.Bucket) (lastIndex uint64, err error) {
-	// Grab ID from the last Entry
-	// Note: We ignore the value because we do not need it
-	lastID, _ := entriesBkt.Cursor().Last()
-
-	return parseIDAsIndex(lastID)
 }
 
 func (m *Mojura) newEntryValue() (value Value) {
@@ -179,6 +220,80 @@ func (m *Mojura) newValueFromBytes(bs []byte) (val Value, err error) {
 	return
 }
 
+func (m *Mojura) getMeta(txn *Transaction) (meta kiroku.Meta, ok bool, err error) {
+	var bkt backend.Bucket
+	if bkt = txn.txn.GetBucket(metaBktKey); bkt == nil {
+		err = ErrNotInitialized
+		return
+	}
+
+	var bs []byte
+	if bs = bkt.Get([]byte("value")); len(bs) == 0 {
+		return
+	}
+
+	if err = json.Unmarshal(bs, &meta); err != nil {
+		return
+	}
+
+	ok = true
+	return
+}
+
+func (m *Mojura) setMeta(txn *Transaction, meta kiroku.Meta) (err error) {
+	var bkt backend.Bucket
+	if bkt = txn.txn.GetBucket(metaBktKey); bkt == nil {
+		err = ErrNotInitialized
+		return
+	}
+
+	var bs []byte
+	if bs, err = json.Marshal(meta); err != nil {
+		return
+	}
+
+	return bkt.Put([]byte("value"), bs)
+}
+
+func (m *Mojura) onImport(r *kiroku.Reader) (err error) {
+	return m.importTransaction(context.Background(), func(txn *Transaction) (err error) {
+		return m.importReader(txn, r)
+	})
+}
+
+func (m *Mojura) importReader(txn *Transaction, r *kiroku.Reader) (err error) {
+	var (
+		current kiroku.Meta
+		ok      bool
+	)
+
+	if current, ok, err = m.getMeta(txn); err != nil {
+		return
+	}
+
+	meta := r.Meta()
+	seekTo := current.TotalBlockSize
+
+	switch {
+	case !ok:
+		// No meta found on DB, full sync will occur
+
+	case current.LastSnapshotAt < meta.LastSnapshotAt:
+		// Snapshot occurred, purge DB and perform a full sync
+		if err = m.purge(txn.txn); err != nil {
+			return
+		}
+
+		seekTo = 0
+	}
+
+	if err = r.ForEach(seekTo, txn.processBlock); err != nil {
+		return
+	}
+
+	return m.setMeta(txn, meta)
+}
+
 func (m *Mojura) transaction(fn func(backend.Transaction, *kiroku.Writer) error) (err error) {
 	err = m.db.Transaction(func(txn backend.Transaction) (err error) {
 		err = m.k.Transaction(func(w *kiroku.Writer) (err error) {
@@ -191,8 +306,8 @@ func (m *Mojura) transaction(fn func(backend.Transaction, *kiroku.Writer) error)
 	return
 }
 
-func (m *Mojura) runTransaction(ctx context.Context, txn backend.Transaction, kw *kiroku.Writer, fn TransactionFn) (err error) {
-	t := newTransaction(ctx, m, txn, kw)
+func (m *Mojura) runTransaction(ctx context.Context, txn backend.Transaction, bw blockWriter, fn TransactionFn) (err error) {
+	t := newTransaction(ctx, m, txn, bw)
 	defer t.teardown()
 	errCh := make(chan error)
 
@@ -214,6 +329,22 @@ func (m *Mojura) runTransaction(ctx context.Context, txn backend.Transaction, kw
 	}
 
 	return
+}
+
+func (m *Mojura) importTransaction(ctx context.Context, fn func(*Transaction) error) (err error) {
+	err = m.db.Transaction(func(txn backend.Transaction) (err error) {
+		return m.runTransaction(ctx, txn, nopBW, fn)
+	})
+
+	return
+}
+
+func (m *Mojura) getLastIDAsIndex(entriesBkt backend.Bucket) (lastIndex uint64, err error) {
+	// Grab ID from the last Entry
+	// Note: We ignore the value because we do not need it
+	lastID, _ := entriesBkt.Cursor().Last()
+
+	return parseIDAsIndex(lastID)
 }
 
 // New will insert a new entry with the given value and the associated relationships
@@ -321,7 +452,7 @@ func (m *Mojura) Cursor(fn func(Cursor) error, fs ...Filter) (err error) {
 // Edit will attempt to edit an entry by ID
 func (m *Mojura) Edit(entryID string, val Value) (err error) {
 	err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
-		return txn.edit([]byte(entryID), val)
+		return txn.edit([]byte(entryID), val, false)
 	})
 
 	return

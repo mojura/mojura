@@ -9,7 +9,10 @@ import (
 	"strings"
 
 	"github.com/mojura/backend"
+	"github.com/mojura/kiroku"
 )
+
+var nopBW = &nopBlockWriter{}
 
 func getReflectedSlice(t reflect.Type, v interface{}) (slice reflect.Value, err error) {
 	ptr := reflect.ValueOf(v)
@@ -52,40 +55,6 @@ func isType(v reflect.Value, t reflect.Type) (ok bool) {
 	return e.Elem() == t
 }
 
-func isSliceMatch(a, b []string) (match bool) {
-	if len(a) != len(b) {
-		return
-	}
-
-	for i := range a {
-		if a[i] != b[i] {
-			return
-		}
-	}
-
-	return true
-}
-
-func getLogKey(bucket, key []byte) (logKey []byte) {
-	logKey = make([]byte, 0, len(bucket)+len(key)+2)
-	logKey = append(logKey, bucket...)
-	logKey = append(logKey, "::"...)
-	logKey = append(logKey, key...)
-	return
-}
-
-func parseLogKey(logKey []byte) (bucket, key []byte, err error) {
-	spl := bytes.Split(logKey, []byte("::"))
-	if len(spl) != 2 {
-		err = ErrInvalidLogKey
-		return
-	}
-
-	bucket = spl[0]
-	key = spl[1]
-	return
-}
-
 func recoverCall(txn *Transaction, fn TransactionFn) (err error) {
 	defer func() {
 		if p := recover(); p != nil {
@@ -103,18 +72,6 @@ func isDone(ctx context.Context) (done bool) {
 	default:
 	}
 
-	return
-}
-
-func getPartedFilters(fs []Filter) (primary Filter, remaining []Filter, err error) {
-	// Set primary as the first entry
-	primary = fs[0]
-	if len(fs) == 1 {
-		return
-	}
-
-	// Set remaining values
-	remaining = fs[1:]
 	return
 }
 
@@ -221,4 +178,29 @@ func joinSeekID(relationshipID, entryID string) (seekID string) {
 func hasEntries(bkt backend.Bucket) (ok bool) {
 	k, _ := bkt.Cursor().First()
 	return len(k) > 0
+}
+
+func getRelationshipsAsBytes(relationships []string) (out [][]byte) {
+	for _, relationship := range relationships {
+		rbs := []byte(relationship)
+		out = append(out, rbs)
+	}
+
+	return
+}
+
+type blockWriter interface {
+	AddBlock(t kiroku.Type, key, value []byte) error
+	NextIndex() (uint64, error)
+}
+
+type nopBlockWriter struct{}
+
+func (n *nopBlockWriter) AddBlock(t kiroku.Type, key, value []byte) error {
+	return nil
+}
+
+func (n *nopBlockWriter) NextIndex() (index uint64, err error) {
+	err = ErrInvalidBlockWriter
+	return
 }

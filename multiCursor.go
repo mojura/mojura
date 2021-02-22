@@ -18,11 +18,6 @@ type multiCursor struct {
 	mid *multiIDCursor
 }
 
-func (c *multiCursor) teardown() {
-	c.txn = nil
-	c.mid = nil
-}
-
 // Seek is an alias for SeekForward
 func (c *multiCursor) Seek(seekID string) (val Value, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
@@ -130,4 +125,9 @@ func (c *multiCursor) get(entryID []byte) (val Value, err error) {
 
 func (c *multiCursor) getCurrentRelationshipID() (relationshipID string) {
 	return c.mid.getCurrentRelationshipID()
+}
+
+func (c *multiCursor) teardown() {
+	c.txn = nil
+	c.mid = nil
 }

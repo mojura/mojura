@@ -6,8 +6,8 @@ require (
 	github.com/gdbu/atoms v1.0.1
 	github.com/gdbu/stringset v0.1.5
 	github.com/hatchify/errors v0.4.82
-	github.com/mojura-backends/bolt v0.2.0
-	github.com/mojura/backend v0.2.0
+	github.com/mojura-backends/bolt v0.2.1
+	github.com/mojura/backend v0.2.1
 	github.com/mojura/kiroku v0.0.0-20210125214840-6e8ca3e0ef38
 )
 

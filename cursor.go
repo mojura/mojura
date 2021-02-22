@@ -11,4 +11,5 @@ type Cursor interface {
 	Prev() (value Value, err error)
 
 	getCurrentRelationshipID() (relationshipID string)
+	teardown()
 }
