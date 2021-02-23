@@ -8,6 +8,8 @@ import (
 	"reflect"
 
 	"github.com/gdbu/atoms"
+	"github.com/gdbu/scribe"
+	"github.com/gdbu/stopwatch"
 
 	"github.com/hatchify/errors"
 
@@ -65,6 +67,7 @@ func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...st
 		return
 	}
 
+	m.out = scribe.New(fmt.Sprintf("Mojura (%s)", name))
 	m.opts = &opts
 	m.entryType = getMojuraType(example)
 	m.indexFmt = fmt.Sprintf("%s0%dd", "%", opts.IndexLength)
@@ -73,16 +76,22 @@ func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...st
 		return
 	}
 
-	if opts.Importer != nil {
-		opts.Importer(m.onImport)
+	if m.k, err = kiroku.New(dir, name, opts.Exporter); err != nil {
+		return
 	}
 
-	if m.k, err = kiroku.New(dir, name, opts.Exporter); err != nil {
+	if err = m.build(); err != nil {
+		err = fmt.Errorf("error encountered while building history: %v", err)
 		return
 	}
 
 	// Initialize new batcher
 	m.b = newBatcher(&m)
+
+	if opts.Importer != nil {
+		opts.Importer(m.onImport)
+	}
+
 	// Set return pointer
 	mp = &m
 	return
@@ -90,9 +99,10 @@ func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...st
 
 // Mojura is the DB manager
 type Mojura struct {
-	db backend.Backend
-	k  *kiroku.Kiroku
-	b  *batcher
+	db  backend.Backend
+	out *scribe.Scribe
+	k   *kiroku.Kiroku
+	b   *batcher
 
 	opts     *Opts
 	indexFmt string
@@ -168,6 +178,101 @@ func (m *Mojura) initBuckets(txn backend.Transaction) (err error) {
 			return
 		}
 	}
+
+	return
+}
+
+func (m *Mojura) build() (err error) {
+	var meta kiroku.Meta
+	if meta, err = m.k.Meta(); err != nil {
+		return
+	}
+
+	var hasEntries bool
+	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
+		var bkt backend.Bucket
+		if bkt, err = txn.getEntriesBucket(); err != nil {
+			err = fmt.Errorf("error getting entries bucket: %v", err)
+			return
+		}
+
+		hasEntries = m.hasEntries(bkt)
+		return
+	})
+
+	switch {
+	case meta.BlockCount == 0 && hasEntries:
+		// TODO: Discuss with the team about removing this method after the next
+		// minor version. I can't think of any reason to maintain history building
+		// after we ensure safe migration from previous versions.
+		return m.buildHistory()
+	case meta.BlockCount > 0 && !hasEntries:
+		return m.buildDatabase()
+
+	default:
+		return
+	}
+}
+
+func (m *Mojura) buildHistory() (err error) {
+	var n int64
+	m.out.Notification("Found populated database with an empty history file, building history file from database entries")
+	if err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
+		var bkt backend.Bucket
+		if bkt, err = txn.getEntriesBucket(); err != nil {
+			err = fmt.Errorf("error getting entries bucket: %v", err)
+			return
+		}
+
+		if n, err = m.dumpHistory(bkt); err != nil {
+			err = fmt.Errorf("error encountered while dumping to history file: %v", err)
+			return
+		}
+
+		return
+	}); err != nil {
+		return
+	}
+
+	m.out.Successf("Appended %d blocks to the history file", n)
+	return
+}
+
+func (m *Mojura) buildDatabase() (err error) {
+	var filename string
+	m.out.Notification("Found populated history file with an empty database, building database from history file")
+	if filename, err = m.k.Filename(); err != nil {
+		err = fmt.Errorf("error getting filename of history file: %v", err)
+		return
+	}
+
+	return kiroku.Read(filename, m.onImport)
+}
+
+func (m *Mojura) dumpHistory(bkt backend.Bucket) (n int64, err error) {
+	var lastID []byte
+	err = m.k.Transaction(func(w *kiroku.Writer) (err error) {
+		cur := bkt.Cursor()
+		for key, value := cur.First(); len(key) > 0; key, value = cur.Next() {
+			if err = w.AddBlock(kiroku.TypeWriteAction, key, value); err != nil {
+				return
+			}
+
+			lastID = key
+			n++
+		}
+
+		var lastIndex uint64
+		if lastIndex, err = parseIDAsIndex(lastID); err != nil {
+			return
+		}
+
+		if err = w.SetIndex(lastIndex); err != nil {
+			return
+		}
+
+		return
+	})
 
 	return
 }
@@ -273,25 +378,50 @@ func (m *Mojura) importReader(txn *Transaction, r *kiroku.Reader) (err error) {
 
 	meta := r.Meta()
 	seekTo := current.TotalBlockSize
+	blockCount := meta.BlockCount
 
 	switch {
 	case !ok:
-		// No meta found on DB, full sync will occur
+		// Produce system log for fresh database build
+		m.out.Notificationf("Building fresh database from %d blocks", blockCount)
+
+	case meta == current:
+		// No changes have occurred, return
+		return
 
 	case current.LastSnapshotAt < meta.LastSnapshotAt:
+		// Produce system log for purge
+		m.out.Notificationf("Snapshot encountered, purging existing entries and building fresh database from %d blocks", blockCount)
+
 		// Snapshot occurred, purge DB and perform a full sync
 		if err = m.purge(txn.txn); err != nil {
 			return
 		}
 
 		seekTo = 0
+
+	default:
+		blockCount -= current.BlockCount
+
+		// Produce system log for database sync
+		m.out.Notificationf("Syncing %d blocks with", blockCount)
 	}
 
+	var sw stopwatch.Stopwatch
+	sw.Start()
+
+	// Iterate through all entries from a given point within Reader
 	if err = r.ForEach(seekTo, txn.processBlock); err != nil {
 		return
 	}
 
-	return m.setMeta(txn, meta)
+	// Update meta to match the new meta state
+	if err = m.setMeta(txn, meta); err != nil {
+		return
+	}
+
+	m.out.Successf("Successfully processed %d blocks in %v", blockCount, sw.Stop())
+	return
 }
 
 func (m *Mojura) transaction(fn func(backend.Transaction, *kiroku.Writer) error) (err error) {
@@ -339,12 +469,15 @@ func (m *Mojura) importTransaction(ctx context.Context, fn func(*Transaction) er
 	return
 }
 
-func (m *Mojura) getLastIDAsIndex(entriesBkt backend.Bucket) (lastIndex uint64, err error) {
+func (m *Mojura) hasEntries(entriesBkt backend.Bucket) (ok bool) {
 	// Grab ID from the last Entry
 	// Note: We ignore the value because we do not need it
 	lastID, _ := entriesBkt.Cursor().Last()
+	if len(lastID) == 0 {
+		return
+	}
 
-	return parseIDAsIndex(lastID)
+	return true
 }
 
 // New will insert a new entry with the given value and the associated relationships
