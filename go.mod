@@ -4,6 +4,8 @@ go 1.14
 
 require (
 	github.com/gdbu/atoms v1.0.1
+	github.com/gdbu/scribe v0.4.88
+	github.com/gdbu/stopwatch v0.5.0
 	github.com/gdbu/stringset v0.1.5
 	github.com/hatchify/errors v0.4.82
 	github.com/mojura-backends/bolt v0.2.1
