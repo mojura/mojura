@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -55,6 +56,148 @@ func TestMojura_New(t *testing.T) {
 
 	if len(entryID) == 0 {
 		t.Fatal("invalid entry id, expected non-empty value")
+	}
+}
+
+func TestMojura_New_with_database_build(t *testing.T) {
+	var (
+		c   *Mojura
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+
+	var entryID string
+	if entryID, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	// Give history file time to write
+	time.Sleep(time.Millisecond * 100)
+
+	if err = c.Close(); err != nil {
+		t.Fatalf("error closing: %v", err)
+	}
+
+	filename := path.Join(testDir, "test.bdb")
+	if err = os.Remove(filename); err != nil {
+		t.Fatal(err)
+	}
+
+	if c, err = testInit(); err != nil {
+		t.Fatalf("error initializing: %v", err)
+	}
+	defer testTeardown(c, t)
+
+	var e testStruct
+	if err = c.Get(entryID, &e); err != nil {
+		t.Fatalf("error getting: %v", err)
+	}
+
+	if err = foobar.compare(&e); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMojura_New_with_history_build(t *testing.T) {
+	var (
+		c   *Mojura
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+
+	var entryID string
+	if entryID, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = c.Close(); err != nil {
+		t.Fatalf("error closing: %v", err)
+	}
+
+	filename := path.Join(testDir, "test.moj")
+	if err = os.Remove(filename); err != nil {
+		t.Fatal(err)
+	}
+
+	if c, err = testInit(); err != nil {
+		t.Fatalf("error initializing: %v", err)
+	}
+	defer testTeardown(c, t)
+
+	var e testStruct
+	if err = c.Get(entryID, &e); err != nil {
+		t.Fatalf("error getting: %v", err)
+	}
+
+	if err = foobar.compare(&e); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMojura_New_with_history_and_database_build(t *testing.T) {
+	var (
+		c   *Mojura
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+
+	var entryID string
+	if entryID, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	// Give history file time to write
+	time.Sleep(time.Millisecond * 100)
+
+	if err = c.Close(); err != nil {
+		t.Fatalf("error closing: %v", err)
+	}
+
+	filename := path.Join(testDir, "test.moj")
+	if err = os.Remove(filename); err != nil {
+		t.Fatal(err)
+	}
+
+	if c, err = testInit(); err != nil {
+		t.Fatalf("error initializing: %v", err)
+	}
+
+	if err = c.Close(); err != nil {
+		t.Fatalf("error closing: %v", err)
+	}
+
+	filename = path.Join(testDir, "test.bdb")
+	if err = os.Remove(filename); err != nil {
+		t.Fatal(err)
+	}
+
+	if c, err = testInit(); err != nil {
+		t.Fatalf("error initializing: %v", err)
+	}
+	defer testTeardown(c, t)
+
+	var e testStruct
+	if err = c.Get(entryID, &e); err != nil {
+		t.Fatalf("error getting: %v", err)
+	}
+
+	if err = foobar.compare(&e); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -1454,4 +1597,24 @@ func (t *testStruct) GetRelationships() (r Relationships) {
 	r.Append(t.GroupID)
 	r.Append(t.Tags...)
 	return
+}
+
+func (t *testStruct) compare(v *testStruct) (err error) {
+	var errs errors.ErrorList
+	if v.UserID != t.UserID {
+		err = fmt.Errorf("invalid user ID, expected <%s> and received <%s>", t.UserID, v.UserID)
+		errs.Push(err)
+	}
+
+	if v.ContactID != t.ContactID {
+		err = fmt.Errorf("invalid contact ID, expected <%s> and received <%s>", t.ContactID, v.ContactID)
+		errs.Push(err)
+	}
+
+	if v.GroupID != t.GroupID {
+		err = fmt.Errorf("invalid group ID, expected <%s> and received <%s>", t.GroupID, v.UserID)
+		errs.Push(err)
+	}
+
+	return errs.Err()
 }
