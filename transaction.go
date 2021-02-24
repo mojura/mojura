@@ -256,7 +256,12 @@ func (t *Transaction) updateRelationships(entryID []byte, orig, new Relationship
 			return t.unsetRelationship(t.m.relationships[i], relationshipID, entryID)
 		}
 
-		if err = relationship.delta(orig[i], onAdd, onRemove); err != nil {
+		var origR Relationship
+		if orig != nil {
+			origR = orig[i]
+		}
+
+		if err = relationship.delta(origR, onAdd, onRemove); err != nil {
 			return
 		}
 	}
