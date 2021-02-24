@@ -77,7 +77,7 @@ func TestMojura_New_with_database_build(t *testing.T) {
 	}
 
 	// Give history file time to write
-	time.Sleep(time.Millisecond * 100)
+	time.Sleep(time.Millisecond * 300)
 
 	if err = c.Close(); err != nil {
 		t.Fatalf("error closing: %v", err)
@@ -119,6 +119,9 @@ func TestMojura_New_with_history_build(t *testing.T) {
 	if entryID, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
 	}
+
+	// Give history file time to write
+	time.Sleep(time.Millisecond * 300)
 
 	if err = c.Close(); err != nil {
 		t.Fatalf("error closing: %v", err)
@@ -162,7 +165,7 @@ func TestMojura_New_with_history_and_database_build(t *testing.T) {
 	}
 
 	// Give history file time to write
-	time.Sleep(time.Millisecond * 100)
+	time.Sleep(time.Millisecond * 300)
 
 	if err = c.Close(); err != nil {
 		t.Fatalf("error closing: %v", err)
@@ -176,6 +179,9 @@ func TestMojura_New_with_history_and_database_build(t *testing.T) {
 	if c, err = testInit(); err != nil {
 		t.Fatalf("error initializing: %v", err)
 	}
+
+	// Give history file time to write
+	time.Sleep(time.Millisecond * 300)
 
 	if err = c.Close(); err != nil {
 		t.Fatalf("error closing: %v", err)
