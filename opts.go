@@ -47,6 +47,8 @@ type Opts struct {
 	MaxBatchCalls    int
 	MaxBatchDuration time.Duration
 	RetryBatchFail   bool
+
+	kiroku.Options
 }
 
 // Validate will validate a set of Options

@@ -76,7 +76,7 @@ func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...st
 		return
 	}
 
-	if m.k, err = kiroku.New(dir, name, opts.Exporter); err != nil {
+	if m.k, err = kiroku.New(dir, name, opts.Exporter, &m.opts.Options); err != nil {
 		return
 	}
 
