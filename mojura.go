@@ -43,6 +43,8 @@ const (
 	ErrInversePrimaryFilter = errors.Error("invalid primary filter, cannot be an inverse comparison")
 	// ErrContextCancelled is returned when a transaction ends early from context
 	ErrContextCancelled = errors.Error("context cancelled")
+	// ErrEmptyEntryID is returned when an entry ID is empty
+	ErrEmptyEntryID = errors.Error("invalid entry ID, cannot be empty")
 
 	// Break is a non-error which will cause a ForEach loop to break early
 	Break = errors.Error("break!")
@@ -375,6 +377,17 @@ func (m *Mojura) Cursor(fn func(Cursor) error, fs ...Filter) (err error) {
 	}); err == Break {
 		err = nil
 	}
+
+	return
+}
+
+// Put will place an entry at a given entry ID
+// Note: This will not check to see if the entry exists beforehand. If this functionality
+// is needed, look into using the Edit method
+func (m *Mojura) Put(entryID string, val Value) (err error) {
+	err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+		return txn.put([]byte(entryID), val)
+	})
 
 	return
 }
