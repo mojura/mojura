@@ -134,8 +134,7 @@ func (m *Mojura) init(name, dir string, relationships []string) (err error) {
 	}
 
 	err = m.db.Transaction(func(txn backend.Transaction) (err error) {
-		var entriesBkt backend.Bucket
-		if entriesBkt, err = txn.GetOrCreateBucket(entriesBktKey); err != nil {
+		if _, err = txn.GetOrCreateBucket(entriesBktKey); err != nil {
 			return
 		}
 
@@ -157,11 +156,6 @@ func (m *Mojura) init(name, dir string, relationships []string) (err error) {
 			m.relationships = append(m.relationships, rbs)
 		}
 
-		if err = m.setIndexer(entriesBkt); err != nil {
-			err = fmt.Errorf("error reading last ID: %v", err)
-			return
-		}
-
 		return
 	})
 
@@ -171,25 +165,6 @@ func (m *Mojura) init(name, dir string, relationships []string) (err error) {
 func (m *Mojura) newReflectValue() (value reflect.Value) {
 	// Zero value of the entry type
 	return reflect.New(m.entryType)
-}
-
-func (m *Mojura) setIndexer(entriesBkt backend.Bucket) (err error) {
-	if m.idx.Get() != 0 {
-		// Indexer has already been set, bail out
-		return
-	}
-
-	// Since indexer has not been set it, set the index value from the current last entry
-
-	lastID, _ := entriesBkt.Cursor().Last()
-
-	var value uint64
-	if value, err = parseIDAsIndex(lastID); err != nil {
-		return
-	}
-
-	m.idx.Set(value)
-	return m.idx.Flush()
 }
 
 func (m *Mojura) newEntryValue() (value Value) {
