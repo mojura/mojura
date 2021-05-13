@@ -10,6 +10,8 @@ func newFilterCursor(txn *Transaction, f Filter) (fc filterCursor, err error) {
 	switch n := f.(type) {
 	case *filters.MatchFilter:
 		return newMatchCursor(txn, n)
+	case *filters.InverseMatchFilter:
+		return newInverseMatchCursor(txn, n)
 	case *filters.ComparisonFilter:
 		return newComparisonCursor(txn, n)
 	default:
