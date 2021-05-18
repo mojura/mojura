@@ -571,6 +571,90 @@ func Test_inverseMatchCursor_HasReverse(t *testing.T) {
 	testInverseMatchCursorHas(t, fn)
 }
 
+func Test_inverseMatchCursor_ForEach(t *testing.T) {
+	var (
+		m   *Mojura
+		err error
+	)
+
+	if m, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(m)
+
+	type expected struct {
+		expectedID  string
+		expectedErr error
+	}
+
+	type testcase struct {
+		relationshipKey string
+		relationshipID  string
+		expected        []expected
+	}
+
+	a := newTestStruct("user_0", "contact_0", "group_3", "1")
+	b := newTestStruct("user_1", "contact_2", "group_2", "2")
+	c := newTestStruct("user_2", "contact_2", "group_1", "3")
+
+	tcs := []testcase{
+		{
+			relationshipKey: "users",
+			relationshipID:  "user_2",
+			expected: []expected{
+				{expectedID: "00000000"},
+				{expectedID: "00000001"},
+				{expectedErr: Break},
+			},
+		},
+		{
+			relationshipKey: "contacts",
+			relationshipID:  "contact_2",
+			expected: []expected{
+				{expectedID: "00000000"},
+				{expectedErr: Break},
+			},
+		},
+		{
+			relationshipKey: "groups",
+			relationshipID:  "group_2",
+			expected: []expected{
+				{expectedID: "00000002"},
+				{expectedID: "00000000"},
+				{expectedErr: Break},
+			},
+		},
+	}
+
+	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+		if _, err = txn.New(a); err != nil {
+			return
+		}
+
+		if _, err = txn.New(b); err != nil {
+			return
+		}
+
+		if _, err = txn.New(c); err != nil {
+			return
+		}
+
+		for _, tc := range tcs {
+			f := filters.InverseMatch(tc.relationshipKey, tc.relationshipID)
+			opts := NewIteratingOpts(f)
+			if err = txn.ForEach(func(entryID string, val Value) (err error) {
+				return
+			}, opts); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func testInverseMatchCursorHas(t *testing.T, fn func(c filterCursor, entryID []byte) (value bool, err error)) {
 	type expected struct {
 		value bool
