@@ -216,7 +216,7 @@ func (c *inverseMatchCursor) firstBktKey() (bktKey []byte, err error) {
 		case bktKey == nil:
 			err = Break
 			return
-		case !bytes.Equal(c.targetRelationshipID, c.currentRelationshipID):
+		case !bytes.Equal(c.targetRelationshipID, bktKey):
 			return
 
 		default:
@@ -250,14 +250,13 @@ func (c *inverseMatchCursor) lastBktKey() (bktKey []byte, err error) {
 		case bktKey == nil:
 			err = Break
 			return
-		case !bytes.Equal(c.targetRelationshipID, c.currentRelationshipID):
+		case !bytes.Equal(c.targetRelationshipID, bktKey):
 			return
 
 		default:
 			bktKey, _ = c.bktCur.Next()
 		}
 	}
-	return
 }
 
 func (c *inverseMatchCursor) last() (entryID []byte, err error) {
@@ -381,7 +380,6 @@ func (c *inverseMatchCursor) First() (entryID []byte, err error) {
 	}
 
 	return c.first()
-
 }
 
 // Next will return the next entry
