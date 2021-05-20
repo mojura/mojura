@@ -583,8 +583,7 @@ func Test_inverseMatchCursor_ForEach(t *testing.T) {
 	defer testTeardown(m)
 
 	type expected struct {
-		expectedID  string
-		expectedErr error
+		expectedID string
 	}
 
 	type testcase struct {
@@ -600,11 +599,10 @@ func Test_inverseMatchCursor_ForEach(t *testing.T) {
 	tcs := []testcase{
 		{
 			relationshipKey: "users",
-			relationshipID:  "user_2",
+			relationshipID:  "user_0",
 			expected: []expected{
-				{expectedID: "00000000"},
 				{expectedID: "00000001"},
-				{expectedErr: Break},
+				{expectedID: "00000002"},
 			},
 		},
 		{
@@ -612,7 +610,6 @@ func Test_inverseMatchCursor_ForEach(t *testing.T) {
 			relationshipID:  "contact_2",
 			expected: []expected{
 				{expectedID: "00000000"},
-				{expectedErr: Break},
 			},
 		},
 		{
@@ -621,7 +618,6 @@ func Test_inverseMatchCursor_ForEach(t *testing.T) {
 			expected: []expected{
 				{expectedID: "00000002"},
 				{expectedID: "00000000"},
-				{expectedErr: Break},
 			},
 		},
 	}
@@ -639,13 +635,29 @@ func Test_inverseMatchCursor_ForEach(t *testing.T) {
 			return
 		}
 
-		for _, tc := range tcs {
+		for i, tc := range tcs {
 			f := filters.InverseMatch(tc.relationshipKey, tc.relationshipID)
 			opts := NewIteratingOpts(f)
+			var index int
 			if err = txn.ForEach(func(entryID string, val Value) (err error) {
+				if index > len(tc.expected) {
+					return fmt.Errorf("invalid number of entries, received more than the expected %d", len(tc.expected))
+				}
+
+				target := tc.expected[index]
+
+				if target.expectedID != val.GetID() {
+					return fmt.Errorf("invalid ID, expected <%s> and received <%s>", target.expectedID, val.GetID())
+				}
+
+				index++
 				return
 			}, opts); err != nil {
-				t.Fatal(err)
+				return fmt.Errorf("error encountered for row %d: %v", i, err)
+			}
+
+			if index != len(tc.expected) {
+				return fmt.Errorf("invalid number of entries, received less than the expected %d for row %d", len(tc.expected), i)
 			}
 		}
 
