@@ -453,12 +453,12 @@ func Test_inverseMatchCursor_Prev(t *testing.T) {
 
 				var idBytes []byte
 				if idBytes, err = fn(); err != exp.expectedErr {
-					err = fmt.Errorf("invalid error, expected <%v> and received <%v> (test case #%d)", exp.expectedErr, err, i)
+					err = fmt.Errorf("invalid error, expected <%v> and received <%v> (test case #%d, entry #%d)", exp.expectedErr, err, i, j)
 					return
 				}
 
 				if id := string(idBytes); id != exp.expectedID {
-					err = fmt.Errorf("invalid ID, expected <%s> and received <%s> (test case #%d)", exp.expectedID, id, i)
+					err = fmt.Errorf("invalid ID, expected <%s> and received <%s> (test case #%d, entry #%d)", exp.expectedID, id, i, j)
 					return
 				}
 			}
