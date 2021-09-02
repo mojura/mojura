@@ -254,7 +254,7 @@ func (c *inverseMatchCursor) lastBktKey() (bktKey []byte, err error) {
 			return
 
 		default:
-			bktKey, _ = c.bktCur.Next()
+			bktKey, _ = c.bktCur.Prev()
 		}
 	}
 }
