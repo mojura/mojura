@@ -14,6 +14,10 @@ func newComparisonCursor(txn *Transaction, f *filters.ComparisonFilter) (fc filt
 		return newBaseComparisonCursor(txn, f)
 	}
 
+	return newKeyComparisonCursor(txn, f)
+}
+
+func newKeyComparisonCursor(txn *Transaction, f *filters.ComparisonFilter) (cur *comparisonCursor, err error) {
 	var c comparisonCursor
 	if c.parent, err = txn.getRelationshipBucket([]byte(f.RelationshipKey)); err != nil {
 		return
@@ -25,7 +29,7 @@ func newComparisonCursor(txn *Transaction, f *filters.ComparisonFilter) (fc filt
 
 	c.rangeStart = []byte(f.RangeStart)
 	c.rangeEnd = []byte(f.RangeEnd)
-	fc = &c
+	cur = &c
 	return
 }
 

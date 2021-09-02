@@ -86,7 +86,7 @@ func Test_comparisonCursor_SeekForward(t *testing.T) {
 		for i, tc := range tcs {
 			var cur *comparisonCursor
 			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
-			if cur, err = newComparisonCursor(txn, f); err != nil {
+			if cur, err = newKeyComparisonCursor(txn, f); err != nil {
 				return
 			}
 
@@ -188,7 +188,7 @@ func Test_comparisonCursor_SeekReverse(t *testing.T) {
 		for i, tc := range tcs {
 			var cur *comparisonCursor
 			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
-			if cur, err = newComparisonCursor(txn, f); err != nil {
+			if cur, err = newKeyComparisonCursor(txn, f); err != nil {
 				return
 			}
 
@@ -281,7 +281,7 @@ func Test_comparisonCursor_First(t *testing.T) {
 		for i, tc := range tcs {
 			var cur *comparisonCursor
 			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
-			if cur, err = newComparisonCursor(txn, f); err != nil {
+			if cur, err = newKeyComparisonCursor(txn, f); err != nil {
 				return
 			}
 
@@ -378,7 +378,7 @@ func Test_comparisonCursor_First_with_deletion(t *testing.T) {
 		for i, tc := range tcs {
 			var cur *comparisonCursor
 			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
-			if cur, err = newComparisonCursor(txn, f); err != nil {
+			if cur, err = newKeyComparisonCursor(txn, f); err != nil {
 				return
 			}
 
@@ -482,7 +482,7 @@ func Test_comparisonCursor_Next(t *testing.T) {
 		for i, tc := range tcs {
 			var cur *comparisonCursor
 			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
-			if cur, err = newComparisonCursor(txn, f); err != nil {
+			if cur, err = newKeyComparisonCursor(txn, f); err != nil {
 				return
 			}
 
@@ -591,7 +591,7 @@ func Test_comparisonCursor_Prev(t *testing.T) {
 		for i, tc := range tcs {
 			var cur *comparisonCursor
 			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
-			if cur, err = newComparisonCursor(txn, f); err != nil {
+			if cur, err = newKeyComparisonCursor(txn, f); err != nil {
 				return
 			}
 
@@ -689,7 +689,7 @@ func Test_comparisonCursor_Last(t *testing.T) {
 		for i, tc := range tcs {
 			var cur *comparisonCursor
 			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
-			if cur, err = newComparisonCursor(txn, f); err != nil {
+			if cur, err = newKeyComparisonCursor(txn, f); err != nil {
 				return
 			}
 
@@ -786,7 +786,7 @@ func Test_comparisonCursor_Last_with_deletion(t *testing.T) {
 		for i, tc := range tcs {
 			var cur *comparisonCursor
 			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
-			if cur, err = newComparisonCursor(txn, f); err != nil {
+			if cur, err = newKeyComparisonCursor(txn, f); err != nil {
 				return
 			}
 
@@ -909,7 +909,7 @@ func testComparisonCursorHas(t *testing.T, fn func(c *comparisonCursor, entryID 
 		for i, tc := range tcs {
 			var cur *comparisonCursor
 			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
-			if cur, err = newComparisonCursor(txn, f); err != nil {
+			if cur, err = newKeyComparisonCursor(txn, f); err != nil {
 				return
 			}
 
