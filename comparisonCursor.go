@@ -9,7 +9,15 @@ import (
 
 var _ filterCursor = &comparisonCursor{}
 
-func newComparisonCursor(txn *Transaction, f *filters.ComparisonFilter) (cur *comparisonCursor, err error) {
+func newComparisonCursor(txn *Transaction, f *filters.ComparisonFilter) (fc filterCursor, err error) {
+	if len(f.RelationshipKey) == 0 {
+		return newBaseComparisonCursor(txn, f)
+	}
+
+	return newKeyComparisonCursor(txn, f)
+}
+
+func newKeyComparisonCursor(txn *Transaction, f *filters.ComparisonFilter) (cur *comparisonCursor, err error) {
 	var c comparisonCursor
 	if c.parent, err = txn.getRelationshipBucket([]byte(f.RelationshipKey)); err != nil {
 		return

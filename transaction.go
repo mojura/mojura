@@ -116,7 +116,7 @@ func (t *Transaction) exists(entryID []byte) (ok bool, err error) {
 	return
 }
 
-func (t *Transaction) put(entryID []byte, val Value) (err error) {
+func (t *Transaction) insertEntry(entryID []byte, val Value) (err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -368,12 +368,29 @@ func (t *Transaction) new(val Value) (entryID []byte, err error) {
 	// Create a padded entry ID from index value
 	entryID = []byte(fmt.Sprintf(t.m.indexFmt, index))
 
+	if err = t.put(entryID, val); err != nil {
+		entryID = nil
+		return
+	}
+
+	return
+}
+
+func (t *Transaction) put(entryID []byte, val Value) (err error) {
+	if len(entryID) == 0 {
+		return ErrEmptyEntryID
+	}
+
+	if err = t.cc.isDone(); err != nil {
+		return
+	}
+
 	val.SetID(string(entryID))
 	if val.GetCreatedAt() == 0 {
 		val.SetCreatedAt(time.Now().Unix())
 	}
 
-	if err = t.put(entryID, val); err != nil {
+	if err = t.insertEntry(entryID, val); err != nil {
 		return
 	}
 
@@ -577,6 +594,13 @@ func (t *Transaction) ForEachID(fn ForEachIDFn, o *IteratingOpts) (err error) {
 	}
 
 	return
+}
+
+// Put will place an entry at a given entry ID
+// Note: This will not check to see if the entry exists beforehand. If this functionality
+// is needed, look into using the Edit method
+func (t *Transaction) Put(entryID string, val Value) (err error) {
+	return t.put([]byte(entryID), val)
 }
 
 // Edit will attempt to edit an entry by ID

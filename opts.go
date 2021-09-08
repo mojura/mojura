@@ -40,7 +40,7 @@ type Opts struct {
 	Encoder     Encoder
 
 	Importer func(kiroku.Processor)
-	Exporter kiroku.Processor
+	Exporter kiroku.Exporter
 
 	IndexLength int
 

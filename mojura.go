@@ -38,6 +38,8 @@ const (
 	ErrContextCancelled = errors.Error("context cancelled")
 	// ErrInvalidBlockWriter is called when NextIndex is called on a nopBlockWriters
 	ErrInvalidBlockWriter = errors.Error("invalid block writer, cannot be used for the requested action")
+	// ErrEmptyEntryID is returned when an entry ID is empty
+	ErrEmptyEntryID = errors.Error("invalid entry ID, cannot be empty")
 
 	// Break is a non-error which will cause a ForEach loop to break early
 	Break = errors.Error("break!")
@@ -76,7 +78,10 @@ func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...st
 		return
 	}
 
-	if m.k, err = kiroku.New(dir, name, opts.Exporter, &m.opts.Options); err != nil {
+	m.opts.Options.Name = name
+	m.opts.Options.Dir = dir
+
+	if m.k, err = kiroku.New(m.opts.Options, opts.Exporter); err != nil {
 		return
 	}
 
@@ -251,10 +256,10 @@ func (m *Mojura) buildDatabase() (err error) {
 
 func (m *Mojura) dumpHistory(bkt backend.Bucket) (n int64, err error) {
 	var lastID []byte
-	err = m.k.Transaction(func(w *kiroku.Writer) (err error) {
+	err = m.k.Transaction(func(txn *kiroku.Transaction) (err error) {
 		cur := bkt.Cursor()
 		for key, value := cur.First(); len(key) > 0; key, value = cur.Next() {
-			if err = w.AddBlock(kiroku.TypeWriteAction, key, value); err != nil {
+			if err = txn.AddBlock(kiroku.TypeWriteAction, key, value); err != nil {
 				return
 			}
 
@@ -267,7 +272,7 @@ func (m *Mojura) dumpHistory(bkt backend.Bucket) (n int64, err error) {
 			return
 		}
 
-		if err = w.SetIndex(lastIndex); err != nil {
+		if err = txn.SetIndex(lastIndex); err != nil {
 			return
 		}
 
@@ -345,7 +350,7 @@ func (m *Mojura) getMeta(txn *Transaction) (meta kiroku.Meta, ok bool, err error
 	return
 }
 
-func (m *Mojura) setMeta(txn *Transaction, meta kiroku.Meta) (err error) {
+func (m *Mojura) setMeta(txn *Transaction, meta metadata) (err error) {
 	var bkt backend.Bucket
 	if bkt = txn.txn.GetBucket(metaBktKey); bkt == nil {
 		err = ErrNotInitialized
@@ -410,13 +415,16 @@ func (m *Mojura) importReader(txn *Transaction, r *kiroku.Reader) (err error) {
 	var sw stopwatch.Stopwatch
 	sw.Start()
 
+	var md metadata
 	// Iterate through all entries from a given point within Reader
-	if err = r.ForEach(seekTo, txn.processBlock); err != nil {
+	if md.LastPosition, err = r.ForEach(seekTo, txn.processBlock); err != nil {
 		return
 	}
 
+	md.Meta = meta
+
 	// Update meta to match the new meta state
-	if err = m.setMeta(txn, meta); err != nil {
+	if err = m.setMeta(txn, md); err != nil {
 		return
 	}
 
@@ -424,10 +432,10 @@ func (m *Mojura) importReader(txn *Transaction, r *kiroku.Reader) (err error) {
 	return
 }
 
-func (m *Mojura) transaction(fn func(backend.Transaction, *kiroku.Writer) error) (err error) {
+func (m *Mojura) transaction(fn func(backend.Transaction, *kiroku.Transaction) error) (err error) {
 	err = m.db.Transaction(func(txn backend.Transaction) (err error) {
-		err = m.k.Transaction(func(w *kiroku.Writer) (err error) {
-			return fn(txn, w)
+		err = m.k.Transaction(func(ktxn *kiroku.Transaction) (err error) {
+			return fn(txn, ktxn)
 		})
 
 		return
@@ -582,6 +590,17 @@ func (m *Mojura) Cursor(fn func(Cursor) error, fs ...Filter) (err error) {
 	return
 }
 
+// Put will place an entry at a given entry ID
+// Note: This will not check to see if the entry exists beforehand. If this functionality
+// is needed, look into using the Edit method
+func (m *Mojura) Put(entryID string, val Value) (err error) {
+	err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+		return txn.put([]byte(entryID), val)
+	})
+
+	return
+}
+
 // Edit will attempt to edit an entry by ID
 func (m *Mojura) Edit(entryID string, val Value) (err error) {
 	err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
@@ -602,8 +621,8 @@ func (m *Mojura) Remove(entryID string) (err error) {
 
 // Transaction will initialize a transaction
 func (m *Mojura) Transaction(ctx context.Context, fn func(*Transaction) error) (err error) {
-	err = m.transaction(func(txn backend.Transaction, kw *kiroku.Writer) (err error) {
-		return m.runTransaction(ctx, txn, kw, fn)
+	err = m.transaction(func(txn backend.Transaction, ktxn *kiroku.Transaction) (err error) {
+		return m.runTransaction(ctx, txn, ktxn, fn)
 	})
 
 	return
