@@ -40,7 +40,8 @@ const (
 	ErrInvalidBlockWriter = errors.Error("invalid block writer, cannot be used for the requested action")
 	// ErrEmptyEntryID is returned when an entry ID is empty
 	ErrEmptyEntryID = errors.Error("invalid entry ID, cannot be empty")
-
+	// ErrMirrorCannotPerformWriteActions is returned when write actions are called on a mirror
+	ErrMirrorCannotPerformWriteActions = errors.Error("mirrors cannot perform write actions")
 	// Break is a non-error which will cause a ForEach loop to break early
 	Break = errors.Error("break!")
 )
@@ -53,13 +54,39 @@ var (
 )
 
 // New will return a new instance of Mojura
-func New(name, dir string, example Value, relationships ...string) (cc *Mojura, err error) {
-	return NewWithOpts(name, dir, example, defaultOpts, relationships...)
+func New(opts Opts, example Value, relationships ...string) (mp *Mojura, err error) {
+	var m Mojura
+	if m, err = makeMojura(opts, example, relationships); err != nil {
+		return
+	}
+
+	if err = m.primaryInitialization(); err != nil {
+		return
+	}
+
+	// Initialize new batcher
+	m.b = newBatcher(&m)
+
+	mp = &m
+	return
 }
 
-// NewWithOpts will return a new instance of Mojura
-func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...string) (mp *Mojura, err error) {
+// NewMirror will return a new mirror instance of Mojura
+func NewMirror(opts Opts, example Value, relationships ...string) (mp *Mojura, err error) {
 	var m Mojura
+	if m, err = makeMojura(opts, example, relationships); err != nil {
+		return
+	}
+
+	if err = m.mirrorInitialization(); err != nil {
+		return
+	}
+
+	mp = &m
+	return
+}
+
+func makeMojura(opts Opts, example Value, relationships []string) (m Mojura, err error) {
 	if err = opts.Validate(); err != nil {
 		return
 	}
@@ -69,36 +96,15 @@ func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...st
 		return
 	}
 
-	m.out = scribe.New(fmt.Sprintf("Mojura (%s)", name))
+	m.out = scribe.New(fmt.Sprintf("Mojura (%s)", opts.Name))
 	m.opts = &opts
 	m.entryType = getMojuraType(example)
 	m.indexFmt = fmt.Sprintf("%s0%dd", "%", opts.IndexLength)
 
-	if err = m.init(name, dir, relationships); err != nil {
+	if err = m.init(relationships); err != nil {
 		return
 	}
 
-	m.opts.Options.Name = name
-	m.opts.Options.Dir = dir
-
-	if m.k, err = kiroku.New(m.opts.Options, opts.Exporter); err != nil {
-		return
-	}
-
-	if err = m.build(); err != nil {
-		err = fmt.Errorf("error encountered while building history: %v", err)
-		return
-	}
-
-	// Initialize new batcher
-	m.b = newBatcher(&m)
-
-	if opts.Importer != nil {
-		opts.Importer(m.onImport)
-	}
-
-	// Set return pointer
-	mp = &m
 	return
 }
 
@@ -106,8 +112,9 @@ func NewWithOpts(name, dir string, example Value, opts Opts, relationships ...st
 type Mojura struct {
 	db  backend.Backend
 	out *scribe.Scribe
-	k   *kiroku.Kiroku
 	b   *batcher
+
+	k kiroku.Ledger
 
 	opts     *Opts
 	indexFmt string
@@ -117,14 +124,16 @@ type Mojura struct {
 
 	relationships [][]byte
 
+	isMirror bool
+
 	// Closed state
 	closed atoms.Bool
 }
 
-func (m *Mojura) init(name, dir string, relationships []string) (err error) {
-	filename := path.Join(dir, name+".bdb")
+func (m *Mojura) init(relationships []string) (err error) {
+	filename := path.Join(m.opts.Dir, m.opts.Name+".bdb")
 	if m.db, err = m.opts.Initializer.New(filename); err != nil {
-		return fmt.Errorf("error opening db for %s (%s): %v", name, dir, err)
+		return fmt.Errorf("error opening db for %s (%s): %v", m.opts.Name, m.opts.Dir, err)
 	}
 
 	// Set relationships
@@ -187,39 +196,69 @@ func (m *Mojura) initBuckets(txn backend.Transaction) (err error) {
 	return
 }
 
-func (m *Mojura) build() (err error) {
-	var meta kiroku.Meta
-	if meta, err = m.k.Meta(); err != nil {
+func (m *Mojura) primaryInitialization() (err error) {
+	if m.k, err = kiroku.New(m.opts.Options, m.opts.Exporter); err != nil {
+		err = fmt.Errorf("error initializing kiroku: %v", err)
 		return
 	}
 
-	var hasEntries bool
-	err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		var bkt backend.Bucket
-		if bkt, err = txn.getEntriesBucket(); err != nil {
-			err = fmt.Errorf("error getting entries bucket: %v", err)
-			return
+	if err = m.buildHistory(); err != nil {
+		return
+	}
+
+	return m.syncDatabase()
+}
+
+func (m *Mojura) mirrorInitialization() (err error) {
+	if m.k, err = kiroku.NewMirror(m.opts.MirrorOptions, m.opts.Importer); err != nil {
+		err = fmt.Errorf("error initializing mirror: %v", err)
+		return
+	}
+
+	if err = m.syncDatabase(); err != nil {
+		return
+	}
+
+	mirror, ok := m.k.(*kiroku.Mirror)
+	if !ok {
+		err = fmt.Errorf("invalid type, expected %T and received %T", mirror, m.k)
+		return
+	}
+
+	go m.mirrorListen(mirror)
+	return
+}
+
+func (m *Mojura) mirrorListen(mirror *kiroku.Mirror) {
+	for range mirror.Channel() {
+		if err := m.syncDatabase(); err != nil {
+			m.out.Errorf("Error encountered during sync: %v", err)
 		}
-
-		hasEntries = m.hasEntries(bkt)
-		return
-	})
-
-	switch {
-	case meta.BlockCount == 0 && hasEntries:
-		// TODO: Discuss with the team about removing this method after the next
-		// minor version. I can't think of any reason to maintain history building
-		// after we ensure safe migration from previous versions.
-		return m.buildHistory()
-	case meta.BlockCount > 0 && !hasEntries:
-		return m.buildDatabase()
-
-	default:
-		return
 	}
 }
 
 func (m *Mojura) buildHistory() (err error) {
+	var kmeta kiroku.Meta
+	if kmeta, err = m.k.Meta(); err != nil {
+		return
+	}
+
+	if kmeta.BlockCount > 0 {
+		return
+	}
+
+	var hasEntries bool
+	if err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
+		hasEntries, err = m.hasEntries(txn)
+		return
+	}); err != nil {
+		return
+	}
+
+	if !hasEntries {
+		return
+	}
+
 	var n int64
 	m.out.Notification("Found populated database with an empty history file, building history file from database entries")
 	if err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
@@ -243,9 +282,8 @@ func (m *Mojura) buildHistory() (err error) {
 	return
 }
 
-func (m *Mojura) buildDatabase() (err error) {
+func (m *Mojura) syncDatabase() (err error) {
 	var filename string
-	m.out.Notification("Found populated history file with an empty database, building database from history file")
 	if filename, err = m.k.Filename(); err != nil {
 		err = fmt.Errorf("error getting filename of history file: %v", err)
 		return
@@ -330,7 +368,7 @@ func (m *Mojura) newValueFromBytes(bs []byte) (val Value, err error) {
 	return
 }
 
-func (m *Mojura) getMeta(txn *Transaction) (meta kiroku.Meta, ok bool, err error) {
+func (m *Mojura) getMeta(txn *Transaction) (meta metadata, ok bool, err error) {
 	var bkt backend.Bucket
 	if bkt = txn.txn.GetBucket(metaBktKey); bkt == nil {
 		err = ErrNotInitialized
@@ -373,7 +411,7 @@ func (m *Mojura) onImport(r *kiroku.Reader) (err error) {
 
 func (m *Mojura) importReader(txn *Transaction, r *kiroku.Reader) (err error) {
 	var (
-		current kiroku.Meta
+		current metadata
 		ok      bool
 	)
 
@@ -390,7 +428,7 @@ func (m *Mojura) importReader(txn *Transaction, r *kiroku.Reader) (err error) {
 		// Produce system log for fresh database build
 		m.out.Notificationf("Building fresh database from %d blocks", blockCount)
 
-	case meta == current:
+	case meta == current.Meta:
 		// No changes have occurred, return
 		return
 
@@ -409,7 +447,7 @@ func (m *Mojura) importReader(txn *Transaction, r *kiroku.Reader) (err error) {
 		blockCount -= current.BlockCount
 
 		// Produce system log for database sync
-		m.out.Notificationf("Syncing %d blocks with", blockCount)
+		m.out.Notificationf("Syncing %d new blocks", blockCount)
 	}
 
 	var sw stopwatch.Stopwatch
@@ -477,19 +515,24 @@ func (m *Mojura) importTransaction(ctx context.Context, fn func(*Transaction) er
 	return
 }
 
-func (m *Mojura) hasEntries(entriesBkt backend.Bucket) (ok bool) {
-	// Grab ID from the last Entry
-	// Note: We ignore the value because we do not need it
-	lastID, _ := entriesBkt.Cursor().Last()
-	if len(lastID) == 0 {
+func (m *Mojura) hasEntries(txn *Transaction) (ok bool, err error) {
+	var bkt backend.Bucket
+	if bkt, err = txn.getEntriesBucket(); err != nil {
+		err = fmt.Errorf("error getting entries bucket: %v", err)
 		return
 	}
 
-	return true
+	ok = hasEntries(bkt)
+	return
 }
 
 // New will insert a new entry with the given value and the associated relationships
 func (m *Mojura) New(val Value) (entryID string, err error) {
+	if m.isMirror {
+		err = ErrMirrorCannotPerformWriteActions
+		return
+	}
+
 	err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
 		var id []byte
 		if id, err = txn.new(val); err != nil {
@@ -594,6 +637,11 @@ func (m *Mojura) Cursor(fn func(Cursor) error, fs ...Filter) (err error) {
 // Note: This will not check to see if the entry exists beforehand. If this functionality
 // is needed, look into using the Edit method
 func (m *Mojura) Put(entryID string, val Value) (err error) {
+	if m.isMirror {
+		err = ErrMirrorCannotPerformWriteActions
+		return
+	}
+
 	err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.put([]byte(entryID), val)
 	})
@@ -603,6 +651,11 @@ func (m *Mojura) Put(entryID string, val Value) (err error) {
 
 // Edit will attempt to edit an entry by ID
 func (m *Mojura) Edit(entryID string, val Value) (err error) {
+	if m.isMirror {
+		err = ErrMirrorCannotPerformWriteActions
+		return
+	}
+
 	err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.edit([]byte(entryID), val, false)
 	})
@@ -612,6 +665,11 @@ func (m *Mojura) Edit(entryID string, val Value) (err error) {
 
 // Remove will remove a relationship ID and it's related relationship IDs
 func (m *Mojura) Remove(entryID string) (err error) {
+	if m.isMirror {
+		err = ErrMirrorCannotPerformWriteActions
+		return
+	}
+
 	err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
 		return txn.remove([]byte(entryID))
 	})
@@ -621,6 +679,11 @@ func (m *Mojura) Remove(entryID string) (err error) {
 
 // Transaction will initialize a transaction
 func (m *Mojura) Transaction(ctx context.Context, fn func(*Transaction) error) (err error) {
+	if m.isMirror {
+		err = ErrMirrorCannotPerformWriteActions
+		return
+	}
+
 	err = m.transaction(func(txn backend.Transaction, ktxn *kiroku.Transaction) (err error) {
 		return m.runTransaction(ctx, txn, ktxn, fn)
 	})
@@ -639,6 +702,11 @@ func (m *Mojura) ReadTransaction(ctx context.Context, fn func(*Transaction) erro
 
 // Batch will initialize a batch
 func (m *Mojura) Batch(ctx context.Context, fn func(*Transaction) error) (err error) {
+	if m.isMirror {
+		err = ErrMirrorCannotPerformWriteActions
+		return
+	}
+
 	return <-m.b.Append(ctx, fn)
 }
 
