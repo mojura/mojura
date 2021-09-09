@@ -424,13 +424,16 @@ func (m *Mojura) importReader(txn *Transaction, r *kiroku.Reader) (err error) {
 	blockCount := meta.BlockCount
 
 	switch {
-	case !ok:
-		// Produce system log for fresh database build
-		m.out.Notificationf("Building fresh database from %d blocks", blockCount)
-
 	case meta == current.Meta:
 		// No changes have occurred, return
 		return
+
+	case !ok && blockCount == 0:
+		return
+
+	case !ok:
+		// Produce system log for fresh database build
+		m.out.Notificationf("Building fresh database from %d blocks", blockCount)
 
 	case current.LastSnapshotAt < meta.LastSnapshotAt:
 		// Produce system log for purge
