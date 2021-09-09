@@ -36,19 +36,20 @@ var defaultOpts = Opts{
 
 // Opts represent mojura options
 type Opts struct {
+	Name             string        `toml:"name"`
+	Dir              string        `toml:"dir"`
+	IndexLength      int           `toml:"index_length"`
+	MaxBatchCalls    int           `toml:"max_batch_calls"`
+	MaxBatchDuration time.Duration `toml:"max_batch_duration"`
+	RetryBatchFail   bool          `toml:"retry_batch_fail"`
+
 	Initializer backend.Initializer
 	Encoder     Encoder
 
-	Importer func(kiroku.Processor)
+	kiroku.MirrorOptions
+
+	Importer kiroku.Importer
 	Exporter kiroku.Exporter
-
-	IndexLength int
-
-	MaxBatchCalls    int
-	MaxBatchDuration time.Duration
-	RetryBatchFail   bool
-
-	kiroku.Options
 }
 
 // Validate will validate a set of Options
