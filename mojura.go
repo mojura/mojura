@@ -210,7 +210,7 @@ func (m *Mojura) primaryInitialization() (err error) {
 }
 
 func (m *Mojura) mirrorInitialization() (err error) {
-	if m.k, err = kiroku.NewMirror(m.opts.MirrorOptions, m.opts.Importer); err != nil {
+	if m.k, err = kiroku.NewMirror(m.opts.Options, m.opts.Importer); err != nil {
 		err = fmt.Errorf("error initializing mirror: %v", err)
 		return
 	}

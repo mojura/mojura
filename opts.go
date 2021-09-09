@@ -43,7 +43,7 @@ func MakeOpts(name, dir string) (o Opts) {
 
 // Opts represent mojura options
 type Opts struct {
-	kiroku.MirrorOptions
+	kiroku.Options
 
 	IndexLength      int           `toml:"index_length"`
 	MaxBatchCalls    int           `toml:"max_batch_calls"`
@@ -59,11 +59,11 @@ type Opts struct {
 
 // Validate will validate a set of Options
 func (o *Opts) Validate() (err error) {
-	o.init()
-	return o.MirrorOptions.Validate()
+	o.fill()
+	return o.Options.Validate()
 }
 
-func (o *Opts) init() {
+func (o *Opts) fill() {
 	if o.Encoder == nil {
 		o.Encoder = defaultOpts.Encoder
 	}
