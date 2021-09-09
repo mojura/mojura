@@ -1,6 +1,6 @@
 module github.com/mojura/mojura
 
-go 1.14
+go 1.16
 
 require (
 	github.com/gdbu/atoms v1.0.1
@@ -10,7 +10,5 @@ require (
 	github.com/hatchify/errors v0.4.82
 	github.com/mojura-backends/bolt v0.2.1
 	github.com/mojura/backend v0.2.1
-	github.com/mojura/kiroku v0.0.0-20210125214840-6e8ca3e0ef38
+	github.com/mojura/kiroku v0.4.0
 )
-
-replace github.com/mojura/kiroku => ../kiroku
