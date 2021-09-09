@@ -1414,7 +1414,9 @@ func ExampleNew() {
 		err error
 	)
 
-	if c, err = New("example", "./data", &testStruct{}, "users", "contacts", "groups"); err != nil {
+	opts := MakeOpts("example", "./data")
+
+	if c, err = New(opts, &testStruct{}, "users", "contacts", "groups"); err != nil {
 		return
 	}
 
@@ -1524,7 +1526,9 @@ func testInit() (c *Mojura, err error) {
 		return
 	}
 
-	return New("test", testDir, &testStruct{}, "users", "contacts", "groups", "tags")
+	opts := MakeOpts("test", testDir)
+
+	return New(opts, &testStruct{}, "users", "contacts", "groups", "tags")
 }
 
 func testTeardown(c *Mojura, t interface{ Fatal(...interface{}) }) {

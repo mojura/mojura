@@ -34,10 +34,17 @@ var defaultOpts = Opts{
 	Encoder:     &JSONEncoder{},
 }
 
+// MakeOpts will create a new set of Options
+func MakeOpts(name, dir string) (o Opts) {
+	o.Name = name
+	o.Dir = dir
+	return
+}
+
 // Opts represent mojura options
 type Opts struct {
-	Name             string        `toml:"name"`
-	Dir              string        `toml:"dir"`
+	kiroku.MirrorOptions
+
 	IndexLength      int           `toml:"index_length"`
 	MaxBatchCalls    int           `toml:"max_batch_calls"`
 	MaxBatchDuration time.Duration `toml:"max_batch_duration"`
@@ -46,8 +53,6 @@ type Opts struct {
 	Initializer backend.Initializer
 	Encoder     Encoder
 
-	kiroku.MirrorOptions
-
 	Importer kiroku.Importer
 	Exporter kiroku.Exporter
 }
@@ -55,7 +60,7 @@ type Opts struct {
 // Validate will validate a set of Options
 func (o *Opts) Validate() (err error) {
 	o.init()
-	return
+	return o.MirrorOptions.Validate()
 }
 
 func (o *Opts) init() {
