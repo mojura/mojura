@@ -33,4 +33,5 @@ type filterCursor interface {
 	HasReverse(entryID []byte) (ok bool, err error)
 
 	getCurrentRelationshipID() (relationshipID string)
+	teardown()
 }

@@ -1,15 +1,5 @@
 package mojura
 
-// Note: This is to support the deprecated GetRelationshipIDs method.
-// This will be removed in v0.6.0
-func newRelationshipsFromIDs(relationshipIDs []string) (r Relationships) {
-	for _, id := range relationshipIDs {
-		r.Append(id)
-	}
-
-	return
-}
-
 // Relationships help to store the relationships for an Entry
 type Relationships []Relationship
 

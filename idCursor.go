@@ -17,4 +17,5 @@ type IDCursor interface {
 	last() (entryID []byte, err error)
 	next() (entryID []byte, err error)
 	prev() (entryID []byte, err error)
+	teardown()
 }

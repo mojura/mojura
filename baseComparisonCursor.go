@@ -317,3 +317,7 @@ func (c *baseComparisonCursor) HasReverse(entryID []byte) (ok bool, err error) {
 
 	return
 }
+
+func (c *baseComparisonCursor) teardown() {
+
+}

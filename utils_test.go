@@ -32,7 +32,7 @@ func Test_stripLeadingZeros(t *testing.T) {
 
 	for _, tc := range tcs {
 		var out []byte
-		if out = stripLeadingZeros(tc.value); bytes.Compare(tc.expected, out) != 0 {
+		if out = stripLeadingZeros(tc.value); !bytes.Equal(tc.expected, out) {
 			t.Fatalf("invalid value, expected %s and received %s", string(tc.expected), out)
 		}
 	}

@@ -6,15 +6,15 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/gdbu/actions"
 	"github.com/mojura/backend"
+	"github.com/mojura/kiroku"
 )
 
-func newTransaction(ctx context.Context, m *Mojura, txn backend.Transaction, atxn *actions.Transaction) (t Transaction) {
+func newTransaction(ctx context.Context, m *Mojura, txn backend.Transaction, bw blockWriter) (t Transaction) {
 	t.m = m
 	t.cc = newContextContainer(ctx)
 	t.txn = txn
-	t.atxn = atxn
+	t.bw = bw
 	return
 }
 
@@ -24,8 +24,8 @@ type Transaction struct {
 
 	cc *contextContainer
 
-	txn  backend.Transaction
-	atxn *actions.Transaction
+	txn backend.Transaction
+	bw  blockWriter
 }
 
 func (t *Transaction) getRelationshipBucket(relationship []byte) (bkt backend.Bucket, err error) {
@@ -133,7 +133,11 @@ func (t *Transaction) insertEntry(entryID []byte, val Value) (err error) {
 		return
 	}
 
-	return bkt.Put(entryID, bs)
+	if err = bkt.Put(entryID, bs); err != nil {
+		return
+	}
+
+	return t.bw.AddBlock(kiroku.TypeWriteAction, entryID, bs)
 }
 
 func (t *Transaction) delete(entryID []byte) (err error) {
@@ -238,15 +242,12 @@ func (t *Transaction) unsetRelationship(relationship, relationshipID, entryID []
 	return relationshipBkt.DeleteBucket(relationshipID)
 }
 
-func (t *Transaction) updateRelationships(entryID []byte, orig, val Value) (err error) {
+func (t *Transaction) updateRelationships(entryID []byte, orig, new Relationships) (err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
 
-	origRelationships := orig.GetRelationships()
-	newRelationships := val.GetRelationships()
-
-	for i, relationship := range newRelationships {
+	for i, relationship := range new {
 		onAdd := func(relationshipID []byte) (err error) {
 			return t.setRelationship(t.m.relationships[i], relationshipID, entryID)
 		}
@@ -255,7 +256,14 @@ func (t *Transaction) updateRelationships(entryID []byte, orig, val Value) (err 
 			return t.unsetRelationship(t.m.relationships[i], relationshipID, entryID)
 		}
 
-		relationship.delta(origRelationships[i], onAdd, onRemove)
+		var origR Relationship
+		if orig != nil {
+			origR = orig[i]
+		}
+
+		if err = relationship.delta(origR, onAdd, onRemove); err != nil {
+			return
+		}
 	}
 
 	return
@@ -347,32 +355,13 @@ func (t *Transaction) forEachWithCursor(c Cursor, o *IteratingOpts, fn ForEachFn
 	return
 }
 
-func (t *Transaction) forEachIDWithCursor(c IDCursor, o *IteratingOpts, fn ForEachIDFn) (err error) {
-	var entryID string
-	iterator := getIDIteratorFunc(c, o.Reverse)
-	entryID, err = getFirstID(c, o.LastID, o.Reverse)
-	for err == nil {
-		if err = fn(entryID); err != nil {
-			break
-		}
-
-		entryID, err = iterator()
-	}
-
-	if err == Break {
-		err = nil
-	}
-
-	return
-}
-
 func (t *Transaction) new(val Value) (entryID []byte, err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
 
 	var index uint64
-	if index = t.m.idx.Next(); err != nil {
+	if index, err = t.bw.NextIndex(); err != nil {
 		return
 	}
 
@@ -409,38 +398,63 @@ func (t *Transaction) put(entryID []byte, val Value) (err error) {
 		return
 	}
 
-	if err = t.atxn.LogJSON(actions.ActionCreate, getLogKey(entriesBktKey, entryID), val); err != nil {
-		return
+	return
+}
+
+func (t *Transaction) processBlock(b *kiroku.Block) (err error) {
+	switch b.Type {
+	case kiroku.TypeWriteAction:
+		var val Value
+		if val, err = t.m.newValueFromBytes(b.Value); err != nil {
+			return
+		}
+
+		return t.edit(b.Key, val, true)
+	case kiroku.TypeDeleteAction:
+		return t.delete(b.Key)
 	}
 
 	return
 }
 
-func (t *Transaction) edit(entryID []byte, val Value) (err error) {
+func (t *Transaction) edit(entryID []byte, val Value, allowInsert bool) (err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
 
 	orig := reflect.New(t.m.entryType).Interface().(Value)
-	if err = t.get(entryID, orig); err != nil {
+	err = t.get(entryID, orig)
+	switch {
+	case err == nil:
+	case err == ErrEntryNotFound && allowInsert:
+		orig = nil
+
+	default:
 		return
 	}
 
+	return t.update(entryID, orig, val)
+}
+
+func (t *Transaction) update(entryID []byte, orig, val Value) (err error) {
 	// Ensure the ID is set as the original ID
-	val.SetID(orig.GetID())
-	// Ensure the created at timestamp is set as the original created at
-	val.SetCreatedAt(orig.GetCreatedAt())
+	val.SetID(string(entryID))
+
+	var relationships Relationships
+	if orig != nil {
+		// Original exists, ensure the created at timestamp is set as the original created at
+		val.SetCreatedAt(orig.GetCreatedAt())
+		relationships = orig.GetRelationships()
+	}
 
 	if err = t.put(entryID, val); err != nil {
+		err = fmt.Errorf("error putting updated Entry into DB: %v", err)
 		return
 	}
 
 	// Update relationships (if needed)
-	if err = t.updateRelationships(entryID, orig, val); err != nil {
-		return
-	}
-
-	if err = t.atxn.LogJSON(actions.ActionEdit, getLogKey(entriesBktKey, entryID), val); err != nil {
+	if err = t.updateRelationships(entryID, relationships, val.GetRelationships()); err != nil {
+		err = fmt.Errorf("error updating relationships: %v", err)
 		return
 	}
 
@@ -468,12 +482,7 @@ func (t *Transaction) remove(entryID []byte) (err error) {
 		return
 	}
 
-	if err = t.atxn.LogJSON(actions.ActionDelete, getLogKey(entriesBktKey, entryID), nil); err != nil {
-		err = fmt.Errorf("error logging transaction actions: %v", err)
-		return
-	}
-
-	return
+	return t.bw.AddBlock(kiroku.TypeDeleteAction, entryID, nil)
 }
 
 func (t *Transaction) teardown() {
@@ -596,7 +605,7 @@ func (t *Transaction) Put(entryID string, val Value) (err error) {
 
 // Edit will attempt to edit an entry by ID
 func (t *Transaction) Edit(entryID string, val Value) (err error) {
-	return t.edit([]byte(entryID), val)
+	return t.edit([]byte(entryID), val, false)
 }
 
 // Remove will remove a relationship ID and it's related relationship IDs

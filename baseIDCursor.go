@@ -21,8 +21,6 @@ func newBaseIDCursor(txn *Transaction) (c IDCursor, err error) {
 type baseIDCursor struct {
 	txn *Transaction
 	cur backend.Cursor
-
-	relationship bool
 }
 
 func (c *baseIDCursor) getCurrentRelationshipID() (relationshipID string) {

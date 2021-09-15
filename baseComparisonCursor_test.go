@@ -17,7 +17,7 @@ func Test_baseComparisonCursor_SeekForward(t *testing.T) {
 	if m, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(m)
+	defer testTeardown(m, t)
 
 	type expected struct {
 		expectedID  string
@@ -124,7 +124,7 @@ func Test_baseComparisonCursor_SeekReverse(t *testing.T) {
 	if m, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(m)
+	defer testTeardown(m, t)
 
 	type expected struct {
 		expectedID  string
@@ -226,7 +226,7 @@ func Test_baseComparisonCursor_First(t *testing.T) {
 	if m, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(m)
+	defer testTeardown(m, t)
 
 	type expected struct {
 		expectedID  string
@@ -308,7 +308,7 @@ func Test_baseComparisonCursor_First_with_deletion(t *testing.T) {
 	if m, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(m)
+	defer testTeardown(m, t)
 
 	type expected struct {
 		expectedID  string
@@ -394,7 +394,7 @@ func Test_baseComparisonCursor_Next(t *testing.T) {
 	if m, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(m)
+	defer testTeardown(m, t)
 
 	type expected struct {
 		expectedID  string
@@ -522,7 +522,7 @@ func Test_baseComparisonCursor_Prev(t *testing.T) {
 	if m, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(m)
+	defer testTeardown(m, t)
 
 	type expected struct {
 		expectedID  string
@@ -628,7 +628,7 @@ func Test_baseComparisonCursor_Last(t *testing.T) {
 	if m, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(m)
+	defer testTeardown(m, t)
 
 	type expected struct {
 		expectedID  string
@@ -717,7 +717,7 @@ func Test_baseComparisonCursor_Last_with_deletion(t *testing.T) {
 	if m, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(m)
+	defer testTeardown(m, t)
 
 	type expected struct {
 		expectedID  string
@@ -931,7 +931,7 @@ func testBaseComparisonCursor(t *testing.T, fn func(*Transaction) error) {
 	if m, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(m)
+	defer testTeardown(m, t)
 
 	a := newTestStruct("user_0", "contact_0", "group_3", "1")
 	b := newTestStruct("user_1", "contact_2", "group_2", "2")

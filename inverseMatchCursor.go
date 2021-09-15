@@ -103,18 +103,6 @@ func (c *inverseMatchCursor) nextBucket() (bktKey []byte, err error) {
 	}
 }
 
-func (c *inverseMatchCursor) setNextAvailableCursor() (err error) {
-	for {
-		if err = c.setNextCursor(); err != nil {
-			return
-		}
-
-		if !bytes.Equal(c.targetRelationshipID, c.currentRelationshipID) {
-			return
-		}
-	}
-}
-
 func (c *inverseMatchCursor) setNextCursor() (err error) {
 	var bktKey []byte
 	if bktKey, err = c.nextBucket(); err != nil {
@@ -170,18 +158,6 @@ func (c *inverseMatchCursor) prevBucket() (bktKey []byte, err error) {
 			return
 
 		default:
-			return
-		}
-	}
-}
-
-func (c *inverseMatchCursor) setPrevAvailableCursor() (err error) {
-	for {
-		if err = c.setPrevCursor(); err != nil {
-			return
-		}
-
-		if !bytes.Equal(c.targetRelationshipID, c.currentRelationshipID) {
 			return
 		}
 	}

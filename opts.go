@@ -6,6 +6,7 @@ import (
 	"github.com/hatchify/errors"
 	"github.com/mojura-backends/bolt"
 	"github.com/mojura/backend"
+	"github.com/mojura/kiroku"
 )
 
 const (
@@ -33,25 +34,36 @@ var defaultOpts = Opts{
 	Encoder:     &JSONEncoder{},
 }
 
+// MakeOpts will create a new set of Options
+func MakeOpts(name, dir string) (o Opts) {
+	o.Name = name
+	o.Dir = dir
+	return
+}
+
 // Opts represent mojura options
 type Opts struct {
-	MaxBatchCalls    int
-	MaxBatchDuration time.Duration
-	RetryBatchFail   bool
+	kiroku.Options
 
-	IndexLength int
+	IndexLength      int           `toml:"index_length"`
+	MaxBatchCalls    int           `toml:"max_batch_calls"`
+	MaxBatchDuration time.Duration `toml:"max_batch_duration"`
+	RetryBatchFail   bool          `toml:"retry_batch_fail"`
 
 	Initializer backend.Initializer
 	Encoder     Encoder
+
+	Importer kiroku.Importer
+	Exporter kiroku.Exporter
 }
 
 // Validate will validate a set of Options
 func (o *Opts) Validate() (err error) {
-	o.init()
-	return
+	o.fill()
+	return o.Options.Validate()
 }
 
-func (o *Opts) init() {
+func (o *Opts) fill() {
 	if o.Encoder == nil {
 		o.Encoder = defaultOpts.Encoder
 	}

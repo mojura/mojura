@@ -6,20 +6,6 @@ var (
 
 type nopCursor struct{}
 
-func (c *nopCursor) seek(id []byte) (entryID []byte, err error) {
-	err = Break
-	return
-}
-
-func (c *nopCursor) has(entryID []byte) (ok bool, err error) {
-	err = Break
-	return
-}
-
-func (c *nopCursor) getCurrentRelationshipID() (relationshipID string) {
-	return
-}
-
 // SeekForward will seek the provided ID
 func (c *nopCursor) SeekForward(relationshipID, seekID []byte) (entryID []byte, err error) {
 	return c.seek(seekID)
@@ -61,5 +47,17 @@ func (c *nopCursor) HasForward(entryID []byte) (ok bool, err error) {
 
 // HasReverse will determine if an entry exists in a reverse direction
 func (c *nopCursor) HasReverse(entryID []byte) (ok bool, err error) {
+	return
+}
+
+func (c *nopCursor) teardown() {
+}
+
+func (c *nopCursor) seek(id []byte) (entryID []byte, err error) {
+	err = Break
+	return
+}
+
+func (c *nopCursor) getCurrentRelationshipID() (relationshipID string) {
 	return
 }

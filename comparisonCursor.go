@@ -295,7 +295,7 @@ func (c *comparisonCursor) last() (entryID []byte, err error) {
 }
 
 func (c *comparisonCursor) setCursor(relationshipID []byte) (err error) {
-	if bytes.Compare(relationshipID, c.currentRelationshipID) == 0 {
+	if bytes.Equal(relationshipID, c.currentRelationshipID) {
 		return
 	}
 
@@ -327,7 +327,7 @@ func (c *comparisonCursor) hasForward(entryID []byte) (ok bool, err error) {
 	}
 
 	for {
-		if bytes.Compare(entryID, iteratingEntryID) == 0 {
+		if bytes.Equal(entryID, iteratingEntryID) {
 			ok = true
 			return
 		}
@@ -353,7 +353,7 @@ func (c *comparisonCursor) hasReverse(entryID []byte) (ok bool, err error) {
 	}
 
 	for {
-		if bytes.Compare(entryID, iteratingEntryID) == 0 {
+		if bytes.Equal(entryID, iteratingEntryID) {
 			ok = true
 			return
 		}

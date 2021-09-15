@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -25,12 +26,13 @@ func TestNew(t *testing.T) {
 	)
 
 	if c, err = testInit(); err != nil {
-		testTeardown(c)
+		testTeardown(c, t)
 		t.Fatal(err)
 	}
+	defer os.RemoveAll(testDir)
 
-	if err = testTeardown(c); err != nil {
-		t.Fatal(err)
+	if err = c.Close(); err != nil {
+		return
 	}
 }
 
@@ -43,7 +45,7 @@ func TestMojura_New(t *testing.T) {
 	if c, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(c)
+	defer testTeardown(c, t)
 
 	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
@@ -57,6 +59,142 @@ func TestMojura_New(t *testing.T) {
 	}
 }
 
+func TestMojura_New_with_database_build(t *testing.T) {
+	var (
+		c   *Mojura
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+
+	var entryID string
+	if entryID, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = c.Close(); err != nil {
+		t.Fatalf("error closing: %v", err)
+	}
+
+	filename := path.Join(testDir, "test.bdb")
+	if err = os.Remove(filename); err != nil {
+		t.Fatal(err)
+	}
+
+	if c, err = testInit(); err != nil {
+		t.Fatalf("error initializing: %v", err)
+	}
+	defer testTeardown(c, t)
+
+	var e testStruct
+	if err = c.Get(entryID, &e); err != nil {
+		t.Fatalf("error getting: %v", err)
+	}
+
+	if err = foobar.compare(&e); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMojura_New_with_history_build(t *testing.T) {
+	var (
+		c   *Mojura
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+
+	var entryID string
+	if entryID, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = c.Close(); err != nil {
+		t.Fatalf("error closing: %v", err)
+	}
+
+	filename := path.Join(testDir, "test.moj")
+	if err = os.Remove(filename); err != nil {
+		t.Fatal(err)
+	}
+
+	if c, err = testInit(); err != nil {
+		t.Fatalf("error initializing: %v", err)
+	}
+	defer testTeardown(c, t)
+
+	var e testStruct
+	if err = c.Get(entryID, &e); err != nil {
+		t.Fatalf("error getting: %v", err)
+	}
+
+	if err = foobar.compare(&e); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMojura_New_with_history_and_database_build(t *testing.T) {
+	var (
+		c   *Mojura
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+
+	var entryID string
+	if entryID, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = c.Close(); err != nil {
+		t.Fatalf("error closing: %v", err)
+	}
+
+	filename := path.Join(testDir, "test.moj")
+	if err = os.Remove(filename); err != nil {
+		t.Fatal(err)
+	}
+
+	if c, err = testInit(); err != nil {
+		t.Fatalf("error initializing: %v", err)
+	}
+
+	if err = c.Close(); err != nil {
+		t.Fatalf("error closing: %v", err)
+	}
+
+	filename = path.Join(testDir, "test.bdb")
+	if err = os.Remove(filename); err != nil {
+		t.Fatal(err)
+	}
+
+	if c, err = testInit(); err != nil {
+		t.Fatalf("error initializing: %v", err)
+	}
+	defer testTeardown(c, t)
+
+	var e testStruct
+	if err = c.Get(entryID, &e); err != nil {
+		t.Fatalf("error getting: %v", err)
+	}
+
+	if err = foobar.compare(&e); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestMojura_Get(t *testing.T) {
 	var (
 		c   *Mojura
@@ -66,7 +204,7 @@ func TestMojura_Get(t *testing.T) {
 	if c, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(c)
+	defer testTeardown(c, t)
 
 	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
@@ -94,7 +232,7 @@ func TestMojura_Get_context(t *testing.T) {
 	if c, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(c)
+	defer testTeardown(c, t)
 
 	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
@@ -148,7 +286,7 @@ func TestMojura_GetFiltered_many_to_many(t *testing.T) {
 	if c, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(c)
+	defer testTeardown(c, t)
 
 	entries := []*testStruct{
 		newTestStruct("user_1", "contact_1", "group_1", "FOO FOO", "foo", "bar"),
@@ -288,7 +426,7 @@ func TestMojura_GetFiltered_seek(t *testing.T) {
 	if c, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(c)
+	defer testTeardown(c, t)
 
 	entries := []*testStruct{
 		newTestStruct("user_1", "contact_1", "group_1", "FOO FOO", "foo", "bar"),
@@ -359,7 +497,7 @@ func TestMojura_Edit(t *testing.T) {
 	if c, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(c)
+	defer testTeardown(c, t)
 
 	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
@@ -393,7 +531,7 @@ func TestMojura_ForEach(t *testing.T) {
 	if c, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(c)
+	defer testTeardown(c, t)
 
 	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
@@ -424,8 +562,6 @@ func TestMojura_ForEach(t *testing.T) {
 	if cnt != 2 {
 		t.Fatalf("invalid number of entries, expected %d and received %d", 2, cnt)
 	}
-
-	return
 }
 
 func TestMojura_ForEach_with_filter(t *testing.T) {
@@ -437,7 +573,7 @@ func TestMojura_ForEach_with_filter(t *testing.T) {
 	if c, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(c)
+	defer testTeardown(c, t)
 
 	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
@@ -476,8 +612,6 @@ func TestMojura_ForEach_with_filter(t *testing.T) {
 	if cnt != 1 {
 		t.Fatalf("invalid number of entries, expected %d and received %d", 1, cnt)
 	}
-
-	return
 }
 
 func TestMojura_ForEach_with_multiple_filters(t *testing.T) {
@@ -489,7 +623,7 @@ func TestMojura_ForEach_with_multiple_filters(t *testing.T) {
 	if c, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(c)
+	defer testTeardown(c, t)
 
 	user1 := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 	user2 := makeTestStruct("user_2", "contact_1", "group_1", "bunny bar bar")
@@ -616,8 +750,6 @@ func TestMojura_ForEach_with_multiple_filters(t *testing.T) {
 			}
 		}
 	}
-
-	return
 }
 
 func TestMojura_GetFirst_with_multiple_filters(t *testing.T) {
@@ -629,7 +761,7 @@ func TestMojura_GetFirst_with_multiple_filters(t *testing.T) {
 	if c, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(c)
+	defer testTeardown(c, t)
 
 	user1 := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 	user2 := makeTestStruct("user_2", "contact_1", "group_1", "bunny bar bar")
@@ -762,8 +894,6 @@ func TestMojura_GetFirst_with_multiple_filters(t *testing.T) {
 			t.Fatalf("invalid ID, expected <%s> and recieved <%s> (test #%d)", tc.expectedID, match.ID, i)
 		}
 	}
-
-	return
 }
 
 func TestMojura_GetLast_with_multiple_filters(t *testing.T) {
@@ -775,7 +905,7 @@ func TestMojura_GetLast_with_multiple_filters(t *testing.T) {
 	if c, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(c)
+	defer testTeardown(c, t)
 
 	user1 := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 	user2 := makeTestStruct("user_2", "contact_1", "group_1", "bunny bar bar")
@@ -919,7 +1049,7 @@ func TestMojura_Cursor(t *testing.T) {
 	if c, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(c)
+	defer testTeardown(c, t)
 
 	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
@@ -959,8 +1089,6 @@ func TestMojura_Cursor(t *testing.T) {
 	if cnt != 2 {
 		t.Fatalf("invalid number of entries, expected %d and received %d", 2, cnt)
 	}
-
-	return
 }
 
 func TestMojura_Cursor_First(t *testing.T) {
@@ -972,7 +1100,7 @@ func TestMojura_Cursor_First(t *testing.T) {
 	if c, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(c)
+	defer testTeardown(c, t)
 
 	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
@@ -1006,8 +1134,6 @@ func TestMojura_Cursor_First(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-
-	return
 }
 
 func TestMojura_Cursor_Last(t *testing.T) {
@@ -1019,7 +1145,7 @@ func TestMojura_Cursor_Last(t *testing.T) {
 	if c, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(c)
+	defer testTeardown(c, t)
 
 	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
@@ -1053,8 +1179,6 @@ func TestMojura_Cursor_Last(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-
-	return
 }
 
 func TestMojura_Cursor_Seek(t *testing.T) {
@@ -1066,7 +1190,7 @@ func TestMojura_Cursor_Seek(t *testing.T) {
 	if c, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(c)
+	defer testTeardown(c, t)
 
 	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
@@ -1100,8 +1224,6 @@ func TestMojura_Cursor_Seek(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-
-	return
 }
 
 func TestMojura_Batch(t *testing.T) {
@@ -1113,7 +1235,7 @@ func TestMojura_Batch(t *testing.T) {
 	if c, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(c)
+	defer testTeardown(c, t)
 
 	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
@@ -1141,8 +1263,6 @@ func TestMojura_Batch(t *testing.T) {
 	if val.Value != "foo bar baz" {
 		t.Fatalf("invalid value for Value, expected \"%s\" and received \"%s\"", foobar.Value, val.Value)
 	}
-
-	return
 }
 
 func TestMojura_index_increment_persist(t *testing.T) {
@@ -1152,7 +1272,7 @@ func TestMojura_index_increment_persist(t *testing.T) {
 	)
 
 	if c, err = testInit(); err != nil {
-		testTeardown(c)
+		testTeardown(c, t)
 		t.Fatal(err)
 	}
 
@@ -1172,7 +1292,7 @@ func TestMojura_index_increment_persist(t *testing.T) {
 	if c, err = testInit(); err != nil {
 		t.Fatal(err)
 	}
-	defer testTeardown(c)
+	defer testTeardown(c, t)
 
 	var entryID string
 	if err = c.Transaction(context.Background(), func(txn *Transaction) (err error) {
@@ -1185,68 +1305,54 @@ func TestMojura_index_increment_persist(t *testing.T) {
 	if entryID != "00000001" {
 		t.Fatalf("unexpected ID, expected %s and recieved %s", "00000001", entryID)
 	}
-
-	return
 }
 
 func BenchmarkMojura_New_2(b *testing.B) {
 	benchmarkMojuraNew(b, 2)
-	return
 }
 
 func BenchmarkMojura_New_4(b *testing.B) {
 	benchmarkMojuraNew(b, 4)
-	return
 }
 
 func BenchmarkMojura_New_8(b *testing.B) {
 	benchmarkMojuraNew(b, 8)
-	return
 }
 
 func BenchmarkMojura_New_16(b *testing.B) {
 	benchmarkMojuraNew(b, 16)
-	return
 }
 
 func BenchmarkMojura_New_32(b *testing.B) {
 	benchmarkMojuraNew(b, 32)
-	return
 }
 
 func BenchmarkMojura_New_64(b *testing.B) {
 	benchmarkMojuraNew(b, 64)
-	return
 }
 
 func BenchmarkMojura_Batch_2(b *testing.B) {
 	benchmarkMojuraBatch(b, 2)
-	return
 }
 
 func BenchmarkMojura_Batch_4(b *testing.B) {
 	benchmarkMojuraBatch(b, 4)
-	return
 }
 
 func BenchmarkMojura_Batch_8(b *testing.B) {
 	benchmarkMojuraBatch(b, 8)
-	return
 }
 
 func BenchmarkMojura_Batch_16(b *testing.B) {
 	benchmarkMojuraBatch(b, 16)
-	return
 }
 
 func BenchmarkMojura_Batch_32(b *testing.B) {
 	benchmarkMojuraBatch(b, 32)
-	return
 }
 
 func BenchmarkMojura_Batch_64(b *testing.B) {
 	benchmarkMojuraBatch(b, 64)
-	return
 }
 
 func benchmarkMojuraNew(b *testing.B, threads int) {
@@ -1258,7 +1364,7 @@ func benchmarkMojuraNew(b *testing.B, threads int) {
 	if c, err = testInit(); err != nil {
 		b.Fatal(err)
 	}
-	defer testTeardown(c)
+	defer testTeardown(c, b)
 
 	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
@@ -1272,7 +1378,6 @@ func benchmarkMojuraNew(b *testing.B, threads int) {
 	})
 
 	b.ReportAllocs()
-	return
 }
 
 func benchmarkMojuraBatch(b *testing.B, threads int) {
@@ -1284,7 +1389,7 @@ func benchmarkMojuraBatch(b *testing.B, threads int) {
 	if c, err = testInit(); err != nil {
 		b.Fatal(err)
 	}
-	defer testTeardown(c)
+	defer testTeardown(c, b)
 
 	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
@@ -1301,7 +1406,6 @@ func benchmarkMojuraBatch(b *testing.B, threads int) {
 	})
 
 	b.ReportAllocs()
-	return
 }
 
 func ExampleNew() {
@@ -1310,7 +1414,9 @@ func ExampleNew() {
 		err error
 	)
 
-	if c, err = New("example", "./data", &testStruct{}, "users", "contacts", "groups"); err != nil {
+	opts := MakeOpts("example", "./data")
+
+	if c, err = New(opts, &testStruct{}, "users", "contacts", "groups"); err != nil {
 		return
 	}
 
@@ -1420,17 +1526,22 @@ func testInit() (c *Mojura, err error) {
 		return
 	}
 
-	return New("test", testDir, &testStruct{}, "users", "contacts", "groups", "tags")
+	opts := MakeOpts("test", testDir)
+
+	return New(opts, &testStruct{}, "users", "contacts", "groups", "tags")
 }
 
-func testTeardown(c *Mojura) (err error) {
+func testTeardown(c *Mojura, t interface{ Fatal(...interface{}) }) {
 	var errs errors.ErrorList
 	if c != nil {
 		errs.Push(c.Close())
 	}
 
 	errs.Push(os.RemoveAll(testDir))
-	return errs.Err()
+
+	if err := errs.Err(); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func testCheck(a, b *testStruct) (err error) {
@@ -1486,7 +1597,22 @@ func (t *testStruct) GetRelationships() (r Relationships) {
 	return
 }
 
-type testBadType struct {
-	Foo string
-	Bar string
+func (t *testStruct) compare(v *testStruct) (err error) {
+	var errs errors.ErrorList
+	if v.UserID != t.UserID {
+		err = fmt.Errorf("invalid user ID, expected <%s> and received <%s>", t.UserID, v.UserID)
+		errs.Push(err)
+	}
+
+	if v.ContactID != t.ContactID {
+		err = fmt.Errorf("invalid contact ID, expected <%s> and received <%s>", t.ContactID, v.ContactID)
+		errs.Push(err)
+	}
+
+	if v.GroupID != t.GroupID {
+		err = fmt.Errorf("invalid group ID, expected <%s> and received <%s>", t.GroupID, v.UserID)
+		errs.Push(err)
+	}
+
+	return errs.Err()
 }
