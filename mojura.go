@@ -458,7 +458,7 @@ func (m *Mojura) importReader(txn *Transaction, r *kiroku.Reader) (err error) {
 
 	var md metadata
 	// Iterate through all entries from a given point within Reader
-	if md.LastPosition, err = r.ForEach(seekTo, txn.processBlock); err != nil {
+	if err = r.ForEach(seekTo, txn.processBlock); err != nil {
 		return
 	}
 
