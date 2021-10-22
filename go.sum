@@ -20,10 +20,10 @@ github.com/mojura-backends/bolt v0.2.1 h1:eqSRKqE3FD3TrYSP2Ocl1+/PrwNkyguEHA/r6E
 github.com/mojura-backends/bolt v0.2.1/go.mod h1:+KjtCS4OuLbID3MO9jRs2EFMBwY/S5KS3YX4MTL6mxQ=
 github.com/mojura/backend v0.2.1 h1:IvyZeWcAAu8TZ1u3cB5+9WtA0NbWbAsf5iymuDQ8LBs=
 github.com/mojura/backend v0.2.1/go.mod h1:JasOEo8h+g7kp7qybW3K3F7qtcITeknVo27tSOibD6c=
-github.com/mojura/enkodo v0.5.5 h1:bkjksvk8XeO0SLjtkUzvqS9oJlAIO5WFibSCSn9o/58=
-github.com/mojura/enkodo v0.5.5/go.mod h1:9/1bBkNTRhwLPSFAo0uG1a+numnsZMxNIzLdWxlFl+g=
-github.com/mojura/kiroku v0.5.0 h1:nlNoY9nbB8FtBCk8GWPcqxXaeyX7bgak3YiyGHw/Kp0=
-github.com/mojura/kiroku v0.5.0/go.mod h1:BSzGOuu86ovZan32cPu51HY73I9/yOV/LaAOx0z0gno=
+github.com/mojura/enkodo v0.5.6 h1:aISGI1RkecsER0HwgQLENa0g+j1ywUTq8fwoheBPcdQ=
+github.com/mojura/enkodo v0.5.6/go.mod h1:9/1bBkNTRhwLPSFAo0uG1a+numnsZMxNIzLdWxlFl+g=
+github.com/mojura/kiroku v0.8.1 h1:IpS/Rp3Mo03LfAQkPE67PK/WG70Sc8vOakBQZ2QYn9A=
+github.com/mojura/kiroku v0.8.1/go.mod h1:56OVrdD3B2jqzGVIUn+6v//5LsKNXGUWqN7qJgCu8yI=
 golang.org/x/sys v0.0.0-20201207223542-d4d67f95c62d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c h1:VwygUrnw9jn88c4u8GD3rZQbqrP/tgas88tPUbBxQrk=
 golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
