@@ -53,8 +53,7 @@ type Opts struct {
 	Initializer backend.Initializer
 	Encoder     Encoder
 
-	Importer kiroku.Importer
-	Exporter kiroku.Exporter
+	Source kiroku.Source
 }
 
 // Validate will validate a set of Options
