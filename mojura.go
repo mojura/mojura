@@ -197,12 +197,13 @@ func (m *Mojura) initBuckets(txn backend.Transaction) (err error) {
 }
 
 func (m *Mojura) primaryInitialization() (err error) {
-	if m.k, err = kiroku.New(m.opts.Options, m.opts.Exporter); err != nil {
+	if m.k, err = kiroku.New(m.opts.Options, m.opts.Source); err != nil {
 		err = fmt.Errorf("error initializing kiroku: %v", err)
 		return
 	}
 
-	if err = m.buildHistory(); err != nil {
+	var built bool
+	if built, err = m.buildHistory(); built || err != nil {
 		return
 	}
 
@@ -210,7 +211,7 @@ func (m *Mojura) primaryInitialization() (err error) {
 }
 
 func (m *Mojura) mirrorInitialization() (err error) {
-	if m.k, err = kiroku.NewMirror(m.opts.Options, m.opts.Importer); err != nil {
+	if m.k, err = kiroku.NewMirror(m.opts.Options, m.opts.Source); err != nil {
 		err = fmt.Errorf("error initializing mirror: %v", err)
 		return
 	}
@@ -237,7 +238,7 @@ func (m *Mojura) mirrorListen(mirror *kiroku.Mirror) {
 	}
 }
 
-func (m *Mojura) buildHistory() (err error) {
+func (m *Mojura) buildHistory() (ok bool, err error) {
 	var kmeta kiroku.Meta
 	if kmeta, err = m.k.Meta(); err != nil {
 		return
@@ -279,6 +280,7 @@ func (m *Mojura) buildHistory() (err error) {
 	}
 
 	m.out.Successf("Appended %d blocks to the history file", n)
+	ok = true
 	return
 }
 
@@ -529,6 +531,19 @@ func (m *Mojura) hasEntries(txn *Transaction) (ok bool, err error) {
 	return
 }
 
+func (m *Mojura) copyEntries(txn *Transaction) (err error) {
+	var bkt backend.Bucket
+	if bkt, err = txn.getEntriesBucket(); err != nil {
+		return
+	}
+
+	writeFn := func(ss *kiroku.Snapshot) (err error) {
+		return bkt.ForEach(ss.Write)
+	}
+
+	return m.k.Snapshot(writeFn)
+}
+
 // New will insert a new entry with the given value and the associated relationships
 func (m *Mojura) New(val Value) (entryID string, err error) {
 	if m.isMirror {
@@ -711,6 +726,21 @@ func (m *Mojura) Batch(ctx context.Context, fn func(*Transaction) error) (err er
 	}
 
 	return <-m.b.Append(ctx, fn)
+}
+
+// Snapshot will create a snapshot of the database in it's current state
+func (m *Mojura) Snapshot(ctx context.Context) (err error) {
+	if m.isMirror {
+		err = ErrMirrorCannotPerformWriteActions
+		return
+	}
+
+	err = m.db.Transaction(func(btxn backend.Transaction) (err error) {
+		txn := newTransaction(ctx, m, btxn, nil)
+		return m.copyEntries(&txn)
+	})
+
+	return
 }
 
 // Close will close the selected instance of Mojura
