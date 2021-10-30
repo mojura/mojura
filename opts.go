@@ -49,6 +49,7 @@ type Opts struct {
 	MaxBatchCalls    int           `toml:"max_batch_calls"`
 	MaxBatchDuration time.Duration `toml:"max_batch_duration"`
 	RetryBatchFail   bool          `toml:"retry_batch_fail"`
+	IsMirror         bool          `toml:"is_mirror"`
 
 	Initializer backend.Initializer
 	Encoder     Encoder
