@@ -60,27 +60,18 @@ func New(opts Opts, example Value, relationships ...string) (mp *Mojura, err err
 		return
 	}
 
-	if err = m.primaryInitialization(); err != nil {
-		return
+	if !opts.IsMirror {
+		if err = m.primaryInitialization(); err != nil {
+			return
+		}
+	} else {
+		if err = m.mirrorInitialization(); err != nil {
+			return
+		}
 	}
 
 	// Initialize new batcher
 	m.b = newBatcher(&m)
-
-	mp = &m
-	return
-}
-
-// NewMirror will return a new mirror instance of Mojura
-func NewMirror(opts Opts, example Value, relationships ...string) (mp *Mojura, err error) {
-	var m Mojura
-	if m, err = makeMojura(opts, example, relationships); err != nil {
-		return
-	}
-
-	if err = m.mirrorInitialization(); err != nil {
-		return
-	}
 
 	mp = &m
 	return
