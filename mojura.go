@@ -173,6 +173,10 @@ func (m *Mojura) initBuckets(txn backend.Transaction) (err error) {
 		return
 	}
 
+	return m.initRelationshipsBuckets(txn)
+}
+
+func (m *Mojura) initRelationshipsBuckets(txn backend.Transaction) (err error) {
 	var relationshipsBkt backend.Bucket
 	if relationshipsBkt, err = txn.GetOrCreateBucket(relationshipsBktKey); err != nil {
 		return
@@ -535,6 +539,22 @@ func (m *Mojura) copyEntries(txn *Transaction) (err error) {
 	return m.k.Snapshot(writeFn)
 }
 
+func (m *Mojura) reindex(txn *Transaction) (err error) {
+	if err = txn.txn.DeleteBucket(relationshipsBktKey); err != nil {
+		return
+	}
+
+	if err = m.initRelationshipsBuckets(txn.txn); err != nil {
+		return
+	}
+
+	fn := func(entryID string, val Value) (err error) {
+		return txn.setRelationships(val.GetRelationships(), []byte(entryID))
+	}
+
+	return txn.ForEach(fn, nil)
+}
+
 // New will insert a new entry with the given value and the associated relationships
 func (m *Mojura) New(val Value) (entryID string, err error) {
 	if m.isMirror {
@@ -729,6 +749,21 @@ func (m *Mojura) Snapshot(ctx context.Context) (err error) {
 	err = m.db.Transaction(func(btxn backend.Transaction) (err error) {
 		txn := newTransaction(ctx, m, btxn, nil)
 		return m.copyEntries(&txn)
+	})
+
+	return
+}
+
+// Reindex will reindex the relationships
+func (m *Mojura) Reindex(ctx context.Context) (err error) {
+	if m.isMirror {
+		err = ErrMirrorCannotPerformWriteActions
+		return
+	}
+
+	err = m.db.Transaction(func(btxn backend.Transaction) (err error) {
+		txn := newTransaction(ctx, m, btxn, nil)
+		return m.reindex(&txn)
 	})
 
 	return

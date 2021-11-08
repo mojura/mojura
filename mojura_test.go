@@ -1307,6 +1307,41 @@ func TestMojura_index_increment_persist(t *testing.T) {
 	}
 }
 
+func TestMojura_Reindex(t *testing.T) {
+	var (
+		c   *Mojura
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		testTeardown(c, t)
+		t.Fatal(err)
+	}
+
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+
+	if _, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	opts := NewIteratingOpts(filters.Match("users", "user_1"))
+
+	var val testStruct
+	if err = c.GetFirst(&val, opts); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = c.Reindex(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	// Ensure relationship works after reindex
+	if err = c.GetFirst(&val, opts); err != nil {
+		t.Fatal(err)
+	}
+
+}
+
 func BenchmarkMojura_New_2(b *testing.B) {
 	benchmarkMojuraNew(b, 2)
 }
