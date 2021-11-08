@@ -41,6 +41,15 @@
       "contributions": [
         "design"
       ]
+    },
+    {
+      "login": "BrandenWilliams",
+      "name": "BrandenWilliams",
+      "avatar_url": "https://avatars.githubusercontent.com/u/32830332?v=4",
+      "profile": "https://github.com/BrandenWilliams",
+      "contributions": [
+        "review"
+      ]
     }
   ],
   "contributorsPerLine": 7,
