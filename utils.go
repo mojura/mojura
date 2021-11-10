@@ -204,3 +204,11 @@ func (n *nopBlockWriter) NextIndex() (index uint64, err error) {
 	err = ErrInvalidBlockWriter
 	return
 }
+
+func closeSema(c chan struct{}) {
+	if c == nil {
+		return
+	}
+
+	close(c)
+}

@@ -80,7 +80,7 @@ func (c *contextContainer) waitForClose() {
 	select {
 	case <-ctx.Done():
 		c.setError(ctx.Err())
-		close(c.done)
+		closeSema(c.done)
 	case <-c.cancel:
 	}
 }
@@ -106,7 +106,7 @@ func (c *contextContainer) Close() {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 	c.cancelCurrent()
-	close(c.done)
-	close(c.cancel)
+	closeSema(c.done)
+	closeSema(c.cancel)
 	c.closed = true
 }
