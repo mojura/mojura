@@ -2,6 +2,7 @@ package mojura
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"time"
@@ -26,6 +27,9 @@ type Transaction struct {
 
 	txn backend.Transaction
 	bw  blockWriter
+
+	meta        metadata
+	metaUpdated bool
 }
 
 func (t *Transaction) getRelationshipBucket(relationship []byte) (bkt backend.Bucket, err error) {
@@ -360,10 +364,8 @@ func (t *Transaction) new(val Value) (entryID []byte, err error) {
 		return
 	}
 
-	var index uint64
-	if index, err = t.bw.NextIndex(); err != nil {
-		return
-	}
+	index := t.meta.CurrentIndex
+	t.setIndex(index + 1)
 
 	// Create a padded entry ID from index value
 	entryID = []byte(fmt.Sprintf(t.m.indexFmt, index))
@@ -407,6 +409,10 @@ func (t *Transaction) processBlock(b *kiroku.Block) (err error) {
 		var val Value
 		if val, err = t.m.newValueFromBytes(b.Value); err != nil {
 			return
+		}
+
+		if idx, err := parseIDAsIndex(b.Key); err == nil && idx > t.meta.CurrentIndex {
+			t.setIndex(idx)
 		}
 
 		return t.edit(b.Key, val, true)
@@ -483,6 +489,51 @@ func (t *Transaction) remove(entryID []byte) (err error) {
 	}
 
 	return t.bw.AddBlock(kiroku.TypeDeleteAction, entryID, nil)
+}
+
+func (t *Transaction) loadMeta() (err error) {
+	var bkt backend.Bucket
+	if bkt = t.txn.GetBucket(metaBktKey); bkt == nil {
+		err = ErrNotInitialized
+		return
+	}
+
+	var bs []byte
+	if bs = bkt.Get([]byte("value")); len(bs) == 0 {
+		return
+	}
+
+	var meta metadata
+	if err = json.Unmarshal(bs, &meta); err != nil {
+		return
+	}
+
+	t.meta = meta
+	return
+}
+
+func (t *Transaction) storeMeta() (err error) {
+	if !t.metaUpdated {
+		return
+	}
+
+	var bkt backend.Bucket
+	if bkt = t.txn.GetBucket(metaBktKey); bkt == nil {
+		err = ErrNotInitialized
+		return
+	}
+
+	var bs []byte
+	if bs, err = json.Marshal(t.meta); err != nil {
+		return
+	}
+
+	return bkt.Put([]byte("value"), bs)
+}
+
+func (t *Transaction) setIndex(index uint64) {
+	t.meta.CurrentIndex = index
+	t.metaUpdated = true
 }
 
 func (t *Transaction) teardown() {

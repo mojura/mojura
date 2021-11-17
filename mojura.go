@@ -2,7 +2,6 @@ package mojura
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"path"
 	"reflect"
@@ -290,7 +289,6 @@ func (m *Mojura) syncDatabase() (err error) {
 }
 
 func (m *Mojura) dumpHistory(bkt backend.Bucket) (n int64, err error) {
-	var lastID []byte
 	err = m.k.Transaction(func(txn *kiroku.Transaction) (err error) {
 		cur := bkt.Cursor()
 		for key, value := cur.First(); len(key) > 0; key, value = cur.Next() {
@@ -298,17 +296,7 @@ func (m *Mojura) dumpHistory(bkt backend.Bucket) (n int64, err error) {
 				return
 			}
 
-			lastID = key
 			n++
-		}
-
-		var lastIndex uint64
-		if lastIndex, err = parseIDAsIndex(lastID); err != nil {
-			return
-		}
-
-		if err = txn.SetIndex(lastIndex); err != nil {
-			return
 		}
 
 		return
@@ -365,41 +353,6 @@ func (m *Mojura) newValueFromBytes(bs []byte) (val Value, err error) {
 	return
 }
 
-func (m *Mojura) getMeta(txn *Transaction) (meta metadata, ok bool, err error) {
-	var bkt backend.Bucket
-	if bkt = txn.txn.GetBucket(metaBktKey); bkt == nil {
-		err = ErrNotInitialized
-		return
-	}
-
-	var bs []byte
-	if bs = bkt.Get([]byte("value")); len(bs) == 0 {
-		return
-	}
-
-	if err = json.Unmarshal(bs, &meta); err != nil {
-		return
-	}
-
-	ok = true
-	return
-}
-
-func (m *Mojura) setMeta(txn *Transaction, meta metadata) (err error) {
-	var bkt backend.Bucket
-	if bkt = txn.txn.GetBucket(metaBktKey); bkt == nil {
-		err = ErrNotInitialized
-		return
-	}
-
-	var bs []byte
-	if bs, err = json.Marshal(meta); err != nil {
-		return
-	}
-
-	return bkt.Put([]byte("value"), bs)
-}
-
 func (m *Mojura) onImport(r *kiroku.Reader) (err error) {
 	return m.importTransaction(context.Background(), func(txn *Transaction) (err error) {
 		return m.importReader(txn, r)
@@ -407,32 +360,23 @@ func (m *Mojura) onImport(r *kiroku.Reader) (err error) {
 }
 
 func (m *Mojura) importReader(txn *Transaction, r *kiroku.Reader) (err error) {
-	var (
-		current metadata
-		ok      bool
-	)
-
-	if current, ok, err = m.getMeta(txn); err != nil {
-		return
-	}
-
 	meta := r.Meta()
-	seekTo := current.TotalBlockSize
+	seekTo := txn.meta.TotalBlockSize
 	blockCount := meta.BlockCount
 
 	switch {
-	case meta == current.Meta:
+	case meta == txn.meta.Meta:
 		// No changes have occurred, return
 		return
 
-	case !ok && blockCount == 0:
+	case blockCount == 0:
 		return
 
-	case !ok:
+	case txn.meta.BlockCount == 0:
 		// Produce system log for fresh database build
 		m.out.Notificationf("Building fresh database from %d blocks", blockCount)
 
-	case current.LastSnapshotAt < meta.LastSnapshotAt:
+	case txn.meta.LastSnapshotAt < meta.LastSnapshotAt:
 		// Produce system log for purge
 		m.out.Notificationf("Snapshot encountered, purging existing entries and building fresh database from %d blocks", blockCount)
 
@@ -444,7 +388,7 @@ func (m *Mojura) importReader(txn *Transaction, r *kiroku.Reader) (err error) {
 		seekTo = 0
 
 	default:
-		blockCount -= current.BlockCount
+		blockCount -= txn.meta.BlockCount
 
 		// Produce system log for database sync
 		m.out.Notificationf("Syncing %d new blocks", blockCount)
@@ -460,12 +404,7 @@ func (m *Mojura) importReader(txn *Transaction, r *kiroku.Reader) (err error) {
 	}
 
 	md.Meta = meta
-
-	// Update meta to match the new meta state
-	if err = m.setMeta(txn, md); err != nil {
-		return
-	}
-
+	txn.meta = md
 	m.out.Successf("Successfully processed %d blocks in %v", blockCount, sw.Stop())
 	return
 }
@@ -485,6 +424,12 @@ func (m *Mojura) transaction(fn func(backend.Transaction, *kiroku.Transaction) e
 func (m *Mojura) runTransaction(ctx context.Context, txn backend.Transaction, bw blockWriter, fn TransactionFn) (err error) {
 	t := newTransaction(ctx, m, txn, bw)
 	defer t.teardown()
+	if bw != nil {
+		// We only need to load meta for write transactions
+		if err = t.loadMeta(); err != nil {
+			return
+		}
+	}
 	errCh := make(chan error)
 
 	// Call function from within goroutine
@@ -502,6 +447,10 @@ func (m *Mojura) runTransaction(ctx context.Context, txn backend.Transaction, bw
 		}
 
 		err = ErrContextCancelled
+	}
+
+	if err == nil {
+		err = t.storeMeta()
 	}
 
 	return
