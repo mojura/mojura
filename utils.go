@@ -191,7 +191,6 @@ func getRelationshipsAsBytes(relationships []string) (out [][]byte) {
 
 type blockWriter interface {
 	AddBlock(t kiroku.Type, key, value []byte) error
-	NextIndex() (uint64, error)
 }
 
 type nopBlockWriter struct{}
