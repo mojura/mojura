@@ -449,7 +449,7 @@ func (m *Mojura) runTransaction(ctx context.Context, txn backend.Transaction, bw
 		err = ErrContextCancelled
 	}
 
-	if err == nil {
+	if err == nil && bw != nil {
 		err = t.storeMeta()
 	}
 

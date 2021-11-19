@@ -513,7 +513,7 @@ func (t *Transaction) loadMeta() (err error) {
 }
 
 func (t *Transaction) storeMeta() (err error) {
-	if !t.metaUpdated {
+	if t.meta.Meta, err = t.m.k.Meta(); err != nil {
 		return
 	}
 
