@@ -256,14 +256,8 @@ func (m *Mojura) buildHistory() (ok bool, err error) {
 
 	var n int64
 	m.out.Notification("Found populated database with an empty history file, building history file from database entries")
-	if err = m.ReadTransaction(context.Background(), func(txn *Transaction) (err error) {
-		var bkt backend.Bucket
-		if bkt, err = txn.getEntriesBucket(); err != nil {
-			err = fmt.Errorf("error getting entries bucket: %v", err)
-			return
-		}
-
-		if n, err = m.dumpHistory(bkt); err != nil {
+	if err = m.importTransaction(context.Background(), func(txn *Transaction) (err error) {
+		if n, err = m.dumpHistory(txn); err != nil {
 			err = fmt.Errorf("error encountered while dumping to history file: %v", err)
 			return
 		}
@@ -288,20 +282,34 @@ func (m *Mojura) syncDatabase() (err error) {
 	return kiroku.Read(filename, m.onImport)
 }
 
-func (m *Mojura) dumpHistory(bkt backend.Bucket) (n int64, err error) {
-	err = m.k.Transaction(func(txn *kiroku.Transaction) (err error) {
+func (m *Mojura) dumpHistory(txn *Transaction) (n int64, err error) {
+	var bkt backend.Bucket
+	if bkt, err = txn.getEntriesBucket(); err != nil {
+		err = fmt.Errorf("error getting entries bucket: %v", err)
+		return
+	}
+
+	var lastIndex uint64
+	if err = m.k.Transaction(func(txn *kiroku.Transaction) (err error) {
 		cur := bkt.Cursor()
 		for key, value := cur.First(); len(key) > 0; key, value = cur.Next() {
 			if err = txn.AddBlock(kiroku.TypeWriteAction, key, value); err != nil {
 				return
 			}
 
+			if parsed, err := parseIDAsIndex(key); err == nil {
+				lastIndex = parsed
+			}
+
 			n++
 		}
 
 		return
-	})
+	}); err != nil {
+		return
+	}
 
+	txn.setIndex(lastIndex + 1)
 	return
 }
 
@@ -400,14 +408,12 @@ func (m *Mojura) importReader(txn *Transaction, r *kiroku.Reader) (err error) {
 	var sw stopwatch.Stopwatch
 	sw.Start()
 
-	var md metadata
 	// Iterate through all entries from a given point within Reader
 	if err = r.ForEach(seekTo, txn.processBlock); err != nil {
 		return
 	}
 
-	md.Meta = meta
-	txn.meta = md
+	m.out.NotificationWithData("OHF?", txn.meta)
 	m.out.Successf("Successfully processed %d blocks in %v", blockCount, sw.Stop())
 	return
 }

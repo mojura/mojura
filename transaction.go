@@ -420,8 +420,11 @@ func (t *Transaction) processBlock(b *kiroku.Block) (err error) {
 			return
 		}
 
-		if idx, err := parseIDAsIndex(b.Key); err == nil && idx > t.meta.CurrentIndex {
-			t.setIndex(idx)
+		idx, err := parseIDAsIndex(b.Key)
+		t.m.out.Notificationf("PASSSEE: <%s> / %d / %v", b.Key, idx, err)
+		if err == nil && idx >= t.meta.CurrentIndex {
+			t.setIndex(idx + 1)
+			t.m.out.SuccessWithData("Set dat", idx)
 		}
 
 		return t.edit(b.Key, val, true)
