@@ -429,7 +429,6 @@ func (m *Mojura) transaction(fn func(backend.Transaction, *kiroku.Transaction) (
 		if meta, err = m.k.Meta(); err != nil {
 			return
 		}
-		fmt.Println("META?", meta)
 
 		return t.storeMeta(meta)
 	})
@@ -480,7 +479,6 @@ func (m *Mojura) importTransaction(ctx context.Context, fn func(*Transaction) er
 		if meta, err = m.k.Meta(); err != nil {
 			return
 		}
-		fmt.Println("META?", meta)
 
 		return t.storeMeta(meta)
 	})
