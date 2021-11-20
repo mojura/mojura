@@ -413,7 +413,6 @@ func (m *Mojura) importReader(txn *Transaction, r *kiroku.Reader) (err error) {
 		return
 	}
 
-	m.out.NotificationWithData("OHF?", txn.meta)
 	m.out.Successf("Successfully processed %d blocks in %v", blockCount, sw.Stop())
 	return
 }
