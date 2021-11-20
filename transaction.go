@@ -64,6 +64,15 @@ func (t *Transaction) getEntriesBucket() (bkt backend.Bucket, err error) {
 	return
 }
 
+func (t *Transaction) getMetaBucket() (bkt backend.Bucket, err error) {
+	if bkt = t.txn.GetBucket(metaBktKey); bkt == nil {
+		err = ErrNotInitialized
+		return
+	}
+
+	return
+}
+
 func (t *Transaction) get(entryID []byte, val interface{}) (err error) {
 	var bs []byte
 	if bs, err = t.getBytes(entryID); err != nil {
@@ -493,8 +502,7 @@ func (t *Transaction) remove(entryID []byte) (err error) {
 
 func (t *Transaction) loadMeta() (err error) {
 	var bkt backend.Bucket
-	if bkt = t.txn.GetBucket(metaBktKey); bkt == nil {
-		err = ErrNotInitialized
+	if bkt, err = t.getMetaBucket(); err != nil {
 		return
 	}
 
@@ -512,14 +520,13 @@ func (t *Transaction) loadMeta() (err error) {
 	return
 }
 
-func (t *Transaction) storeMeta() (err error) {
+func (t *Transaction) storeMeta(meta kiroku.Meta) (err error) {
 	var bkt backend.Bucket
-	if bkt = t.txn.GetBucket(metaBktKey); bkt == nil {
-		err = ErrNotInitialized
+	if bkt, err = t.getMetaBucket(); err != nil {
 		return
 	}
 
-	t.meta.Meta = t.bw.Meta()
+	t.meta.Meta = meta
 
 	var bs []byte
 	if bs, err = json.Marshal(t.meta); err != nil {

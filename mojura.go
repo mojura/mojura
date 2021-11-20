@@ -412,21 +412,33 @@ func (m *Mojura) importReader(txn *Transaction, r *kiroku.Reader) (err error) {
 	return
 }
 
-func (m *Mojura) transaction(fn func(backend.Transaction, *kiroku.Transaction) error) (err error) {
+func (m *Mojura) transaction(fn func(backend.Transaction, *kiroku.Transaction) (Transaction, error)) (err error) {
 	err = m.db.Transaction(func(txn backend.Transaction) (err error) {
+		var t Transaction
 		err = m.k.Transaction(func(ktxn *kiroku.Transaction) (err error) {
-			return fn(txn, ktxn)
+			t, err = fn(txn, ktxn)
+			return
 		})
+		defer t.teardown()
 
-		return
+		if err != nil {
+			return
+		}
+
+		var meta kiroku.Meta
+		if meta, err = m.k.Meta(); err != nil {
+			return
+		}
+		fmt.Println("META?", meta)
+
+		return t.storeMeta(meta)
 	})
 
 	return
 }
 
-func (m *Mojura) runTransaction(ctx context.Context, txn backend.Transaction, bw blockWriter, fn TransactionFn) (err error) {
-	t := newTransaction(ctx, m, txn, bw)
-	defer t.teardown()
+func (m *Mojura) runTransaction(ctx context.Context, txn backend.Transaction, bw blockWriter, fn TransactionFn) (t Transaction, err error) {
+	t = newTransaction(ctx, m, txn, bw)
 	if bw != nil {
 		// We only need to load meta for write transactions
 		if err = t.loadMeta(); err != nil {
@@ -452,16 +464,25 @@ func (m *Mojura) runTransaction(ctx context.Context, txn backend.Transaction, bw
 		err = ErrContextCancelled
 	}
 
-	if err == nil && bw != nil {
-		err = t.storeMeta()
-	}
-
 	return
 }
 
 func (m *Mojura) importTransaction(ctx context.Context, fn func(*Transaction) error) (err error) {
 	err = m.db.Transaction(func(txn backend.Transaction) (err error) {
-		return m.runTransaction(ctx, txn, nopBW, fn)
+		var t Transaction
+		t, err = m.runTransaction(ctx, txn, nopBW, fn)
+		defer t.teardown()
+		if err != nil {
+			return
+		}
+
+		var meta kiroku.Meta
+		if meta, err = m.k.Meta(); err != nil {
+			return
+		}
+		fmt.Println("META?", meta)
+
+		return t.storeMeta(meta)
 	})
 
 	return
@@ -665,7 +686,7 @@ func (m *Mojura) Transaction(ctx context.Context, fn func(*Transaction) error) (
 		return
 	}
 
-	err = m.transaction(func(txn backend.Transaction, ktxn *kiroku.Transaction) (err error) {
+	err = m.transaction(func(txn backend.Transaction, ktxn *kiroku.Transaction) (Transaction, error) {
 		return m.runTransaction(ctx, txn, ktxn, fn)
 	})
 
@@ -675,7 +696,10 @@ func (m *Mojura) Transaction(ctx context.Context, fn func(*Transaction) error) (
 // ReadTransaction will initialize a read-only transaction
 func (m *Mojura) ReadTransaction(ctx context.Context, fn func(*Transaction) error) (err error) {
 	err = m.db.ReadTransaction(func(txn backend.Transaction) (err error) {
-		return m.runTransaction(ctx, txn, nil, fn)
+		var t Transaction
+		t, err = m.runTransaction(ctx, txn, nil, fn)
+		t.teardown()
+		return
 	})
 
 	return
