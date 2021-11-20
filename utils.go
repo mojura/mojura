@@ -191,6 +191,7 @@ func getRelationshipsAsBytes(relationships []string) (out [][]byte) {
 
 type blockWriter interface {
 	AddBlock(t kiroku.Type, key, value []byte) error
+	Meta() kiroku.Meta
 }
 
 type nopBlockWriter struct{}
@@ -199,8 +200,7 @@ func (n *nopBlockWriter) AddBlock(t kiroku.Type, key, value []byte) error {
 	return nil
 }
 
-func (n *nopBlockWriter) NextIndex() (index uint64, err error) {
-	err = ErrInvalidBlockWriter
+func (n *nopBlockWriter) Meta() (m kiroku.Meta) {
 	return
 }
 

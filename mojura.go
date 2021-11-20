@@ -387,6 +387,9 @@ func (m *Mojura) importReader(txn *Transaction, r *kiroku.Reader) (err error) {
 
 		seekTo = 0
 
+	case blockCount == txn.meta.BlockCount:
+		return
+
 	default:
 		blockCount -= txn.meta.BlockCount
 

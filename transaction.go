@@ -513,15 +513,13 @@ func (t *Transaction) loadMeta() (err error) {
 }
 
 func (t *Transaction) storeMeta() (err error) {
-	if t.meta.Meta, err = t.m.k.Meta(); err != nil {
-		return
-	}
-
 	var bkt backend.Bucket
 	if bkt = t.txn.GetBucket(metaBktKey); bkt == nil {
 		err = ErrNotInitialized
 		return
 	}
+
+	t.meta.Meta = t.bw.Meta()
 
 	var bs []byte
 	if bs, err = json.Marshal(t.meta); err != nil {
