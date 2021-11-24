@@ -10,5 +10,5 @@ require (
 	github.com/hatchify/errors v0.4.82
 	github.com/mojura-backends/bolt v0.2.1
 	github.com/mojura/backend v0.2.1
-	github.com/mojura/kiroku v0.9.2
+	github.com/mojura/kiroku v0.9.3
 )
