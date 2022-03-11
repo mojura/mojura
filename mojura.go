@@ -114,8 +114,6 @@ type Mojura struct {
 
 	relationships [][]byte
 
-	isMirror bool
-
 	// Closed state
 	closed atoms.Bool
 }
@@ -533,7 +531,7 @@ func (m *Mojura) reindex(txn *Transaction) (err error) {
 
 // New will insert a new entry with the given value and the associated relationships
 func (m *Mojura) New(val Value) (entryID string, err error) {
-	if m.isMirror {
+	if m.opts.IsMirror {
 		err = ErrMirrorCannotPerformWriteActions
 		return
 	}
@@ -642,7 +640,7 @@ func (m *Mojura) Cursor(fn func(Cursor) error, fs ...Filter) (err error) {
 // Note: This will not check to see if the entry exists beforehand. If this functionality
 // is needed, look into using the Edit method
 func (m *Mojura) Put(entryID string, val Value) (err error) {
-	if m.isMirror {
+	if m.opts.IsMirror {
 		err = ErrMirrorCannotPerformWriteActions
 		return
 	}
@@ -656,7 +654,7 @@ func (m *Mojura) Put(entryID string, val Value) (err error) {
 
 // Edit will attempt to edit an entry by ID
 func (m *Mojura) Edit(entryID string, val Value) (err error) {
-	if m.isMirror {
+	if m.opts.IsMirror {
 		err = ErrMirrorCannotPerformWriteActions
 		return
 	}
@@ -670,7 +668,7 @@ func (m *Mojura) Edit(entryID string, val Value) (err error) {
 
 // Remove will remove a relationship ID and it's related relationship IDs
 func (m *Mojura) Remove(entryID string) (err error) {
-	if m.isMirror {
+	if m.opts.IsMirror {
 		err = ErrMirrorCannotPerformWriteActions
 		return
 	}
@@ -684,7 +682,7 @@ func (m *Mojura) Remove(entryID string) (err error) {
 
 // Transaction will initialize a transaction
 func (m *Mojura) Transaction(ctx context.Context, fn func(*Transaction) error) (err error) {
-	if m.isMirror {
+	if m.opts.IsMirror {
 		err = ErrMirrorCannotPerformWriteActions
 		return
 	}
@@ -710,7 +708,7 @@ func (m *Mojura) ReadTransaction(ctx context.Context, fn func(*Transaction) erro
 
 // Batch will initialize a batch
 func (m *Mojura) Batch(ctx context.Context, fn func(*Transaction) error) (err error) {
-	if m.isMirror {
+	if m.opts.IsMirror {
 		err = ErrMirrorCannotPerformWriteActions
 		return
 	}
@@ -720,7 +718,7 @@ func (m *Mojura) Batch(ctx context.Context, fn func(*Transaction) error) (err er
 
 // Snapshot will create a snapshot of the database in it's current state
 func (m *Mojura) Snapshot(ctx context.Context) (err error) {
-	if m.isMirror {
+	if m.opts.IsMirror {
 		err = ErrMirrorCannotPerformWriteActions
 		return
 	}
@@ -735,7 +733,7 @@ func (m *Mojura) Snapshot(ctx context.Context) (err error) {
 
 // Reindex will reindex the relationships
 func (m *Mojura) Reindex(ctx context.Context) (err error) {
-	if m.isMirror {
+	if m.opts.IsMirror {
 		err = ErrMirrorCannotPerformWriteActions
 		return
 	}
