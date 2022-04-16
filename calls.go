@@ -1,8 +1,8 @@
 package mojura
 
-type calls []call
+type calls[T Value] []call[T]
 
-func (c calls) notifyAll(err error) {
+func (c calls[T]) notifyAll(err error) {
 	for _, call := range c {
 		call.notify(err)
 	}

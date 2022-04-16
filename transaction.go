@@ -4,14 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/mojura/backend"
 	"github.com/mojura/kiroku"
 )
 
-func newTransaction(ctx context.Context, m *Mojura, txn backend.Transaction, bw blockWriter) (t Transaction) {
+func newTransaction[T Value](ctx context.Context, m *Mojura[T], txn backend.Transaction, bw blockWriter) (t Transaction[T]) {
 	t.m = m
 	t.cc = newContextContainer(ctx)
 	t.txn = txn
@@ -20,8 +19,8 @@ func newTransaction(ctx context.Context, m *Mojura, txn backend.Transaction, bw 
 }
 
 // Transaction manages a DB transaction
-type Transaction struct {
-	m *Mojura
+type Transaction[T Value] struct {
+	m *Mojura[T]
 
 	cc *contextContainer
 
@@ -32,7 +31,7 @@ type Transaction struct {
 	metaUpdated bool
 }
 
-func (t *Transaction) getRelationshipBucket(relationship []byte) (bkt backend.Bucket, err error) {
+func (t *Transaction[T]) getRelationshipBucket(relationship []byte) (bkt backend.Bucket, err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -51,7 +50,7 @@ func (t *Transaction) getRelationshipBucket(relationship []byte) (bkt backend.Bu
 	return
 }
 
-func (t *Transaction) getEntriesBucket() (bkt backend.Bucket, err error) {
+func (t *Transaction[T]) getEntriesBucket() (bkt backend.Bucket, err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -64,7 +63,7 @@ func (t *Transaction) getEntriesBucket() (bkt backend.Bucket, err error) {
 	return
 }
 
-func (t *Transaction) getMetaBucket() (bkt backend.Bucket, err error) {
+func (t *Transaction[T]) getMetaBucket() (bkt backend.Bucket, err error) {
 	if bkt = t.txn.GetBucket(metaBktKey); bkt == nil {
 		err = ErrNotInitialized
 		return
@@ -73,17 +72,18 @@ func (t *Transaction) getMetaBucket() (bkt backend.Bucket, err error) {
 	return
 }
 
-func (t *Transaction) get(entryID []byte, val interface{}) (err error) {
+func (t *Transaction[T]) get(entryID []byte) (val T, err error) {
 	var bs []byte
 	if bs, err = t.getBytes(entryID); err != nil {
 		return
 	}
 
+	val = t.m.ifn()
 	err = t.m.unmarshal(bs, val)
 	return
 }
 
-func (t *Transaction) getBytes(entryID []byte) (bs []byte, err error) {
+func (t *Transaction[T]) getBytes(entryID []byte) (bs []byte, err error) {
 	var bkt backend.Bucket
 	if bkt, err = t.getEntriesBucket(); err != nil {
 		return
@@ -97,7 +97,7 @@ func (t *Transaction) getBytes(entryID []byte) (bs []byte, err error) {
 	return
 }
 
-func (t *Transaction) idCursor(fs []Filter) (c IDCursor, err error) {
+func (t *Transaction[T]) idCursor(fs []Filter) (c IDCursor, err error) {
 	if len(fs) == 0 {
 		return newBaseIDCursor(t)
 	}
@@ -105,7 +105,7 @@ func (t *Transaction) idCursor(fs []Filter) (c IDCursor, err error) {
 	return newMultiIDCursor(t, fs)
 }
 
-func (t *Transaction) cursor(fs []Filter) (c Cursor, err error) {
+func (t *Transaction[T]) cursor(fs []Filter) (c Cursor[T], err error) {
 	if len(fs) == 0 {
 		return newBaseCursor(t)
 	}
@@ -113,7 +113,7 @@ func (t *Transaction) cursor(fs []Filter) (c Cursor, err error) {
 	return newMultiCursor(t, fs)
 }
 
-func (t *Transaction) exists(entryID []byte) (ok bool, err error) {
+func (t *Transaction[T]) exists(entryID []byte) (ok bool, err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -129,7 +129,7 @@ func (t *Transaction) exists(entryID []byte) (ok bool, err error) {
 	return
 }
 
-func (t *Transaction) insertEntry(entryID []byte, val Value) (err error) {
+func (t *Transaction[T]) insertEntry(entryID []byte, val T) (err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -153,7 +153,7 @@ func (t *Transaction) insertEntry(entryID []byte, val Value) (err error) {
 	return t.bw.AddBlock(kiroku.TypeWriteAction, entryID, bs)
 }
 
-func (t *Transaction) delete(entryID []byte) (err error) {
+func (t *Transaction[T]) delete(entryID []byte) (err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -166,7 +166,7 @@ func (t *Transaction) delete(entryID []byte) (err error) {
 	return bkt.Delete(entryID)
 }
 
-func (t *Transaction) setRelationships(relationships Relationships, entryID []byte) (err error) {
+func (t *Transaction[T]) setRelationships(relationships Relationships, entryID []byte) (err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -183,7 +183,7 @@ func (t *Transaction) setRelationships(relationships Relationships, entryID []by
 	return
 }
 
-func (t *Transaction) setRelationship(relationship, relationshipID, entryID []byte) (err error) {
+func (t *Transaction[T]) setRelationship(relationship, relationshipID, entryID []byte) (err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -206,7 +206,7 @@ func (t *Transaction) setRelationship(relationship, relationshipID, entryID []by
 	return bkt.Put(entryID, nil)
 }
 
-func (t *Transaction) unsetRelationships(relationships Relationships, entryID []byte) (err error) {
+func (t *Transaction[T]) unsetRelationships(relationships Relationships, entryID []byte) (err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -223,7 +223,7 @@ func (t *Transaction) unsetRelationships(relationships Relationships, entryID []
 	return
 }
 
-func (t *Transaction) unsetRelationship(relationship, relationshipID, entryID []byte) (err error) {
+func (t *Transaction[T]) unsetRelationship(relationship, relationshipID, entryID []byte) (err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -255,7 +255,7 @@ func (t *Transaction) unsetRelationship(relationship, relationshipID, entryID []
 	return relationshipBkt.DeleteBucket(relationshipID)
 }
 
-func (t *Transaction) updateRelationships(entryID []byte, orig, new Relationships) (err error) {
+func (t *Transaction[T]) updateRelationships(entryID []byte, orig, new Relationships) (err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -284,7 +284,7 @@ func (t *Transaction) updateRelationships(entryID []byte, orig, new Relationship
 
 // getLast will attempt to get the first entry which matches the provided filters
 // Note: Will return ErrEntryNotFound if no match is found
-func (t *Transaction) getFirst(value Value, o *IteratingOpts) (err error) {
+func (t *Transaction[T]) getFirst(o *IteratingOpts) (value T, err error) {
 	var cur IDCursor
 	if cur, err = t.idCursor(o.Filters); err != nil {
 		return
@@ -292,17 +292,18 @@ func (t *Transaction) getFirst(value Value, o *IteratingOpts) (err error) {
 
 	var entryID string
 	if entryID, err = getFirstID(cur, o.LastID, false); err == Break {
-		return ErrEntryNotFound
+		err = ErrEntryNotFound
+		return
 	} else if err != nil {
 		return
 	}
 
-	return t.get([]byte(entryID), value)
+	return t.get([]byte(entryID))
 }
 
 // getLast will attempt to get the last entry which matches the provided filters
 // Note: Will return ErrEntryNotFound if no match is found
-func (t *Transaction) getLast(value Value, o *IteratingOpts) (err error) {
+func (t *Transaction[T]) getLast(o *IteratingOpts) (value T, err error) {
 	var cur IDCursor
 	if cur, err = t.idCursor(o.Filters); err != nil {
 		return
@@ -310,15 +311,16 @@ func (t *Transaction) getLast(value Value, o *IteratingOpts) (err error) {
 
 	var entryID string
 	if entryID, err = getFirstID(cur, o.LastID, true); err == Break {
-		return ErrEntryNotFound
+		err = ErrEntryNotFound
+		return
 	} else if err != nil {
 		return
 	}
 
-	return t.get([]byte(entryID), value)
+	return t.get([]byte(entryID))
 }
 
-func (t *Transaction) getFiltered(es reflect.Value, o *FilteringOpts) (lastID string, err error) {
+func (t *Transaction[T]) getFiltered(o *FilteringOpts) (es []T, lastID string, err error) {
 	if o == nil {
 		o = defaultFilteringOpts
 	}
@@ -327,17 +329,14 @@ func (t *Transaction) getFiltered(es reflect.Value, o *FilteringOpts) (lastID st
 		return
 	}
 
-	var c Cursor
+	var c Cursor[T]
 	if c, err = t.cursor(o.Filters); err != nil {
 		return
 	}
 
 	var count int64
-	err = t.forEachWithCursor(c, &o.IteratingOpts, func(entryID string, val Value) (err error) {
-		rVal := reflect.ValueOf(val)
-		appended := reflect.Append(es, rVal)
-		es.Set(appended)
-
+	err = t.forEachWithCursor(c, &o.IteratingOpts, func(entryID string, val T) (err error) {
+		es = append(es, val)
 		if count++; count == o.Limit {
 			lastID = joinSeekID(c.getCurrentRelationshipID(), entryID)
 			return Break
@@ -349,8 +348,8 @@ func (t *Transaction) getFiltered(es reflect.Value, o *FilteringOpts) (lastID st
 	return
 }
 
-func (t *Transaction) forEachWithCursor(c Cursor, o *IteratingOpts, fn ForEachFn) (err error) {
-	var val Value
+func (t *Transaction[T]) forEachWithCursor(c Cursor[T], o *IteratingOpts, fn ForEachFn[T]) (err error) {
+	var val T
 	iterator := getIteratorFunc(c, o.Reverse)
 	val, err = getFirst(c, o.LastID, o.Reverse)
 	for err == nil {
@@ -368,7 +367,7 @@ func (t *Transaction) forEachWithCursor(c Cursor, o *IteratingOpts, fn ForEachFn
 	return
 }
 
-func (t *Transaction) new(val Value) (entryID []byte, err error) {
+func (t *Transaction[T]) new(val T) (entryID []byte, err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -387,7 +386,7 @@ func (t *Transaction) new(val Value) (entryID []byte, err error) {
 	return
 }
 
-func (t *Transaction) put(entryID []byte, val Value) (err error) {
+func (t *Transaction[T]) put(entryID []byte, val T) (err error) {
 	if len(entryID) == 0 {
 		return ErrEmptyEntryID
 	}
@@ -412,10 +411,10 @@ func (t *Transaction) put(entryID []byte, val Value) (err error) {
 	return
 }
 
-func (t *Transaction) processBlock(b *kiroku.Block) (err error) {
+func (t *Transaction[T]) processBlock(b *kiroku.Block) (err error) {
 	switch b.Type {
 	case kiroku.TypeWriteAction:
-		var val Value
+		var val T
 		if val, err = t.m.newValueFromBytes(b.Value); err != nil {
 			return
 		}
@@ -433,26 +432,25 @@ func (t *Transaction) processBlock(b *kiroku.Block) (err error) {
 	return
 }
 
-func (t *Transaction) edit(entryID []byte, val Value, allowInsert bool) (err error) {
+func (t *Transaction[T]) edit(entryID []byte, val T, allowInsert bool) (err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
 
-	orig := reflect.New(t.m.entryType).Interface().(Value)
-	err = t.get(entryID, orig)
+	var orig T
+	orig, err = t.get(entryID)
 	switch {
 	case err == nil:
+		return t.update(entryID, orig, val)
 	case err == ErrEntryNotFound && allowInsert:
-		orig = nil
+		return t.update(entryID, nil, val)
 
 	default:
 		return
 	}
-
-	return t.update(entryID, orig, val)
 }
 
-func (t *Transaction) update(entryID []byte, orig, val Value) (err error) {
+func (t *Transaction[T]) update(entryID []byte, orig Value, val T) (err error) {
 	// Ensure the ID is set as the original ID
 	val.SetID(string(entryID))
 
@@ -477,13 +475,13 @@ func (t *Transaction) update(entryID []byte, orig, val Value) (err error) {
 	return
 }
 
-func (t *Transaction) remove(entryID []byte) (err error) {
+func (t *Transaction[T]) remove(entryID []byte) (err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
 
-	val := t.m.newEntryValue()
-	if err = t.get(entryID, val); err != nil {
+	var val T
+	if val, err = t.get(entryID); err != nil {
 		err = fmt.Errorf("error finding entry <%s>: %v", entryID, err)
 		return
 	}
@@ -501,7 +499,7 @@ func (t *Transaction) remove(entryID []byte) (err error) {
 	return t.bw.AddBlock(kiroku.TypeDeleteAction, entryID, nil)
 }
 
-func (t *Transaction) loadMeta() (err error) {
+func (t *Transaction[T]) loadMeta() (err error) {
 	var bkt backend.Bucket
 	if bkt, err = t.getMetaBucket(); err != nil {
 		return
@@ -521,7 +519,7 @@ func (t *Transaction) loadMeta() (err error) {
 	return
 }
 
-func (t *Transaction) storeMeta(meta kiroku.Meta) (err error) {
+func (t *Transaction[T]) storeMeta(meta kiroku.Meta) (err error) {
 	var bkt backend.Bucket
 	if bkt, err = t.getMetaBucket(); err != nil {
 		return
@@ -537,18 +535,18 @@ func (t *Transaction) storeMeta(meta kiroku.Meta) (err error) {
 	return bkt.Put([]byte("value"), bs)
 }
 
-func (t *Transaction) setIndex(index uint64) {
+func (t *Transaction[T]) setIndex(index uint64) {
 	t.meta.CurrentIndex = index
 	t.metaUpdated = true
 }
 
-func (t *Transaction) teardown() {
+func (t *Transaction[T]) teardown() {
 	t.txn = nil
 	t.m = nil
 }
 
 // New will insert a new entry with the given value and the associated relationships
-func (t *Transaction) New(val Value) (entryID string, err error) {
+func (t *Transaction[T]) New(val T) (entryID string, err error) {
 	var id []byte
 	if id, err = t.new(val); err != nil {
 		return
@@ -559,61 +557,56 @@ func (t *Transaction) New(val Value) (entryID string, err error) {
 }
 
 // Exists will notiy if an entry exists for a given entry ID
-func (t *Transaction) Exists(entryID string) (exists bool, err error) {
+func (t *Transaction[T]) Exists(entryID string) (exists bool, err error) {
 	return t.exists([]byte(entryID))
 }
 
 // Get will attempt to get an entry by ID
-func (t *Transaction) Get(entryID string, val Value) (err error) {
-	return t.get([]byte(entryID), val)
+func (t *Transaction[T]) Get(entryID string) (val T, err error) {
+	return t.get([]byte(entryID))
 }
 
 // GetFiltered will attempt to get all entries associated with a set of given filters
-func (t *Transaction) GetFiltered(entries interface{}, o *FilteringOpts) (lastID string, err error) {
-	var es reflect.Value
-	if es, err = getReflectedSlice(t.m.entryType, entries); err != nil {
-		return
-	}
-
-	return t.getFiltered(es, o)
+func (t *Transaction[T]) GetFiltered(o *FilteringOpts) (es []T, lastID string, err error) {
+	return t.getFiltered(o)
 }
 
 // GetFirst will attempt to get the first entry associated with a set of given filters
 // Note: Will return ErrEntryNotFound if no match is found
-func (t *Transaction) GetFirst(value Value, o *IteratingOpts) (err error) {
-	return t.getFirst(value, o)
+func (t *Transaction[T]) GetFirst(o *IteratingOpts) (val T, err error) {
+	return t.getFirst(o)
 }
 
 // GetLast will attempt to get the last entry associated with a set of given filters
 // Note: Will return ErrEntryNotFound if no match is found
-func (t *Transaction) GetLast(value Value, o *IteratingOpts) (err error) {
-	return t.getLast(value, o)
+func (t *Transaction[T]) GetLast(o *IteratingOpts) (val T, err error) {
+	return t.getLast(o)
 }
 
 // IDCursor will return an ID iterating cursor
-func (t *Transaction) IDCursor(fs ...Filter) (c IDCursor, err error) {
+func (t *Transaction[T]) IDCursor(fs ...Filter) (c IDCursor, err error) {
 	return t.idCursor(fs)
 }
 
 // Cursor will return an iterating cursor
-func (t *Transaction) Cursor(fs ...Filter) (c Cursor, err error) {
+func (t *Transaction[T]) Cursor(fs ...Filter) (c Cursor[T], err error) {
 	return t.cursor(fs)
 }
 
 // ForEach will iterate through entries
-func (t *Transaction) ForEach(fn ForEachFn, o *IteratingOpts) (err error) {
+func (t *Transaction[T]) ForEach(fn ForEachFn[T], o *IteratingOpts) (err error) {
 	if o == nil {
 		o = defaultIteratingOpts
 	}
 
-	var c Cursor
+	var c Cursor[T]
 	if c, err = t.Cursor(o.Filters...); err != nil {
 		return
 	}
 
 	iterator := getIteratorFunc(c, o.Reverse)
 
-	var val Value
+	var val T
 	for val, err = getFirst(c, o.LastID, o.Reverse); err == nil; val, err = iterator() {
 		if err = fn(val.GetID(), val); err != nil {
 			break
@@ -628,7 +621,7 @@ func (t *Transaction) ForEach(fn ForEachFn, o *IteratingOpts) (err error) {
 }
 
 // ForEachID will iterate through entry IDs
-func (t *Transaction) ForEachID(fn ForEachIDFn, o *IteratingOpts) (err error) {
+func (t *Transaction[T]) ForEachID(fn ForEachIDFn, o *IteratingOpts) (err error) {
 	if o == nil {
 		o = defaultIteratingOpts
 	}
@@ -656,19 +649,19 @@ func (t *Transaction) ForEachID(fn ForEachIDFn, o *IteratingOpts) (err error) {
 // Put will place an entry at a given entry ID
 // Note: This will not check to see if the entry exists beforehand. If this functionality
 // is needed, look into using the Edit method
-func (t *Transaction) Put(entryID string, val Value) (err error) {
+func (t *Transaction[T]) Put(entryID string, val T) (err error) {
 	return t.put([]byte(entryID), val)
 }
 
 // Edit will attempt to edit an entry by ID
-func (t *Transaction) Edit(entryID string, val Value) (err error) {
+func (t *Transaction[T]) Edit(entryID string, val T) (err error) {
 	return t.edit([]byte(entryID), val, false)
 }
 
 // Remove will remove a relationship ID and it's related relationship IDs
-func (t *Transaction) Remove(entryID string) (err error) {
+func (t *Transaction[T]) Remove(entryID string) (err error) {
 	return t.remove([]byte(entryID))
 }
 
 // TransactionFn represents a transaction function
-type TransactionFn func(*Transaction) error
+type TransactionFn[T Value] func(*Transaction[T]) error

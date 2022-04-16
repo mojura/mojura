@@ -6,7 +6,7 @@ import (
 	"github.com/mojura/mojura/filters"
 )
 
-func newFilterCursor(txn *Transaction, f Filter) (fc filterCursor, err error) {
+func newFilterCursor[T Value](txn *Transaction[T], f Filter) (fc filterCursor, err error) {
 	switch n := f.(type) {
 	case *filters.MatchFilter:
 		return newMatchCursor(txn, n)

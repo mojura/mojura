@@ -12,7 +12,7 @@ func getIDIteratorFunc(c IDCursor, reverse bool) (fn idIteratorFn) {
 
 type idIteratorFn func() (entryID string, err error)
 
-func getIteratorFunc(c Cursor, reverse bool) (fn iteratorFn) {
+func getIteratorFunc[T Value](c Cursor[T], reverse bool) (fn iteratorFn[T]) {
 	if !reverse {
 		// Current request is a forward-direction cursor, return cursor.Next (incrementing)
 		return c.Next
@@ -22,4 +22,4 @@ func getIteratorFunc(c Cursor, reverse bool) (fn iteratorFn) {
 	return c.Prev
 }
 
-type iteratorFn func() (val Value, err error)
+type iteratorFn[T Value] func() (val T, err error)

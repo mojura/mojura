@@ -1,9 +1,9 @@
 package mojura
 
-var _ IDCursor = &multiIDCursor{}
+var _ IDCursor = &multiIDCursor[*Entry]{}
 
-func newMultiIDCursor(txn *Transaction, fs []Filter) (mp *multiIDCursor, err error) {
-	var m multiIDCursor
+func newMultiIDCursor[T Value](txn *Transaction[T], fs []Filter) (mp *multiIDCursor[T], err error) {
+	var m multiIDCursor[T]
 	if len(fs) == 0 {
 		err = ErrEmptyFilters
 		return
@@ -29,24 +29,24 @@ func newMultiIDCursor(txn *Transaction, fs []Filter) (mp *multiIDCursor, err err
 	return
 }
 
-type multiIDCursor struct {
-	txn *Transaction
+type multiIDCursor[T Value] struct {
+	txn *Transaction[T]
 
 	primary   filterCursor
 	secondary []filterCursor
 }
 
-func (c *multiIDCursor) teardown() {
+func (c *multiIDCursor[T]) teardown() {
 	c.txn = nil
 	c.primary = nil
 	c.secondary = nil
 }
 
-func (c *multiIDCursor) getCurrentRelationshipID() (relationshipID string) {
+func (c *multiIDCursor[T]) getCurrentRelationshipID() (relationshipID string) {
 	return c.primary.getCurrentRelationshipID()
 }
 
-func (c *multiIDCursor) isForwardMatch(entryID []byte) (isMatch bool, err error) {
+func (c *multiIDCursor[T]) isForwardMatch(entryID []byte) (isMatch bool, err error) {
 	for _, secondary := range c.secondary {
 		if isMatch, err = secondary.HasForward(entryID); err != nil {
 			isMatch = false
@@ -61,7 +61,7 @@ func (c *multiIDCursor) isForwardMatch(entryID []byte) (isMatch bool, err error)
 	return true, nil
 }
 
-func (c *multiIDCursor) isReverseMatch(entryID []byte) (isMatch bool, err error) {
+func (c *multiIDCursor[T]) isReverseMatch(entryID []byte) (isMatch bool, err error) {
 	for _, secondary := range c.secondary {
 		if isMatch, err = secondary.HasReverse(entryID); err != nil {
 			isMatch = false
@@ -76,7 +76,7 @@ func (c *multiIDCursor) isReverseMatch(entryID []byte) (isMatch bool, err error)
 	return true, nil
 }
 
-func (c *multiIDCursor) nextUntilMatch(entryID []byte) (matchEntryID []byte, err error) {
+func (c *multiIDCursor[T]) nextUntilMatch(entryID []byte) (matchEntryID []byte, err error) {
 	var isMatch bool
 	for err == nil {
 		isMatch, err = c.isForwardMatch(entryID)
@@ -95,7 +95,7 @@ func (c *multiIDCursor) nextUntilMatch(entryID []byte) (matchEntryID []byte, err
 	return
 }
 
-func (c *multiIDCursor) prevUntilMatch(entryID []byte) (matchEntryID []byte, err error) {
+func (c *multiIDCursor[T]) prevUntilMatch(entryID []byte) (matchEntryID []byte, err error) {
 	var isMatch bool
 	for err == nil {
 		isMatch, err = c.isReverseMatch(entryID)
@@ -114,7 +114,7 @@ func (c *multiIDCursor) prevUntilMatch(entryID []byte) (matchEntryID []byte, err
 	return
 }
 
-func (c *multiIDCursor) seek(seekID []byte) (entryID []byte, err error) {
+func (c *multiIDCursor[T]) seek(seekID []byte) (entryID []byte, err error) {
 	var relationshipKey []byte
 	if relationshipKey, seekID = splitSeekID(seekID); err != nil {
 		return
@@ -127,7 +127,7 @@ func (c *multiIDCursor) seek(seekID []byte) (entryID []byte, err error) {
 	return c.nextUntilMatch(entryID)
 }
 
-func (c *multiIDCursor) seekReverse(seekID []byte) (entryID []byte, err error) {
+func (c *multiIDCursor[T]) seekReverse(seekID []byte) (entryID []byte, err error) {
 	var relationshipKey []byte
 	if relationshipKey, seekID = splitSeekID(seekID); err != nil {
 		return
@@ -140,7 +140,7 @@ func (c *multiIDCursor) seekReverse(seekID []byte) (entryID []byte, err error) {
 	return c.prevUntilMatch(entryID)
 }
 
-func (c *multiIDCursor) first() (entryID []byte, err error) {
+func (c *multiIDCursor[T]) first() (entryID []byte, err error) {
 	if entryID, err = c.primary.First(); err != nil {
 		return
 	}
@@ -148,7 +148,7 @@ func (c *multiIDCursor) first() (entryID []byte, err error) {
 	return c.nextUntilMatch(entryID)
 }
 
-func (c *multiIDCursor) next() (entryID []byte, err error) {
+func (c *multiIDCursor[T]) next() (entryID []byte, err error) {
 	if entryID, err = c.primary.Next(); err != nil {
 		return
 	}
@@ -156,7 +156,7 @@ func (c *multiIDCursor) next() (entryID []byte, err error) {
 	return c.nextUntilMatch(entryID)
 }
 
-func (c *multiIDCursor) prev() (entryID []byte, err error) {
+func (c *multiIDCursor[T]) prev() (entryID []byte, err error) {
 	if entryID, err = c.primary.Prev(); err != nil {
 		return
 	}
@@ -164,7 +164,7 @@ func (c *multiIDCursor) prev() (entryID []byte, err error) {
 	return c.prevUntilMatch(entryID)
 }
 
-func (c *multiIDCursor) last() (entryID []byte, err error) {
+func (c *multiIDCursor[T]) last() (entryID []byte, err error) {
 	if entryID, err = c.primary.Last(); err != nil {
 		return
 	}
@@ -173,7 +173,7 @@ func (c *multiIDCursor) last() (entryID []byte, err error) {
 }
 
 // Seek will seek the provided ID and move forward until match
-func (c *multiIDCursor) Seek(seekID string) (entryID string, err error) {
+func (c *multiIDCursor[T]) Seek(seekID string) (entryID string, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -188,7 +188,7 @@ func (c *multiIDCursor) Seek(seekID string) (entryID string, err error) {
 }
 
 // SeekReverse will seek the provided ID and move reverse until match
-func (c *multiIDCursor) SeekReverse(seekID string) (entryID string, err error) {
+func (c *multiIDCursor[T]) SeekReverse(seekID string) (entryID string, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -203,7 +203,7 @@ func (c *multiIDCursor) SeekReverse(seekID string) (entryID string, err error) {
 }
 
 // First will return the first entry
-func (c *multiIDCursor) First() (entryID string, err error) {
+func (c *multiIDCursor[T]) First() (entryID string, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -218,7 +218,7 @@ func (c *multiIDCursor) First() (entryID string, err error) {
 }
 
 // Last will return the last entry
-func (c *multiIDCursor) Last() (entryID string, err error) {
+func (c *multiIDCursor[T]) Last() (entryID string, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -233,7 +233,7 @@ func (c *multiIDCursor) Last() (entryID string, err error) {
 }
 
 // Next will return the next entry
-func (c *multiIDCursor) Next() (entryID string, err error) {
+func (c *multiIDCursor[T]) Next() (entryID string, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -248,7 +248,7 @@ func (c *multiIDCursor) Next() (entryID string, err error) {
 }
 
 // Prev will return the previous entry
-func (c *multiIDCursor) Prev() (entryID string, err error) {
+func (c *multiIDCursor[T]) Prev() (entryID string, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -263,7 +263,7 @@ func (c *multiIDCursor) Prev() (entryID string, err error) {
 }
 
 // HasForward will determine if an entry exists in a forward direction
-func (c *multiIDCursor) HasForward(entryID string) (ok bool, err error) {
+func (c *multiIDCursor[T]) HasForward(entryID string) (ok bool, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -282,7 +282,7 @@ func (c *multiIDCursor) HasForward(entryID string) (ok bool, err error) {
 }
 
 // HasReverse will determine if an entry exists in a reverse direction
-func (c *multiIDCursor) HasReverse(entryID string) (ok bool, err error) {
+func (c *multiIDCursor[T]) HasReverse(entryID string) (ok bool, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
