@@ -17,11 +17,11 @@ const (
 	testDir = "./test_data"
 )
 
-var c *Mojura
+var c *Mojura[*testStruct]
 
 func TestNew(t *testing.T) {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
@@ -38,7 +38,7 @@ func TestNew(t *testing.T) {
 
 func TestMojura_New(t *testing.T) {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
@@ -61,7 +61,7 @@ func TestMojura_New(t *testing.T) {
 
 func TestMojura_New_with_database_build(t *testing.T) {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
@@ -90,19 +90,19 @@ func TestMojura_New_with_database_build(t *testing.T) {
 	}
 	defer testTeardown(c, t)
 
-	var e testStruct
-	if err = c.Get(entryID, &e); err != nil {
+	var e *testStruct
+	if e, err = c.Get(entryID); err != nil {
 		t.Fatalf("error getting: %v", err)
 	}
 
-	if err = foobar.compare(&e); err != nil {
+	if err = foobar.compare(e); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestMojura_New_with_history_build(t *testing.T) {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
@@ -131,19 +131,19 @@ func TestMojura_New_with_history_build(t *testing.T) {
 	}
 	defer testTeardown(c, t)
 
-	var e testStruct
-	if err = c.Get(entryID, &e); err != nil {
+	var e *testStruct
+	if e, err = c.Get(entryID); err != nil {
 		t.Fatalf("error getting: %v", err)
 	}
 
-	if err = foobar.compare(&e); err != nil {
+	if err = foobar.compare(e); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestMojura_New_with_history_and_database_build(t *testing.T) {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
@@ -185,19 +185,19 @@ func TestMojura_New_with_history_and_database_build(t *testing.T) {
 	}
 	defer testTeardown(c, t)
 
-	var e testStruct
-	if err = c.Get(entryID, &e); err != nil {
+	var e *testStruct
+	if e, err = c.Get(entryID); err != nil {
 		t.Fatalf("error getting: %v", err)
 	}
 
-	if err = foobar.compare(&e); err != nil {
+	if err = foobar.compare(e); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestMojura_Get(t *testing.T) {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
@@ -213,19 +213,19 @@ func TestMojura_Get(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var fb testStruct
-	if err = c.Get(entryID, &fb); err != nil {
+	var fb *testStruct
+	if fb, err = c.Get(entryID); err != nil {
 		t.Fatal(err)
 	}
 
-	if err = testCheck(&foobar, &fb); err != nil {
+	if err = testCheck(&foobar, fb); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestMojura_Get_context(t *testing.T) {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
@@ -260,12 +260,10 @@ func TestMojura_Get_context(t *testing.T) {
 	for _, tc := range tcs {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*200)
 		defer cancel()
-		if err = c.ReadTransaction(ctx, func(txn *Transaction) (err error) {
-			var fb testStruct
+		if err = c.ReadTransaction(ctx, func(txn *Transaction[*testStruct]) (err error) {
 			for i := 0; i < tc.iterations; i++ {
 				time.Sleep(tc.timeout)
-
-				if err = txn.Get(entryID, &fb); err != nil {
+				if _, err = txn.Get(entryID); err != nil {
 					return
 				}
 			}
@@ -279,7 +277,7 @@ func TestMojura_Get_context(t *testing.T) {
 
 func TestMojura_GetFiltered_many_to_many(t *testing.T) {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
@@ -304,7 +302,7 @@ func TestMojura_GetFiltered_many_to_many(t *testing.T) {
 			filter := filters.Match("tags", tc.tag)
 			o := NewFilteringOpts(filter)
 			var entries []*testStruct
-			if _, err = c.GetFiltered(&entries, o); err != nil {
+			if entries, _, err = c.GetFiltered(o); err != nil {
 				return
 			}
 
@@ -419,7 +417,7 @@ func TestMojura_GetFiltered_many_to_many(t *testing.T) {
 
 func TestMojura_GetFiltered_seek(t *testing.T) {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
@@ -447,7 +445,7 @@ func TestMojura_GetFiltered_seek(t *testing.T) {
 	o.Limit = 1
 
 	var filtered []*testStruct
-	if o.LastID, err = c.GetFiltered(&filtered, &o); err != nil {
+	if filtered, o.LastID, err = c.GetFiltered(&o); err != nil {
 		t.Fatal(err)
 	}
 
@@ -458,7 +456,7 @@ func TestMojura_GetFiltered_seek(t *testing.T) {
 
 	filtered = filtered[:0]
 
-	if o.LastID, err = c.GetFiltered(&filtered, &o); err != nil {
+	if filtered, o.LastID, err = c.GetFiltered(&o); err != nil {
 		t.Fatal(err)
 	}
 
@@ -468,7 +466,7 @@ func TestMojura_GetFiltered_seek(t *testing.T) {
 	}
 
 	filtered = filtered[:0]
-	if o.LastID, err = c.GetFiltered(&filtered, &o); err != nil {
+	if filtered, o.LastID, err = c.GetFiltered(&o); err != nil {
 		t.Fatal(err)
 	}
 
@@ -479,7 +477,7 @@ func TestMojura_GetFiltered_seek(t *testing.T) {
 	}
 
 	filtered = filtered[:0]
-	if o.LastID, err = c.GetFiltered(&filtered, &o); err != nil {
+	if filtered, o.LastID, err = c.GetFiltered(&o); err != nil {
 		t.Fatal(err)
 	}
 
@@ -490,7 +488,7 @@ func TestMojura_GetFiltered_seek(t *testing.T) {
 
 func TestMojura_Edit(t *testing.T) {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
@@ -512,19 +510,19 @@ func TestMojura_Edit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var fb testStruct
-	if err = c.Get(entryID, &fb); err != nil {
+	var fb *testStruct
+	if fb, err = c.Get(entryID); err != nil {
 		t.Fatal(err)
 	}
 
-	if err = testCheck(&foobar, &fb); err != nil {
+	if err = testCheck(&foobar, fb); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestMojura_ForEach(t *testing.T) {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
@@ -544,12 +542,11 @@ func TestMojura_ForEach(t *testing.T) {
 	}
 
 	var cnt int
-	if err = c.ForEach(func(key string, v Value) (err error) {
-		fb := v.(*testStruct)
+	if err = c.ForEach(func(key string, v *testStruct) (err error) {
 		// We are not checking ID correctness in this test
-		foobar.ID = fb.ID
+		foobar.ID = v.ID
 
-		if err = testCheck(&foobar, fb); err != nil {
+		if err = testCheck(&foobar, v); err != nil {
 			t.Fatal(err)
 		}
 
@@ -566,7 +563,7 @@ func TestMojura_ForEach(t *testing.T) {
 
 func TestMojura_ForEach_with_filter(t *testing.T) {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
@@ -589,12 +586,11 @@ func TestMojura_ForEach_with_filter(t *testing.T) {
 	}
 
 	var cnt int
-	fn := func(key string, v Value) (err error) {
-		fb := v.(*testStruct)
+	fn := func(key string, v *testStruct) (err error) {
 		// We are not checking ID correctness in this test
-		foobar.ID = fb.ID
+		foobar.ID = v.ID
 
-		if err = testCheck(&foobar, fb); err != nil {
+		if err = testCheck(&foobar, v); err != nil {
 			t.Fatal(err)
 		}
 
@@ -616,7 +612,7 @@ func TestMojura_ForEach_with_filter(t *testing.T) {
 
 func TestMojura_ForEach_with_multiple_filters(t *testing.T) {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
@@ -732,7 +728,7 @@ func TestMojura_ForEach_with_multiple_filters(t *testing.T) {
 
 	for i, tc := range tcs {
 		ss := stringset.New()
-		fn := func(key string, v Value) (err error) {
+		fn := func(key string, v *testStruct) (err error) {
 			ss.Set(key)
 			return
 		}
@@ -754,7 +750,7 @@ func TestMojura_ForEach_with_multiple_filters(t *testing.T) {
 
 func TestMojura_GetFirst_with_multiple_filters(t *testing.T) {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
@@ -873,7 +869,7 @@ func TestMojura_GetFirst_with_multiple_filters(t *testing.T) {
 
 	for i, tc := range tcs {
 		ss := stringset.New()
-		fn := func(key string, v Value) (err error) {
+		fn := func(key string, v *testStruct) (err error) {
 			ss.Set(key)
 			return
 		}
@@ -885,20 +881,20 @@ func TestMojura_GetFirst_with_multiple_filters(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		var match testStruct
-		if err = c.GetFirst(&match, &o); err != tc.err {
+		var match *testStruct
+		if match, err = c.GetFirst(&o); err != tc.err {
 			t.Fatalf("invalid error, expected <%v> and received <%v> (test #%d)", tc.err, err, i)
 		}
 
-		if match.ID != tc.expectedID {
-			t.Fatalf("invalid ID, expected <%s> and recieved <%s> (test #%d)", tc.expectedID, match.ID, i)
+		if match.GetID() != tc.expectedID {
+			t.Fatalf("invalid ID, expected <%s> and recieved <%s> (test #%d)", tc.expectedID, match.GetID(), i)
 		}
 	}
 }
 
 func TestMojura_GetLast_with_multiple_filters(t *testing.T) {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
@@ -1017,7 +1013,7 @@ func TestMojura_GetLast_with_multiple_filters(t *testing.T) {
 
 	for i, tc := range tcs {
 		ss := stringset.New()
-		fn := func(key string, v Value) (err error) {
+		fn := func(key string, v *testStruct) (err error) {
 			ss.Set(key)
 			return
 		}
@@ -1029,20 +1025,20 @@ func TestMojura_GetLast_with_multiple_filters(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		var match testStruct
-		if err = c.GetLast(&match, &o); err != tc.err {
+		var match *testStruct
+		if match, err = c.GetLast(&o); err != tc.err {
 			t.Fatalf("invalid error, expected <%v> and received <%v> (test #%d)", tc.err, err, i)
 		}
 
-		if match.ID != tc.expectedID {
-			t.Fatalf("invalid ID, expected <%s> and recieved <%s> (test #%d)", tc.expectedID, match.ID, i)
+		if match.GetID() != tc.expectedID {
+			t.Fatalf("invalid ID, expected <%s> and recieved <%s> (test #%d)", tc.expectedID, match.GetID(), i)
 		}
 	}
 }
 
 func TestMojura_Cursor(t *testing.T) {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
@@ -1062,7 +1058,7 @@ func TestMojura_Cursor(t *testing.T) {
 	}
 
 	var cnt int
-	if err = c.Cursor(func(cursor Cursor) (err error) {
+	if err = c.Cursor(func(cursor Cursor[*testStruct]) (err error) {
 		var val Value
 		for val, err = cursor.Seek(""); err == nil; val, err = cursor.Next() {
 			fb := val.(*testStruct)
@@ -1093,7 +1089,7 @@ func TestMojura_Cursor(t *testing.T) {
 
 func TestMojura_Cursor_First(t *testing.T) {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
@@ -1112,7 +1108,7 @@ func TestMojura_Cursor_First(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err = c.Cursor(func(cursor Cursor) (err error) {
+	if err = c.Cursor(func(cursor Cursor[*testStruct]) (err error) {
 		var val Value
 		if val, err = cursor.First(); err != nil {
 			return
@@ -1138,7 +1134,7 @@ func TestMojura_Cursor_First(t *testing.T) {
 
 func TestMojura_Cursor_Last(t *testing.T) {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
@@ -1157,7 +1153,7 @@ func TestMojura_Cursor_Last(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err = c.Cursor(func(cursor Cursor) (err error) {
+	if err = c.Cursor(func(cursor Cursor[*testStruct]) (err error) {
 		var val Value
 		if val, err = cursor.Last(); err != nil {
 			return
@@ -1183,7 +1179,7 @@ func TestMojura_Cursor_Last(t *testing.T) {
 
 func TestMojura_Cursor_Seek(t *testing.T) {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
@@ -1202,7 +1198,7 @@ func TestMojura_Cursor_Seek(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err = c.Cursor(func(cursor Cursor) (err error) {
+	if err = c.Cursor(func(cursor Cursor[*testStruct]) (err error) {
 		var val Value
 		if val, err = cursor.Seek("00000001"); err != nil {
 			return
@@ -1228,7 +1224,7 @@ func TestMojura_Cursor_Seek(t *testing.T) {
 
 func TestMojura_Batch(t *testing.T) {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
@@ -1240,14 +1236,14 @@ func TestMojura_Batch(t *testing.T) {
 	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
 	var entryID string
-	if err = c.Batch(context.Background(), func(txn *Transaction) (err error) {
+	if err = c.Batch(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		entryID, err = txn.New(&foobar)
 		return
 	}); err != nil {
 		t.Fatal(err)
 	}
 
-	if err = c.Batch(context.Background(), func(txn *Transaction) (err error) {
+	if err = c.Batch(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		foobar.Value = "foo bar baz"
 		err = txn.Edit(entryID, &foobar)
 		return
@@ -1255,8 +1251,8 @@ func TestMojura_Batch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var val testStruct
-	if err = c.Get(entryID, &val); err != nil {
+	var val *testStruct
+	if val, err = c.Get(entryID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1267,7 +1263,7 @@ func TestMojura_Batch(t *testing.T) {
 
 func TestMojura_index_increment_persist(t *testing.T) {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
@@ -1278,7 +1274,7 @@ func TestMojura_index_increment_persist(t *testing.T) {
 
 	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
-	if err = c.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = c.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		_, err = txn.New(&foobar)
 		return
 	}); err != nil {
@@ -1295,7 +1291,7 @@ func TestMojura_index_increment_persist(t *testing.T) {
 	defer testTeardown(c, t)
 
 	var entryID string
-	if err = c.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = c.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		entryID, err = txn.New(&foobar)
 		return
 	}); err != nil {
@@ -1309,7 +1305,7 @@ func TestMojura_index_increment_persist(t *testing.T) {
 
 func TestMojura_Reindex(t *testing.T) {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
@@ -1326,8 +1322,8 @@ func TestMojura_Reindex(t *testing.T) {
 
 	opts := NewIteratingOpts(filters.Match("users", "user_1"))
 
-	var val testStruct
-	if err = c.GetFirst(&val, opts); err != nil {
+	var before *testStruct
+	if before, err = c.GetFirst(opts); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1335,11 +1331,15 @@ func TestMojura_Reindex(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	var after *testStruct
 	// Ensure relationship works after reindex
-	if err = c.GetFirst(&val, opts); err != nil {
+	if after, err = c.GetFirst(opts); err != nil {
 		t.Fatal(err)
 	}
 
+	if before.ID != after.ID {
+		t.Fatalf("invalid ID, expected <%s> and received <%s>", before.ID, after.ID)
+	}
 }
 
 func BenchmarkMojura_New_2(b *testing.B) {
@@ -1392,7 +1392,7 @@ func BenchmarkMojura_Batch_64(b *testing.B) {
 
 func benchmarkMojuraNew(b *testing.B, threads int) {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
@@ -1417,7 +1417,7 @@ func benchmarkMojuraNew(b *testing.B, threads int) {
 
 func benchmarkMojuraBatch(b *testing.B, threads int) {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
@@ -1431,7 +1431,7 @@ func benchmarkMojuraBatch(b *testing.B, threads int) {
 	b.SetParallelism(threads)
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			if err = c.Batch(context.Background(), func(txn *Transaction) (err error) {
+			if err = c.Batch(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 				_, err = txn.New(&foobar)
 				return
 			}); err != nil {
@@ -1445,13 +1445,13 @@ func benchmarkMojuraBatch(b *testing.B, threads int) {
 
 func ExampleNew() {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
 	opts := MakeOpts("example", "./data")
 
-	if c, err = New(opts, &testStruct{}, "users", "contacts", "groups"); err != nil {
+	if c, err = New(opts, newEmptyTestStruct, "users", "contacts", "groups"); err != nil {
 		return
 	}
 
@@ -1477,11 +1477,11 @@ func ExampleMojura_New() {
 
 func ExampleMojura_Get() {
 	var (
-		ts  testStruct
+		ts  *testStruct
 		err error
 	)
 
-	if err = c.Get("00000000", &ts); err != nil {
+	if ts, err = c.Get("00000000"); err != nil {
 		return
 	}
 
@@ -1490,7 +1490,7 @@ func ExampleMojura_Get() {
 
 func ExampleMojura_GetFiltered() {
 	var (
-		tss    []testStruct
+		tss    []*testStruct
 		lastID string
 		err    error
 	)
@@ -1498,7 +1498,7 @@ func ExampleMojura_GetFiltered() {
 	filter := filters.Match("users", "user_1")
 	opts := NewFilteringOpts(filter)
 
-	if lastID, err = c.GetFiltered(&tss, opts); err != nil {
+	if tss, lastID, err = c.GetFiltered(opts); err != nil {
 		return
 	}
 
@@ -1509,7 +1509,7 @@ func ExampleMojura_ForEach() {
 	var err error
 	filter := filters.Match("users", "user_1")
 	opts := NewIteratingOpts(filter)
-	if err = c.ForEach(func(entryID string, val Value) (err error) {
+	if err = c.ForEach(func(entryID string, val *testStruct) (err error) {
 		fmt.Printf("Iterating entry (%s)! %+v\n", entryID, val)
 		return
 	}, opts); err != nil {
@@ -1521,7 +1521,7 @@ func ExampleMojura_ForEach_with_filter() {
 	var err error
 	filter := filters.Match("users", "user_1")
 	opts := NewIteratingOpts(filter)
-	if err = c.ForEach(func(entryID string, val Value) (err error) {
+	if err = c.ForEach(func(entryID string, val *testStruct) (err error) {
 		fmt.Printf("Iterating entry (%s)! %+v\n", entryID, val)
 		return
 	}, opts); err != nil {
@@ -1556,17 +1556,17 @@ func ExampleMojura_Remove() {
 	fmt.Printf("Removed entry %s!\n", "00000000")
 }
 
-func testInit() (c *Mojura, err error) {
+func testInit() (c *Mojura[*testStruct], err error) {
 	if err = os.MkdirAll(testDir, 0744); err != nil {
 		return
 	}
 
 	opts := MakeOpts("test", testDir)
 
-	return New(opts, &testStruct{}, "users", "contacts", "groups", "tags")
+	return New(opts, newEmptyTestStruct, "users", "contacts", "groups", "tags")
 }
 
-func testTeardown(c *Mojura, t interface{ Fatal(...interface{}) }) {
+func testTeardown(c *Mojura[*testStruct], t interface{ Fatal(...interface{}) }) {
 	var errs errors.ErrorList
 	if c != nil {
 		errs.Push(c.Close())
@@ -1613,6 +1613,11 @@ func makeTestStruct(userID, contactID, groupID, value string, tags ...string) (t
 	return
 }
 
+func newEmptyTestStruct() *testStruct {
+	var t testStruct
+	return &t
+}
+
 type testStruct struct {
 	Entry
 
@@ -1622,6 +1627,14 @@ type testStruct struct {
 	Tags      []string `json:"tags"`
 
 	Value string `json:"value"`
+}
+
+func (t *testStruct) GetID() (id string) {
+	if t == nil {
+		return
+	}
+
+	return t.ID
 }
 
 func (t *testStruct) GetRelationships() (r Relationships) {

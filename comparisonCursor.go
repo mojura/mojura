@@ -7,9 +7,9 @@ import (
 	"github.com/mojura/mojura/filters"
 )
 
-var _ filterCursor = &comparisonCursor{}
+var _ filterCursor = &comparisonCursor[*Entry]{}
 
-func newComparisonCursor(txn *Transaction, f *filters.ComparisonFilter) (fc filterCursor, err error) {
+func newComparisonCursor[T Value](txn *Transaction[T], f *filters.ComparisonFilter) (fc filterCursor, err error) {
 	if len(f.RelationshipKey) == 0 {
 		return newBaseComparisonCursor(txn, f)
 	}
@@ -17,8 +17,8 @@ func newComparisonCursor(txn *Transaction, f *filters.ComparisonFilter) (fc filt
 	return newKeyComparisonCursor(txn, f)
 }
 
-func newKeyComparisonCursor(txn *Transaction, f *filters.ComparisonFilter) (cur *comparisonCursor, err error) {
-	var c comparisonCursor
+func newKeyComparisonCursor[T Value](txn *Transaction[T], f *filters.ComparisonFilter) (cur *comparisonCursor[T], err error) {
+	var c comparisonCursor[T]
 	if c.parent, err = txn.getRelationshipBucket([]byte(f.RelationshipKey)); err != nil {
 		return
 	}
@@ -33,8 +33,8 @@ func newKeyComparisonCursor(txn *Transaction, f *filters.ComparisonFilter) (cur 
 	return
 }
 
-type comparisonCursor struct {
-	txn *Transaction
+type comparisonCursor[T Value] struct {
+	txn *Transaction[T]
 
 	parent backend.Bucket
 	bktCur backend.Cursor
@@ -47,7 +47,7 @@ type comparisonCursor struct {
 	isMatch filters.ComparisonFn
 }
 
-func (c *comparisonCursor) rangeStartCheck() (ok bool) {
+func (c *comparisonCursor[T]) rangeStartCheck() (ok bool) {
 	if len(c.rangeStart) == 0 {
 		return true
 	}
@@ -55,7 +55,7 @@ func (c *comparisonCursor) rangeStartCheck() (ok bool) {
 	return bytes.Compare(c.rangeStart, c.currentRelationshipID) != 1
 }
 
-func (c *comparisonCursor) rangeEndCheck() (ok bool) {
+func (c *comparisonCursor[T]) rangeEndCheck() (ok bool) {
 	if len(c.rangeEnd) == 0 {
 		return true
 	}
@@ -63,11 +63,11 @@ func (c *comparisonCursor) rangeEndCheck() (ok bool) {
 	return bytes.Compare(c.rangeEnd, c.currentRelationshipID) != -1
 }
 
-func (c *comparisonCursor) getCurrentRelationshipID() (relationshipID string) {
+func (c *comparisonCursor[T]) getCurrentRelationshipID() (relationshipID string) {
 	return string(c.currentRelationshipID)
 }
 
-func (c *comparisonCursor) next() (entryID []byte, err error) {
+func (c *comparisonCursor[T]) next() (entryID []byte, err error) {
 	if c.cur == nil {
 		err = Break
 		return
@@ -97,7 +97,7 @@ func (c *comparisonCursor) next() (entryID []byte, err error) {
 	return
 }
 
-func (c *comparisonCursor) nextBucket() (bktKey []byte, err error) {
+func (c *comparisonCursor[T]) nextBucket() (bktKey []byte, err error) {
 	fn := c.bktCur.Next
 	if c.cur == nil {
 		fn = c.bktCur.First
@@ -111,7 +111,7 @@ func (c *comparisonCursor) nextBucket() (bktKey []byte, err error) {
 	return
 }
 
-func (c *comparisonCursor) setNextCursor() (err error) {
+func (c *comparisonCursor[T]) setNextCursor() (err error) {
 	var bktKey []byte
 	if bktKey, err = c.nextBucket(); err != nil {
 		return
@@ -128,7 +128,7 @@ func (c *comparisonCursor) setNextCursor() (err error) {
 	return
 }
 
-func (c *comparisonCursor) nextUntilMatch(entryID []byte) (matchingEntryID []byte, err error) {
+func (c *comparisonCursor[T]) nextUntilMatch(entryID []byte) (matchingEntryID []byte, err error) {
 	var isMatch bool
 	for err == nil {
 		// This []byte -> string conversion should be non-existent after the compier pass
@@ -147,7 +147,7 @@ func (c *comparisonCursor) nextUntilMatch(entryID []byte) (matchingEntryID []byt
 	return
 }
 
-func (c *comparisonCursor) prev() (entryID []byte, err error) {
+func (c *comparisonCursor[T]) prev() (entryID []byte, err error) {
 	if c.cur == nil {
 		err = Break
 		return
@@ -177,7 +177,7 @@ func (c *comparisonCursor) prev() (entryID []byte, err error) {
 	return
 }
 
-func (c *comparisonCursor) prevBucket() (bktKey []byte, err error) {
+func (c *comparisonCursor[T]) prevBucket() (bktKey []byte, err error) {
 	fn := c.bktCur.Prev
 	if c.cur == nil {
 		fn = c.bktCur.Last
@@ -191,7 +191,7 @@ func (c *comparisonCursor) prevBucket() (bktKey []byte, err error) {
 	return
 }
 
-func (c *comparisonCursor) setPrevCursor() (err error) {
+func (c *comparisonCursor[T]) setPrevCursor() (err error) {
 	var bktKey []byte
 	if bktKey, err = c.prevBucket(); err != nil {
 		return
@@ -208,7 +208,7 @@ func (c *comparisonCursor) setPrevCursor() (err error) {
 	return
 }
 
-func (c *comparisonCursor) prevUntilMatch(entryID []byte) (matchingEntryID []byte, err error) {
+func (c *comparisonCursor[T]) prevUntilMatch(entryID []byte) (matchingEntryID []byte, err error) {
 	var isMatch bool
 	for err == nil {
 		// This []byte -> string conversion should be non-existent after the compier pass
@@ -227,12 +227,12 @@ func (c *comparisonCursor) prevUntilMatch(entryID []byte) (matchingEntryID []byt
 	return
 }
 
-func (c *comparisonCursor) teardown() {
+func (c *comparisonCursor[T]) teardown() {
 	c.txn = nil
 	c.cur = nil
 }
 
-func (c *comparisonCursor) firstBktKey() (bktKey []byte, err error) {
+func (c *comparisonCursor[T]) firstBktKey() (bktKey []byte, err error) {
 	if bktKey = c.rangeStart; len(bktKey) > 0 {
 		return
 	}
@@ -245,7 +245,7 @@ func (c *comparisonCursor) firstBktKey() (bktKey []byte, err error) {
 	return
 }
 
-func (c *comparisonCursor) first() (entryID []byte, err error) {
+func (c *comparisonCursor[T]) first() (entryID []byte, err error) {
 	var bktKey []byte
 	if bktKey, err = c.firstBktKey(); err != nil {
 		return
@@ -263,7 +263,7 @@ func (c *comparisonCursor) first() (entryID []byte, err error) {
 	return
 }
 
-func (c *comparisonCursor) lastBktKey() (bktKey []byte, err error) {
+func (c *comparisonCursor[T]) lastBktKey() (bktKey []byte, err error) {
 	if bktKey = c.rangeEnd; len(bktKey) > 0 {
 		return
 	}
@@ -276,7 +276,7 @@ func (c *comparisonCursor) lastBktKey() (bktKey []byte, err error) {
 	return
 }
 
-func (c *comparisonCursor) last() (entryID []byte, err error) {
+func (c *comparisonCursor[T]) last() (entryID []byte, err error) {
 	var bktKey []byte
 	if bktKey, err = c.lastBktKey(); err != nil {
 		return
@@ -294,7 +294,7 @@ func (c *comparisonCursor) last() (entryID []byte, err error) {
 	return
 }
 
-func (c *comparisonCursor) setCursor(relationshipID []byte) (err error) {
+func (c *comparisonCursor[T]) setCursor(relationshipID []byte) (err error) {
 	if bytes.Equal(relationshipID, c.currentRelationshipID) {
 		return
 	}
@@ -316,7 +316,7 @@ func (c *comparisonCursor) setCursor(relationshipID []byte) (err error) {
 	return
 }
 
-func (c *comparisonCursor) hasForward(entryID []byte) (ok bool, err error) {
+func (c *comparisonCursor[T]) hasForward(entryID []byte) (ok bool, err error) {
 	var iteratingEntryID []byte
 	if iteratingEntryID, err = c.first(); err != nil {
 		return
@@ -342,7 +342,7 @@ func (c *comparisonCursor) hasForward(entryID []byte) (ok bool, err error) {
 	}
 }
 
-func (c *comparisonCursor) hasReverse(entryID []byte) (ok bool, err error) {
+func (c *comparisonCursor[T]) hasReverse(entryID []byte) (ok bool, err error) {
 	var iteratingEntryID []byte
 	if iteratingEntryID, err = c.last(); err != nil {
 		return
@@ -369,7 +369,7 @@ func (c *comparisonCursor) hasReverse(entryID []byte) (ok bool, err error) {
 }
 
 // SeekForward will seek the provided ID in a forward direction
-func (c *comparisonCursor) SeekForward(relationshipID, seekID []byte) (entryID []byte, err error) {
+func (c *comparisonCursor[T]) SeekForward(relationshipID, seekID []byte) (entryID []byte, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -388,7 +388,7 @@ func (c *comparisonCursor) SeekForward(relationshipID, seekID []byte) (entryID [
 }
 
 // SeekReverse will seek the provided ID in a reverse direction
-func (c *comparisonCursor) SeekReverse(relationshipID, seekID []byte) (entryID []byte, err error) {
+func (c *comparisonCursor[T]) SeekReverse(relationshipID, seekID []byte) (entryID []byte, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -407,7 +407,7 @@ func (c *comparisonCursor) SeekReverse(relationshipID, seekID []byte) (entryID [
 }
 
 // First will return the first entry
-func (c *comparisonCursor) First() (entryID []byte, err error) {
+func (c *comparisonCursor[T]) First() (entryID []byte, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -421,7 +421,7 @@ func (c *comparisonCursor) First() (entryID []byte, err error) {
 }
 
 // Next will return the next entry
-func (c *comparisonCursor) Next() (entryID []byte, err error) {
+func (c *comparisonCursor[T]) Next() (entryID []byte, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -434,7 +434,7 @@ func (c *comparisonCursor) Next() (entryID []byte, err error) {
 }
 
 // Prev will return the previous entry
-func (c *comparisonCursor) Prev() (entryID []byte, err error) {
+func (c *comparisonCursor[T]) Prev() (entryID []byte, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -447,7 +447,7 @@ func (c *comparisonCursor) Prev() (entryID []byte, err error) {
 }
 
 // Last will return the last entry
-func (c *comparisonCursor) Last() (entryID []byte, err error) {
+func (c *comparisonCursor[T]) Last() (entryID []byte, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -460,7 +460,7 @@ func (c *comparisonCursor) Last() (entryID []byte, err error) {
 }
 
 // HasForward will determine if an entry exists in a forward direction
-func (c *comparisonCursor) HasForward(entryID []byte) (ok bool, err error) {
+func (c *comparisonCursor[T]) HasForward(entryID []byte) (ok bool, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -473,7 +473,7 @@ func (c *comparisonCursor) HasForward(entryID []byte) (ok bool, err error) {
 }
 
 // HasReverse will determine if an entry exists in a reverse direction
-func (c *comparisonCursor) HasReverse(entryID []byte) (ok bool, err error) {
+func (c *comparisonCursor[T]) HasReverse(entryID []byte) (ok bool, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}

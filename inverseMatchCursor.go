@@ -8,11 +8,11 @@ import (
 )
 
 var (
-	_ filterCursor = &inverseMatchCursor{}
+	_ filterCursor = &inverseMatchCursor[*Entry]{}
 )
 
-func newInverseMatchCursor(txn *Transaction, f *filters.InverseMatchFilter) (cur *inverseMatchCursor, err error) {
-	var c inverseMatchCursor
+func newInverseMatchCursor[T Value](txn *Transaction[T], f *filters.InverseMatchFilter) (cur *inverseMatchCursor[T], err error) {
+	var c inverseMatchCursor[T]
 	if c.parent, err = txn.getRelationshipBucket([]byte(f.RelationshipKey)); err != nil {
 		return
 	}
@@ -29,8 +29,8 @@ func newInverseMatchCursor(txn *Transaction, f *filters.InverseMatchFilter) (cur
 	return
 }
 
-type inverseMatchCursor struct {
-	txn *Transaction
+type inverseMatchCursor[T Value] struct {
+	txn *Transaction[T]
 
 	parent   backend.Bucket
 	bktCur   backend.Cursor
@@ -41,7 +41,7 @@ type inverseMatchCursor struct {
 	currentRelationshipID []byte
 }
 
-func (c *inverseMatchCursor) has(entryID []byte) (ok bool, err error) {
+func (c *inverseMatchCursor[T]) has(entryID []byte) (ok bool, err error) {
 	if c.matchCur == nil {
 		// If match cursor does not exist, that means that the target bucket does not exist.
 		// Because this cursor is an inverse cursor, this means that all values will not match
@@ -56,11 +56,11 @@ func (c *inverseMatchCursor) has(entryID []byte) (ok bool, err error) {
 	return
 }
 
-func (c *inverseMatchCursor) getCurrentRelationshipID() (relationshipID string) {
+func (c *inverseMatchCursor[T]) getCurrentRelationshipID() (relationshipID string) {
 	return string(c.currentRelationshipID)
 }
 
-func (c *inverseMatchCursor) next() (entryID []byte, err error) {
+func (c *inverseMatchCursor[T]) next() (entryID []byte, err error) {
 	if c.cur == nil {
 		err = Break
 		return
@@ -83,7 +83,7 @@ func (c *inverseMatchCursor) next() (entryID []byte, err error) {
 	return
 }
 
-func (c *inverseMatchCursor) nextBucket() (bktKey []byte, err error) {
+func (c *inverseMatchCursor[T]) nextBucket() (bktKey []byte, err error) {
 	fn := c.bktCur.Next
 	if c.cur == nil {
 		fn = c.bktCur.First
@@ -103,7 +103,7 @@ func (c *inverseMatchCursor) nextBucket() (bktKey []byte, err error) {
 	}
 }
 
-func (c *inverseMatchCursor) setNextCursor() (err error) {
+func (c *inverseMatchCursor[T]) setNextCursor() (err error) {
 	var bktKey []byte
 	if bktKey, err = c.nextBucket(); err != nil {
 		return
@@ -120,7 +120,7 @@ func (c *inverseMatchCursor) setNextCursor() (err error) {
 	return
 }
 
-func (c *inverseMatchCursor) prev() (entryID []byte, err error) {
+func (c *inverseMatchCursor[T]) prev() (entryID []byte, err error) {
 	if c.cur == nil {
 		err = Break
 		return
@@ -143,7 +143,7 @@ func (c *inverseMatchCursor) prev() (entryID []byte, err error) {
 	return
 }
 
-func (c *inverseMatchCursor) prevBucket() (bktKey []byte, err error) {
+func (c *inverseMatchCursor[T]) prevBucket() (bktKey []byte, err error) {
 	fn := c.bktCur.Prev
 	if c.cur == nil {
 		fn = c.bktCur.Last
@@ -163,7 +163,7 @@ func (c *inverseMatchCursor) prevBucket() (bktKey []byte, err error) {
 	}
 }
 
-func (c *inverseMatchCursor) setPrevCursor() (err error) {
+func (c *inverseMatchCursor[T]) setPrevCursor() (err error) {
 	var bktKey []byte
 	if bktKey, err = c.prevBucket(); err != nil {
 		return
@@ -180,12 +180,12 @@ func (c *inverseMatchCursor) setPrevCursor() (err error) {
 	return
 }
 
-func (c *inverseMatchCursor) teardown() {
+func (c *inverseMatchCursor[T]) teardown() {
 	c.txn = nil
 	c.cur = nil
 }
 
-func (c *inverseMatchCursor) firstBktKey() (bktKey []byte, err error) {
+func (c *inverseMatchCursor[T]) firstBktKey() (bktKey []byte, err error) {
 	bktKey, _ = c.bktCur.First()
 	for {
 		switch {
@@ -201,7 +201,7 @@ func (c *inverseMatchCursor) firstBktKey() (bktKey []byte, err error) {
 	}
 }
 
-func (c *inverseMatchCursor) first() (entryID []byte, err error) {
+func (c *inverseMatchCursor[T]) first() (entryID []byte, err error) {
 	var bktKey []byte
 	if bktKey, err = c.firstBktKey(); err != nil {
 		return
@@ -219,7 +219,7 @@ func (c *inverseMatchCursor) first() (entryID []byte, err error) {
 	return
 }
 
-func (c *inverseMatchCursor) lastBktKey() (bktKey []byte, err error) {
+func (c *inverseMatchCursor[T]) lastBktKey() (bktKey []byte, err error) {
 	bktKey, _ = c.bktCur.Last()
 	for {
 		switch {
@@ -235,7 +235,7 @@ func (c *inverseMatchCursor) lastBktKey() (bktKey []byte, err error) {
 	}
 }
 
-func (c *inverseMatchCursor) last() (entryID []byte, err error) {
+func (c *inverseMatchCursor[T]) last() (entryID []byte, err error) {
 	var bktKey []byte
 	if bktKey, err = c.lastBktKey(); err != nil {
 		return
@@ -259,7 +259,7 @@ func (c *inverseMatchCursor) last() (entryID []byte, err error) {
 	return
 }
 
-func (c *inverseMatchCursor) setCursor(relationshipID []byte) (err error) {
+func (c *inverseMatchCursor[T]) setCursor(relationshipID []byte) (err error) {
 	if bytes.Equal(relationshipID, c.currentRelationshipID) {
 		return
 	}
@@ -282,7 +282,7 @@ func (c *inverseMatchCursor) setCursor(relationshipID []byte) (err error) {
 }
 
 // SeekForward will seek the provided ID in a forward direction
-func (c *inverseMatchCursor) SeekForward(relationshipID, seekID []byte) (entryID []byte, err error) {
+func (c *inverseMatchCursor[T]) SeekForward(relationshipID, seekID []byte) (entryID []byte, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -316,7 +316,7 @@ func (c *inverseMatchCursor) SeekForward(relationshipID, seekID []byte) (entryID
 }
 
 // SeekReverse will seek the provided ID in a reverse direction
-func (c *inverseMatchCursor) SeekReverse(relationshipID, seekID []byte) (entryID []byte, err error) {
+func (c *inverseMatchCursor[T]) SeekReverse(relationshipID, seekID []byte) (entryID []byte, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -350,7 +350,7 @@ func (c *inverseMatchCursor) SeekReverse(relationshipID, seekID []byte) (entryID
 }
 
 // First will return the first entry
-func (c *inverseMatchCursor) First() (entryID []byte, err error) {
+func (c *inverseMatchCursor[T]) First() (entryID []byte, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -359,7 +359,7 @@ func (c *inverseMatchCursor) First() (entryID []byte, err error) {
 }
 
 // Next will return the next entry
-func (c *inverseMatchCursor) Next() (entryID []byte, err error) {
+func (c *inverseMatchCursor[T]) Next() (entryID []byte, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -368,7 +368,7 @@ func (c *inverseMatchCursor) Next() (entryID []byte, err error) {
 }
 
 // Prev will return the previous entry
-func (c *inverseMatchCursor) Prev() (entryID []byte, err error) {
+func (c *inverseMatchCursor[T]) Prev() (entryID []byte, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -377,7 +377,7 @@ func (c *inverseMatchCursor) Prev() (entryID []byte, err error) {
 }
 
 // Last will return the last entry
-func (c *inverseMatchCursor) Last() (entryID []byte, err error) {
+func (c *inverseMatchCursor[T]) Last() (entryID []byte, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -386,7 +386,7 @@ func (c *inverseMatchCursor) Last() (entryID []byte, err error) {
 }
 
 // HasForward will determine if an entry exists in a forward direction
-func (c *inverseMatchCursor) HasForward(entryID []byte) (ok bool, err error) {
+func (c *inverseMatchCursor[T]) HasForward(entryID []byte) (ok bool, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -395,7 +395,7 @@ func (c *inverseMatchCursor) HasForward(entryID []byte) (ok bool, err error) {
 }
 
 // HasReverse will determine if an entry exists in a reverse direction
-func (c *inverseMatchCursor) HasReverse(entryID []byte) (ok bool, err error) {
+func (c *inverseMatchCursor[T]) HasReverse(entryID []byte) (ok bool, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"reflect"
 	"strconv"
 	"strings"
 
@@ -14,48 +13,7 @@ import (
 
 var nopBW = &nopBlockWriter{}
 
-func getReflectedSlice(t reflect.Type, v interface{}) (slice reflect.Value, err error) {
-	ptr := reflect.ValueOf(v)
-	if ptr.Kind() != reflect.Ptr {
-		return
-	}
-
-	slice = ptr.Elem()
-	if slice.Kind() != reflect.Slice {
-		err = ErrInvalidEntries
-		return
-	}
-
-	if !isType(slice, t) {
-		err = ErrInvalidType
-		return
-	}
-
-	return
-}
-
-func getMojuraType(v interface{}) (t reflect.Type) {
-	if t = reflect.TypeOf(v); !isPointer(t) {
-		return
-	}
-
-	return t.Elem()
-}
-
-func isPointer(t reflect.Type) (ok bool) {
-	return t.Kind() == reflect.Ptr
-}
-
-func isType(v reflect.Value, t reflect.Type) (ok bool) {
-	e := v.Type().Elem()
-	if !isPointer(e) {
-		return false
-	}
-
-	return e.Elem() == t
-}
-
-func recoverCall(txn *Transaction, fn TransactionFn) (err error) {
+func recoverCall[T Value](txn *Transaction[T], fn TransactionFn[T]) (err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			err = fmt.Errorf("panic caught: %v", err)
@@ -128,7 +86,7 @@ func getFirstID(c IDCursor, lastID string, reverse bool) (entryID string, err er
 	return
 }
 
-func getFirst(c Cursor, lastID string, reverse bool) (v Value, err error) {
+func getFirst[T Value](c Cursor[T], lastID string, reverse bool) (v T, err error) {
 	switch {
 	case len(lastID) > 0 && !reverse:
 		if _, err = c.Seek(lastID); err != nil {

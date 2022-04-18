@@ -2,15 +2,15 @@ package mojura
 
 import "github.com/mojura/backend"
 
-var _ IDCursor = &baseIDCursor{}
+var _ IDCursor = &baseIDCursor[*Entry]{}
 
-func newBaseIDCursor(txn *Transaction) (c IDCursor, err error) {
+func newBaseIDCursor[T Value](txn *Transaction[T]) (c IDCursor, err error) {
 	var bkt backend.Bucket
 	if bkt, err = txn.getEntriesBucket(); err != nil {
 		return
 	}
 
-	var b baseIDCursor
+	var b baseIDCursor[T]
 	b.txn = txn
 	b.cur = bkt.Cursor()
 	c = &b
@@ -18,16 +18,16 @@ func newBaseIDCursor(txn *Transaction) (c IDCursor, err error) {
 }
 
 // baseIDCursor is an iterating structure
-type baseIDCursor struct {
-	txn *Transaction
+type baseIDCursor[T Value] struct {
+	txn *Transaction[T]
 	cur backend.Cursor
 }
 
-func (c *baseIDCursor) getCurrentRelationshipID() (relationshipID string) {
+func (c *baseIDCursor[T]) getCurrentRelationshipID() (relationshipID string) {
 	return string("")
 }
 
-func (c *baseIDCursor) seek(seekID []byte) (entryID []byte, err error) {
+func (c *baseIDCursor[T]) seek(seekID []byte) (entryID []byte, err error) {
 	entryID, _ = c.cur.Seek(seekID)
 	if entryID == nil {
 		err = Break
@@ -37,12 +37,12 @@ func (c *baseIDCursor) seek(seekID []byte) (entryID []byte, err error) {
 	return
 }
 
-func (c *baseIDCursor) seekReverse(seekID []byte) (entryID []byte, err error) {
+func (c *baseIDCursor[T]) seekReverse(seekID []byte) (entryID []byte, err error) {
 	return c.seek(seekID)
 }
 
 // First will return the first entry
-func (c *baseIDCursor) first() (entryID []byte, err error) {
+func (c *baseIDCursor[T]) first() (entryID []byte, err error) {
 	entryID, _ = c.cur.First()
 	if entryID == nil {
 		err = Break
@@ -52,7 +52,7 @@ func (c *baseIDCursor) first() (entryID []byte, err error) {
 	return
 }
 
-func (c *baseIDCursor) last() (entryID []byte, err error) {
+func (c *baseIDCursor[T]) last() (entryID []byte, err error) {
 	entryID, _ = c.cur.Last()
 	if entryID == nil {
 		err = Break
@@ -62,7 +62,7 @@ func (c *baseIDCursor) last() (entryID []byte, err error) {
 	return
 }
 
-func (c *baseIDCursor) next() (entryID []byte, err error) {
+func (c *baseIDCursor[T]) next() (entryID []byte, err error) {
 	entryID, _ = c.cur.Next()
 	if entryID == nil {
 		err = Break
@@ -72,7 +72,7 @@ func (c *baseIDCursor) next() (entryID []byte, err error) {
 	return
 }
 
-func (c *baseIDCursor) prev() (entryID []byte, err error) {
+func (c *baseIDCursor[T]) prev() (entryID []byte, err error) {
 	entryID, _ = c.cur.Prev()
 	if entryID == nil {
 		err = Break
@@ -83,7 +83,7 @@ func (c *baseIDCursor) prev() (entryID []byte, err error) {
 }
 
 // Seek will seek the provided ID
-func (c *baseIDCursor) Seek(seekID string) (entryID string, err error) {
+func (c *baseIDCursor[T]) Seek(seekID string) (entryID string, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -98,12 +98,12 @@ func (c *baseIDCursor) Seek(seekID string) (entryID string, err error) {
 }
 
 // SeekReverse will seek the provided ID
-func (c *baseIDCursor) SeekReverse(seekID string) (entryID string, err error) {
+func (c *baseIDCursor[T]) SeekReverse(seekID string) (entryID string, err error) {
 	return c.Seek(seekID)
 }
 
 // First will return the first entry
-func (c *baseIDCursor) First() (entryID string, err error) {
+func (c *baseIDCursor[T]) First() (entryID string, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -118,7 +118,7 @@ func (c *baseIDCursor) First() (entryID string, err error) {
 }
 
 // Last will return the last entry
-func (c *baseIDCursor) Last() (entryID string, err error) {
+func (c *baseIDCursor[T]) Last() (entryID string, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -133,7 +133,7 @@ func (c *baseIDCursor) Last() (entryID string, err error) {
 }
 
 // Next will return the next entry
-func (c *baseIDCursor) Next() (entryID string, err error) {
+func (c *baseIDCursor[T]) Next() (entryID string, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -148,7 +148,7 @@ func (c *baseIDCursor) Next() (entryID string, err error) {
 }
 
 // Prev will return the previous entry
-func (c *baseIDCursor) Prev() (entryID string, err error) {
+func (c *baseIDCursor[T]) Prev() (entryID string, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -162,7 +162,7 @@ func (c *baseIDCursor) Prev() (entryID string, err error) {
 	return
 }
 
-func (c *baseIDCursor) teardown() {
+func (c *baseIDCursor[T]) teardown() {
 	c.txn = nil
 	c.cur = nil
 }

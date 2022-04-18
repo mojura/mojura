@@ -10,7 +10,7 @@ import (
 
 func Test_matchCursor_SeekForward(t *testing.T) {
 	var (
-		m   *Mojura
+		m   *Mojura[*testStruct]
 		err error
 	)
 
@@ -57,7 +57,7 @@ func Test_matchCursor_SeekForward(t *testing.T) {
 		},
 	}
 
-	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = m.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		if _, err = txn.New(a); err != nil {
 			return
 		}
@@ -99,7 +99,7 @@ func Test_matchCursor_SeekForward(t *testing.T) {
 
 func Test_matchCursor_SeekReverse(t *testing.T) {
 	var (
-		m   *Mojura
+		m   *Mojura[*testStruct]
 		err error
 	)
 
@@ -146,7 +146,7 @@ func Test_matchCursor_SeekReverse(t *testing.T) {
 		},
 	}
 
-	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = m.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		if _, err = txn.New(a); err != nil {
 			return
 		}
@@ -188,7 +188,7 @@ func Test_matchCursor_SeekReverse(t *testing.T) {
 
 func Test_matchCursor_First(t *testing.T) {
 	var (
-		m   *Mojura
+		m   *Mojura[*testStruct]
 		err error
 	)
 
@@ -230,7 +230,7 @@ func Test_matchCursor_First(t *testing.T) {
 		},
 	}
 
-	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = m.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		if _, err = txn.New(a); err != nil {
 			return
 		}
@@ -272,7 +272,7 @@ func Test_matchCursor_First(t *testing.T) {
 
 func Test_matchCursor_Next(t *testing.T) {
 	var (
-		m   *Mojura
+		m   *Mojura[*testStruct]
 		err error
 	)
 
@@ -324,7 +324,7 @@ func Test_matchCursor_Next(t *testing.T) {
 		},
 	}
 
-	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = m.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		if _, err = txn.New(a); err != nil {
 			return
 		}
@@ -371,7 +371,7 @@ func Test_matchCursor_Next(t *testing.T) {
 
 func Test_matchCursor_Prev(t *testing.T) {
 	var (
-		m   *Mojura
+		m   *Mojura[*testStruct]
 		err error
 	)
 
@@ -423,7 +423,7 @@ func Test_matchCursor_Prev(t *testing.T) {
 		},
 	}
 
-	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = m.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		if _, err = txn.New(a); err != nil {
 			return
 		}
@@ -470,7 +470,7 @@ func Test_matchCursor_Prev(t *testing.T) {
 
 func Test_matchCursor_Last(t *testing.T) {
 	var (
-		m   *Mojura
+		m   *Mojura[*testStruct]
 		err error
 	)
 
@@ -512,7 +512,7 @@ func Test_matchCursor_Last(t *testing.T) {
 		},
 	}
 
-	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = m.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		if _, err = txn.New(a); err != nil {
 			return
 		}
@@ -602,7 +602,7 @@ func testMatchCursorHas(t *testing.T, fn func(c filterCursor, entryID []byte) (v
 		},
 	}
 
-	testMatchCursor(t, func(txn *Transaction) (err error) {
+	testMatchCursor(t, func(txn *Transaction[*testStruct]) (err error) {
 		for i, tc := range tcs {
 			var cur filterCursor
 			f := filters.Match(tc.relationshipKey, tc.relationshipID)
@@ -628,9 +628,9 @@ func testMatchCursorHas(t *testing.T, fn func(c filterCursor, entryID []byte) (v
 	})
 }
 
-func testMatchCursor(t *testing.T, fn func(*Transaction) error) {
+func testMatchCursor(t *testing.T, fn func(*Transaction[*testStruct]) error) {
 	var (
-		m   *Mojura
+		m   *Mojura[*testStruct]
 		err error
 	)
 
@@ -643,7 +643,7 @@ func testMatchCursor(t *testing.T, fn func(*Transaction) error) {
 	b := newTestStruct("user_1", "contact_2", "group_2", "2")
 	c := newTestStruct("user_2", "contact_2", "group_1", "3")
 
-	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = m.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		if _, err = txn.New(a); err != nil {
 			return
 		}

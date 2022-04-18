@@ -2,13 +2,13 @@ package mojura
 
 import "context"
 
-type call struct {
-	fn   TransactionFn
+type call[T Value] struct {
+	fn   TransactionFn[T]
 	ctx  context.Context
 	errC chan error
 }
 
-func (c *call) notify(err error) {
+func (c *call[T]) notify(err error) {
 	c.fn = nil
 	c.errC <- err
 	close(c.errC)

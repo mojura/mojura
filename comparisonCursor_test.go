@@ -10,7 +10,7 @@ import (
 
 func Test_comparisonCursor_SeekForward(t *testing.T) {
 	var (
-		m   *Mojura
+		m   *Mojura[*testStruct]
 		err error
 	)
 
@@ -70,7 +70,7 @@ func Test_comparisonCursor_SeekForward(t *testing.T) {
 		},
 	}
 
-	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = m.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		if _, err = txn.New(a); err != nil {
 			return
 		}
@@ -84,7 +84,7 @@ func Test_comparisonCursor_SeekForward(t *testing.T) {
 		}
 
 		for i, tc := range tcs {
-			var cur *comparisonCursor
+			var cur *comparisonCursor[*testStruct]
 			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
 			if cur, err = newKeyComparisonCursor(txn, f); err != nil {
 				return
@@ -112,7 +112,7 @@ func Test_comparisonCursor_SeekForward(t *testing.T) {
 
 func Test_comparisonCursor_SeekReverse(t *testing.T) {
 	var (
-		m   *Mojura
+		m   *Mojura[*testStruct]
 		err error
 	)
 
@@ -172,7 +172,7 @@ func Test_comparisonCursor_SeekReverse(t *testing.T) {
 		},
 	}
 
-	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = m.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		if _, err = txn.New(a); err != nil {
 			return
 		}
@@ -186,7 +186,7 @@ func Test_comparisonCursor_SeekReverse(t *testing.T) {
 		}
 
 		for i, tc := range tcs {
-			var cur *comparisonCursor
+			var cur *comparisonCursor[*testStruct]
 			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
 			if cur, err = newKeyComparisonCursor(txn, f); err != nil {
 				return
@@ -214,7 +214,7 @@ func Test_comparisonCursor_SeekReverse(t *testing.T) {
 
 func Test_comparisonCursor_First(t *testing.T) {
 	var (
-		m   *Mojura
+		m   *Mojura[*testStruct]
 		err error
 	)
 
@@ -265,7 +265,7 @@ func Test_comparisonCursor_First(t *testing.T) {
 		},
 	}
 
-	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = m.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		if _, err = txn.New(a); err != nil {
 			return
 		}
@@ -279,7 +279,7 @@ func Test_comparisonCursor_First(t *testing.T) {
 		}
 
 		for i, tc := range tcs {
-			var cur *comparisonCursor
+			var cur *comparisonCursor[*testStruct]
 			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
 			if cur, err = newKeyComparisonCursor(txn, f); err != nil {
 				return
@@ -307,7 +307,7 @@ func Test_comparisonCursor_First(t *testing.T) {
 
 func Test_comparisonCursor_First_with_deletion(t *testing.T) {
 	var (
-		m   *Mojura
+		m   *Mojura[*testStruct]
 		err error
 	)
 
@@ -358,7 +358,7 @@ func Test_comparisonCursor_First_with_deletion(t *testing.T) {
 		},
 	}
 
-	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = m.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		if _, err = txn.New(a); err != nil {
 			return
 		}
@@ -376,7 +376,7 @@ func Test_comparisonCursor_First_with_deletion(t *testing.T) {
 		}
 
 		for i, tc := range tcs {
-			var cur *comparisonCursor
+			var cur *comparisonCursor[*testStruct]
 			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
 			if cur, err = newKeyComparisonCursor(txn, f); err != nil {
 				return
@@ -404,7 +404,7 @@ func Test_comparisonCursor_First_with_deletion(t *testing.T) {
 
 func Test_comparisonCursor_Next(t *testing.T) {
 	var (
-		m   *Mojura
+		m   *Mojura[*testStruct]
 		err error
 	)
 
@@ -466,7 +466,7 @@ func Test_comparisonCursor_Next(t *testing.T) {
 		},
 	}
 
-	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = m.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		if _, err = txn.New(a); err != nil {
 			return
 		}
@@ -480,7 +480,7 @@ func Test_comparisonCursor_Next(t *testing.T) {
 		}
 
 		for i, tc := range tcs {
-			var cur *comparisonCursor
+			var cur *comparisonCursor[*testStruct]
 			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
 			if cur, err = newKeyComparisonCursor(txn, f); err != nil {
 				return
@@ -513,7 +513,7 @@ func Test_comparisonCursor_Next(t *testing.T) {
 
 func Test_comparisonCursor_Prev(t *testing.T) {
 	var (
-		m   *Mojura
+		m   *Mojura[*testStruct]
 		err error
 	)
 
@@ -575,7 +575,7 @@ func Test_comparisonCursor_Prev(t *testing.T) {
 		},
 	}
 
-	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = m.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		if _, err = txn.New(a); err != nil {
 			return
 		}
@@ -589,7 +589,7 @@ func Test_comparisonCursor_Prev(t *testing.T) {
 		}
 
 		for i, tc := range tcs {
-			var cur *comparisonCursor
+			var cur *comparisonCursor[*testStruct]
 			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
 			if cur, err = newKeyComparisonCursor(txn, f); err != nil {
 				return
@@ -622,7 +622,7 @@ func Test_comparisonCursor_Prev(t *testing.T) {
 
 func Test_comparisonCursor_Last(t *testing.T) {
 	var (
-		m   *Mojura
+		m   *Mojura[*testStruct]
 		err error
 	)
 
@@ -673,7 +673,7 @@ func Test_comparisonCursor_Last(t *testing.T) {
 		},
 	}
 
-	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = m.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		if _, err = txn.New(a); err != nil {
 			return
 		}
@@ -687,7 +687,7 @@ func Test_comparisonCursor_Last(t *testing.T) {
 		}
 
 		for i, tc := range tcs {
-			var cur *comparisonCursor
+			var cur *comparisonCursor[*testStruct]
 			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
 			if cur, err = newKeyComparisonCursor(txn, f); err != nil {
 				return
@@ -715,7 +715,7 @@ func Test_comparisonCursor_Last(t *testing.T) {
 
 func Test_comparisonCursor_Last_with_deletion(t *testing.T) {
 	var (
-		m   *Mojura
+		m   *Mojura[*testStruct]
 		err error
 	)
 
@@ -766,7 +766,7 @@ func Test_comparisonCursor_Last_with_deletion(t *testing.T) {
 		},
 	}
 
-	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = m.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		if _, err = txn.New(a); err != nil {
 			return
 		}
@@ -784,7 +784,7 @@ func Test_comparisonCursor_Last_with_deletion(t *testing.T) {
 		}
 
 		for i, tc := range tcs {
-			var cur *comparisonCursor
+			var cur *comparisonCursor[*testStruct]
 			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
 			if cur, err = newKeyComparisonCursor(txn, f); err != nil {
 				return
@@ -811,7 +811,7 @@ func Test_comparisonCursor_Last_with_deletion(t *testing.T) {
 }
 
 func Test_comparisonCursor_HasForward(t *testing.T) {
-	fn := func(c *comparisonCursor, entryID []byte) (value bool, err error) {
+	fn := func(c *comparisonCursor[*testStruct], entryID []byte) (value bool, err error) {
 		return c.HasForward(entryID)
 	}
 
@@ -819,14 +819,14 @@ func Test_comparisonCursor_HasForward(t *testing.T) {
 }
 
 func Test_comparisonCursor_HasReverse(t *testing.T) {
-	fn := func(c *comparisonCursor, entryID []byte) (value bool, err error) {
+	fn := func(c *comparisonCursor[*testStruct], entryID []byte) (value bool, err error) {
 		return c.HasReverse(entryID)
 	}
 
 	testComparisonCursorHas(t, fn)
 }
 
-func testComparisonCursorHas(t *testing.T, fn func(c *comparisonCursor, entryID []byte) (value bool, err error)) {
+func testComparisonCursorHas(t *testing.T, fn func(c *comparisonCursor[*testStruct], entryID []byte) (value bool, err error)) {
 	type expected struct {
 		value bool
 		err   error
@@ -905,9 +905,9 @@ func testComparisonCursorHas(t *testing.T, fn func(c *comparisonCursor, entryID 
 		},
 	}
 
-	testComparisonCursor(t, func(txn *Transaction) (err error) {
+	testComparisonCursor(t, func(txn *Transaction[*testStruct]) (err error) {
 		for i, tc := range tcs {
-			var cur *comparisonCursor
+			var cur *comparisonCursor[*testStruct]
 			f := filters.Comparison(tc.relationshipKey, tc.isMatch)
 			if cur, err = newKeyComparisonCursor(txn, f); err != nil {
 				return
@@ -931,9 +931,9 @@ func testComparisonCursorHas(t *testing.T, fn func(c *comparisonCursor, entryID 
 	})
 }
 
-func testComparisonCursor(t *testing.T, fn func(*Transaction) error) {
+func testComparisonCursor(t *testing.T, fn func(*Transaction[*testStruct]) error) {
 	var (
-		m   *Mojura
+		m   *Mojura[*testStruct]
 		err error
 	)
 
@@ -946,7 +946,7 @@ func testComparisonCursor(t *testing.T, fn func(*Transaction) error) {
 	b := newTestStruct("user_1", "contact_2", "group_2", "2")
 	c := newTestStruct("user_2", "contact_2", "group_1", "3")
 
-	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = m.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		if _, err = txn.New(a); err != nil {
 			return
 		}

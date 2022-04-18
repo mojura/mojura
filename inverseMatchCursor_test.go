@@ -10,7 +10,7 @@ import (
 
 func Test_inverseMatchCursor_SeekForward(t *testing.T) {
 	var (
-		m   *Mojura
+		m   *Mojura[*testStruct]
 		err error
 	)
 
@@ -57,7 +57,7 @@ func Test_inverseMatchCursor_SeekForward(t *testing.T) {
 		},
 	}
 
-	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = m.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		if _, err = txn.New(a); err != nil {
 			return
 		}
@@ -99,7 +99,7 @@ func Test_inverseMatchCursor_SeekForward(t *testing.T) {
 
 func Test_inverseMatchCursor_SeekReverse(t *testing.T) {
 	var (
-		m   *Mojura
+		m   *Mojura[*testStruct]
 		err error
 	)
 
@@ -146,7 +146,7 @@ func Test_inverseMatchCursor_SeekReverse(t *testing.T) {
 		},
 	}
 
-	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = m.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		if _, err = txn.New(a); err != nil {
 			return
 		}
@@ -188,7 +188,7 @@ func Test_inverseMatchCursor_SeekReverse(t *testing.T) {
 
 func Test_inverseMatchCursor_First(t *testing.T) {
 	var (
-		m   *Mojura
+		m   *Mojura[*testStruct]
 		err error
 	)
 
@@ -230,7 +230,7 @@ func Test_inverseMatchCursor_First(t *testing.T) {
 		},
 	}
 
-	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = m.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		if _, err = txn.New(a); err != nil {
 			return
 		}
@@ -272,7 +272,7 @@ func Test_inverseMatchCursor_First(t *testing.T) {
 
 func Test_inverseMatchCursor_Next(t *testing.T) {
 	var (
-		m   *Mojura
+		m   *Mojura[*testStruct]
 		err error
 	)
 
@@ -325,7 +325,7 @@ func Test_inverseMatchCursor_Next(t *testing.T) {
 		},
 	}
 
-	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = m.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		if _, err = txn.New(a); err != nil {
 			return
 		}
@@ -372,7 +372,7 @@ func Test_inverseMatchCursor_Next(t *testing.T) {
 
 func Test_inverseMatchCursor_Prev(t *testing.T) {
 	var (
-		m   *Mojura
+		m   *Mojura[*testStruct]
 		err error
 	)
 
@@ -425,7 +425,7 @@ func Test_inverseMatchCursor_Prev(t *testing.T) {
 		},
 	}
 
-	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = m.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		if _, err = txn.New(a); err != nil {
 			return
 		}
@@ -472,7 +472,7 @@ func Test_inverseMatchCursor_Prev(t *testing.T) {
 
 func Test_inverseMatchCursor_Last(t *testing.T) {
 	var (
-		m   *Mojura
+		m   *Mojura[*testStruct]
 		err error
 	)
 
@@ -514,7 +514,7 @@ func Test_inverseMatchCursor_Last(t *testing.T) {
 		},
 	}
 
-	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = m.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		if _, err = txn.New(a); err != nil {
 			return
 		}
@@ -573,7 +573,7 @@ func Test_inverseMatchCursor_HasReverse(t *testing.T) {
 
 func Test_inverseMatchCursor_ForEach(t *testing.T) {
 	var (
-		m   *Mojura
+		m   *Mojura[*testStruct]
 		err error
 	)
 
@@ -622,7 +622,7 @@ func Test_inverseMatchCursor_ForEach(t *testing.T) {
 		},
 	}
 
-	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = m.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		if _, err = txn.New(a); err != nil {
 			return
 		}
@@ -639,7 +639,7 @@ func Test_inverseMatchCursor_ForEach(t *testing.T) {
 			f := filters.InverseMatch(tc.relationshipKey, tc.relationshipID)
 			opts := NewIteratingOpts(f)
 			var index int
-			if err = txn.ForEach(func(entryID string, val Value) (err error) {
+			if err = txn.ForEach(func(entryID string, val *testStruct) (err error) {
 				if index > len(tc.expected) {
 					return fmt.Errorf("invalid number of entries, received more than the expected %d", len(tc.expected))
 				}
@@ -719,7 +719,7 @@ func testInverseMatchCursorHas(t *testing.T, fn func(c filterCursor, entryID []b
 		},
 	}
 
-	testInverseMatchCursor(t, func(txn *Transaction) (err error) {
+	testInverseMatchCursor(t, func(txn *Transaction[*testStruct]) (err error) {
 		for i, tc := range tcs {
 			var cur filterCursor
 			f := filters.InverseMatch(tc.relationshipKey, tc.relationshipID)
@@ -745,9 +745,9 @@ func testInverseMatchCursorHas(t *testing.T, fn func(c filterCursor, entryID []b
 	})
 }
 
-func testInverseMatchCursor(t *testing.T, fn func(*Transaction) error) {
+func testInverseMatchCursor(t *testing.T, fn func(*Transaction[*testStruct]) error) {
 	var (
-		m   *Mojura
+		m   *Mojura[*testStruct]
 		err error
 	)
 
@@ -760,7 +760,7 @@ func testInverseMatchCursor(t *testing.T, fn func(*Transaction) error) {
 	b := newTestStruct("user_1", "contact_2", "group_2", "2")
 	c := newTestStruct("user_2", "contact_2", "group_1", "3")
 
-	if err = m.Transaction(context.Background(), func(txn *Transaction) (err error) {
+	if err = m.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		if _, err = txn.New(a); err != nil {
 			return
 		}
