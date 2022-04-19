@@ -578,7 +578,7 @@ func (m *Mojura[T]) AppendFiltered(in []T, o *FilteringOpts) (filtered []T, last
 
 // GetFirst will attempt to get the first entry which matches the provided filters
 // Note: Will return ErrEntryNotFound if no match is found
-func (m *Mojura[T]) GetFirst(o *IteratingOpts) (val T, err error) {
+func (m *Mojura[T]) GetFirst(o *FilteringOpts) (val T, err error) {
 	if err = m.ReadTransaction(context.Background(), func(txn *Transaction[T]) (err error) {
 		val, err = txn.getFirst(o)
 		return
@@ -591,7 +591,7 @@ func (m *Mojura[T]) GetFirst(o *IteratingOpts) (val T, err error) {
 
 // GetLast will attempt to get the last entry which matches the provided filters
 // Note: Will return ErrEntryNotFound if no match is found
-func (m *Mojura[T]) GetLast(o *IteratingOpts) (val T, err error) {
+func (m *Mojura[T]) GetLast(o *FilteringOpts) (val T, err error) {
 	if err = m.ReadTransaction(context.Background(), func(txn *Transaction[T]) (err error) {
 		val, err = txn.getLast(o)
 		return
@@ -603,7 +603,7 @@ func (m *Mojura[T]) GetLast(o *IteratingOpts) (val T, err error) {
 }
 
 // ForEach will iterate through each of the entries
-func (m *Mojura[T]) ForEach(fn ForEachFn[T], o *IteratingOpts) (err error) {
+func (m *Mojura[T]) ForEach(fn ForEachFn[T], o *FilteringOpts) (err error) {
 	err = m.ReadTransaction(context.Background(), func(txn *Transaction[T]) (err error) {
 		return txn.ForEach(fn, o)
 	})
@@ -612,7 +612,7 @@ func (m *Mojura[T]) ForEach(fn ForEachFn[T], o *IteratingOpts) (err error) {
 }
 
 // ForEachID will iterate through each of the entry IDs
-func (m *Mojura[T]) ForEachID(fn ForEachIDFn, o *IteratingOpts) (err error) {
+func (m *Mojura[T]) ForEachID(fn ForEachIDFn, o *FilteringOpts) (err error) {
 	err = m.ReadTransaction(context.Background(), func(txn *Transaction[T]) (err error) {
 		return txn.ForEachID(fn, o)
 	})

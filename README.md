@@ -86,7 +86,7 @@ func ExampleMojura_GetFiltered() {
 func ExampleMojura_ForEach() {
 	var err error
 	filter := filters.Match("users", "user_1")
-	opts := NewIteratingOpts(filter)
+	opts := NewFilteringOpts(filter)
 	if err = c.ForEach(func(entryID string, val Value) (err error) {
 		fmt.Printf("Iterating entry (%s)! %+v\n", entryID, val)
 		return
@@ -101,7 +101,7 @@ func ExampleMojura_ForEach() {
 func ExampleMojura_ForEach_with_filter() {
 	var err error
 	filter := filters.Match("users", "user_1")
-	opts := NewIteratingOpts(filter)
+	opts := NewFilteringOpts(filter)
 	if err = c.ForEach(func(entryID string, val Value) (err error) {
 		fmt.Printf("Iterating entry (%s)! %+v\n", entryID, val)
 		return

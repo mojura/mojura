@@ -637,7 +637,7 @@ func Test_inverseMatchCursor_ForEach(t *testing.T) {
 
 		for i, tc := range tcs {
 			f := filters.InverseMatch(tc.relationshipKey, tc.relationshipID)
-			opts := NewIteratingOpts(f)
+			opts := NewFilteringOpts(f)
 			var index int
 			if err = txn.ForEach(func(entryID string, val *testStruct) (err error) {
 				if index > len(tc.expected) {
