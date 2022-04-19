@@ -1,7 +1,12 @@
 package mojura
 
+func MakeWriteWrapper[T Value](m *Mojura[T]) (w WriteWrapper[T]) {
+	w.m = m
+	return
+}
+
 type WriteWrapper[T Value] struct {
-	m Mojura[T]
+	m *Mojura[T]
 }
 
 // New will insert a new entry with the given value and the associated relationships
