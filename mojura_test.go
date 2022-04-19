@@ -690,7 +690,7 @@ func TestMojura_ForEach_with_filter(t *testing.T) {
 		return
 	}
 
-	var o IteratingOpts
+	var o FilteringOpts
 	filter := filters.Match("contacts", foobar.ContactID)
 	o.Filters = append(o.Filters, filter)
 	if err = c.ForEach(fn, &o); err != nil {
@@ -825,7 +825,7 @@ func TestMojura_ForEach_with_multiple_filters(t *testing.T) {
 			return
 		}
 
-		var o IteratingOpts
+		var o FilteringOpts
 		o.Filters = tc.filters
 
 		if err = c.ForEach(fn, &o); err != nil {
@@ -966,7 +966,7 @@ func TestMojura_GetFirst_with_multiple_filters(t *testing.T) {
 			return
 		}
 
-		var o IteratingOpts
+		var o FilteringOpts
 		o.Filters = tc.filters
 
 		if err = c.ForEach(fn, &o); err != nil {
@@ -1110,7 +1110,7 @@ func TestMojura_GetLast_with_multiple_filters(t *testing.T) {
 			return
 		}
 
-		var o IteratingOpts
+		var o FilteringOpts
 		o.Filters = tc.filters
 
 		if err = c.ForEach(fn, &o); err != nil {
@@ -1412,7 +1412,7 @@ func TestMojura_Reindex(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	opts := NewIteratingOpts(filters.Match("users", "user_1"))
+	opts := NewFilteringOpts(filters.Match("users", "user_1"))
 
 	var before *testStruct
 	if before, err = c.GetFirst(opts); err != nil {
@@ -1600,7 +1600,7 @@ func ExampleMojura_GetFiltered() {
 func ExampleMojura_ForEach() {
 	var err error
 	filter := filters.Match("users", "user_1")
-	opts := NewIteratingOpts(filter)
+	opts := NewFilteringOpts(filter)
 	if err = c.ForEach(func(entryID string, val *testStruct) (err error) {
 		fmt.Printf("Iterating entry (%s)! %+v\n", entryID, val)
 		return
@@ -1612,7 +1612,7 @@ func ExampleMojura_ForEach() {
 func ExampleMojura_ForEach_with_filter() {
 	var err error
 	filter := filters.Match("users", "user_1")
-	opts := NewIteratingOpts(filter)
+	opts := NewFilteringOpts(filter)
 	if err = c.ForEach(func(entryID string, val *testStruct) (err error) {
 		fmt.Printf("Iterating entry (%s)! %+v\n", entryID, val)
 		return

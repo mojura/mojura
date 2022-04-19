@@ -32,22 +32,22 @@ func (r *ReadWrapper[T]) AppendFiltered(in []T, o *FilteringOpts) (filtered []T,
 
 // GetFirst will attempt to get the first entry which matches the provided filters
 // Note: Will return ErrEntryNotFound if no match is found
-func (r *ReadWrapper[T]) GetFirst(o *IteratingOpts) (val T, err error) {
+func (r *ReadWrapper[T]) GetFirst(o *FilteringOpts) (val T, err error) {
 	return r.m.GetFirst(o)
 }
 
 // GetLast will attempt to get the last entry which matches the provided filters
 // Note: Will return ErrEntryNotFound if no match is found
-func (r *ReadWrapper[T]) GetLast(o *IteratingOpts) (val T, err error) {
+func (r *ReadWrapper[T]) GetLast(o *FilteringOpts) (val T, err error) {
 	return r.m.GetLast(o)
 }
 
 // ForEach will iterate through each of the entries
-func (r *ReadWrapper[T]) ForEach(fn ForEachFn[T], o *IteratingOpts) (err error) {
+func (r *ReadWrapper[T]) ForEach(fn ForEachFn[T], o *FilteringOpts) (err error) {
 	return r.m.ForEach(fn, o)
 }
 
 // ForEachID will iterate through each of the entry IDs
-func (r *ReadWrapper[T]) ForEachID(fn ForEachIDFn, o *IteratingOpts) (err error) {
+func (r *ReadWrapper[T]) ForEachID(fn ForEachIDFn, o *FilteringOpts) (err error) {
 	return r.m.ForEachID(fn, o)
 }

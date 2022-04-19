@@ -12,6 +12,10 @@ func NewFilteringOpts(fs ...Filter) *FilteringOpts {
 
 // FilteringOpts represents iterating options
 type FilteringOpts struct {
-	IteratingOpts
+	LastID  string
+	Reverse bool
+	Filters []Filter
+
+	// Note: Limit is only utilized for Filtering, it is ignored for ForEach statements
 	Limit int64
 }

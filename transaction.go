@@ -284,7 +284,7 @@ func (t *Transaction[T]) updateRelationships(entryID []byte, orig, new Relations
 
 // getLast will attempt to get the first entry which matches the provided filters
 // Note: Will return ErrEntryNotFound if no match is found
-func (t *Transaction[T]) getFirst(o *IteratingOpts) (value T, err error) {
+func (t *Transaction[T]) getFirst(o *FilteringOpts) (value T, err error) {
 	var cur IDCursor
 	if cur, err = t.idCursor(o.Filters); err != nil {
 		return
@@ -303,7 +303,7 @@ func (t *Transaction[T]) getFirst(o *IteratingOpts) (value T, err error) {
 
 // getLast will attempt to get the last entry which matches the provided filters
 // Note: Will return ErrEntryNotFound if no match is found
-func (t *Transaction[T]) getLast(o *IteratingOpts) (value T, err error) {
+func (t *Transaction[T]) getLast(o *FilteringOpts) (value T, err error) {
 	var cur IDCursor
 	if cur, err = t.idCursor(o.Filters); err != nil {
 		return
@@ -340,7 +340,7 @@ func (t *Transaction[T]) appendFiltered(in []T, o *FilteringOpts) (out []T, last
 
 	var count int64
 	out = in
-	err = t.forEachWithCursor(c, &o.IteratingOpts, func(entryID string, val T) (err error) {
+	err = t.forEachWithCursor(c, o, func(entryID string, val T) (err error) {
 		out = append(out, val)
 		if count++; count == o.Limit {
 			lastID = joinSeekID(c.getCurrentRelationshipID(), entryID)
@@ -353,7 +353,7 @@ func (t *Transaction[T]) appendFiltered(in []T, o *FilteringOpts) (out []T, last
 	return
 }
 
-func (t *Transaction[T]) forEachWithCursor(c Cursor[T], o *IteratingOpts, fn ForEachFn[T]) (err error) {
+func (t *Transaction[T]) forEachWithCursor(c Cursor[T], o *FilteringOpts, fn ForEachFn[T]) (err error) {
 	var val T
 	iterator := getIteratorFunc(c, o.Reverse)
 	val, err = getFirst(c, o.LastID, o.Reverse)
@@ -583,13 +583,13 @@ func (t *Transaction[T]) AppendFiltered(in []T, o *FilteringOpts) (out []T, last
 
 // GetFirst will attempt to get the first entry associated with a set of given filters
 // Note: Will return ErrEntryNotFound if no match is found
-func (t *Transaction[T]) GetFirst(o *IteratingOpts) (val T, err error) {
+func (t *Transaction[T]) GetFirst(o *FilteringOpts) (val T, err error) {
 	return t.getFirst(o)
 }
 
 // GetLast will attempt to get the last entry associated with a set of given filters
 // Note: Will return ErrEntryNotFound if no match is found
-func (t *Transaction[T]) GetLast(o *IteratingOpts) (val T, err error) {
+func (t *Transaction[T]) GetLast(o *FilteringOpts) (val T, err error) {
 	return t.getLast(o)
 }
 
@@ -604,9 +604,9 @@ func (t *Transaction[T]) Cursor(fs ...Filter) (c Cursor[T], err error) {
 }
 
 // ForEach will iterate through entries
-func (t *Transaction[T]) ForEach(fn ForEachFn[T], o *IteratingOpts) (err error) {
+func (t *Transaction[T]) ForEach(fn ForEachFn[T], o *FilteringOpts) (err error) {
 	if o == nil {
-		o = defaultIteratingOpts
+		o = defaultFilteringOpts
 	}
 
 	var c Cursor[T]
@@ -631,9 +631,9 @@ func (t *Transaction[T]) ForEach(fn ForEachFn[T], o *IteratingOpts) (err error) 
 }
 
 // ForEachID will iterate through entry IDs
-func (t *Transaction[T]) ForEachID(fn ForEachIDFn, o *IteratingOpts) (err error) {
+func (t *Transaction[T]) ForEachID(fn ForEachIDFn, o *FilteringOpts) (err error) {
 	if o == nil {
-		o = defaultIteratingOpts
+		o = defaultFilteringOpts
 	}
 
 	var c IDCursor
