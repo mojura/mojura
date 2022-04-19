@@ -1,12 +1,12 @@
 package mojura
 
-func MakeReadWrapper[T Value](m Mojura[T]) (r ReadWrapper[T]) {
+func MakeReadWrapper[T Value](m *Mojura[T]) (r ReadWrapper[T]) {
 	r.m = m
 	return
 }
 
 type ReadWrapper[T Value] struct {
-	m Mojura[T]
+	m *Mojura[T]
 }
 
 // Exists will notiy if an entry exists for a given entry ID
