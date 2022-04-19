@@ -321,6 +321,10 @@ func (t *Transaction[T]) getLast(o *IteratingOpts) (value T, err error) {
 }
 
 func (t *Transaction[T]) getFiltered(o *FilteringOpts) (es []T, lastID string, err error) {
+	return t.appendFiltered(nil, o)
+}
+
+func (t *Transaction[T]) appendFiltered(in []T, o *FilteringOpts) (out []T, lastID string, err error) {
 	if o == nil {
 		o = defaultFilteringOpts
 	}
@@ -335,8 +339,9 @@ func (t *Transaction[T]) getFiltered(o *FilteringOpts) (es []T, lastID string, e
 	}
 
 	var count int64
+	out = in
 	err = t.forEachWithCursor(c, &o.IteratingOpts, func(entryID string, val T) (err error) {
-		es = append(es, val)
+		out = append(out, val)
 		if count++; count == o.Limit {
 			lastID = joinSeekID(c.getCurrentRelationshipID(), entryID)
 			return Break
@@ -568,6 +573,11 @@ func (t *Transaction[T]) Get(entryID string) (val T, err error) {
 
 // GetFiltered will attempt to get all entries associated with a set of given filters
 func (t *Transaction[T]) GetFiltered(o *FilteringOpts) (es []T, lastID string, err error) {
+	return t.getFiltered(o)
+}
+
+// AppendFiltered will attempt to append all entries associated with a set of given filters
+func (t *Transaction[T]) AppendFiltered(in []T, o *FilteringOpts) (out []T, lastID string, err error) {
 	return t.getFiltered(o)
 }
 

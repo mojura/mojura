@@ -486,6 +486,98 @@ func TestMojura_GetFiltered_seek(t *testing.T) {
 	}
 }
 
+func TestMojura_AppendFiltered(t *testing.T) {
+	var (
+		c   *Mojura[*testStruct]
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c, t)
+
+	entries := []*testStruct{
+		newTestStruct("user_1", "contact_1", "group_1", "FOO FOO", "foo", "bar", "baz"),
+		newTestStruct("user_1", "contact_1", "group_2", "FOO FOO", "bar"),
+		newTestStruct("user_1", "contact_1", "group_1", "FOO FOO", "baz"),
+	}
+
+	type testcase struct {
+		tag           string
+		group         string
+		expectedCount int
+	}
+
+	runCases := func(cases []testcase) (err error) {
+		for _, tc := range cases {
+			var entries []*testStruct
+			filter := filters.Match("tags", tc.tag)
+			o := NewFilteringOpts(filter)
+			if entries, _, err = c.AppendFiltered(entries, o); err != nil {
+				return
+			}
+
+			filter = filters.Match("groups", tc.group)
+			o = NewFilteringOpts(filter)
+			if entries, _, err = c.AppendFiltered(entries, o); err != nil {
+				return
+			}
+
+			if len(entries) != tc.expectedCount {
+				err = fmt.Errorf("invalid number of entries, expected %d and received %d for tag of <%s> and group of <%s>", tc.expectedCount, len(entries), tc.tag, tc.group)
+			}
+		}
+
+		return
+	}
+
+	createCases := []testcase{
+		{
+			tag:           "foo",
+			group:         "group_1",
+			expectedCount: 3,
+		},
+		{
+			tag:           "bar",
+			group:         "group_1",
+			expectedCount: 4,
+		},
+
+		{
+			tag:           "baz",
+			group:         "group_1",
+			expectedCount: 4,
+		},
+		{
+			tag:           "foo",
+			group:         "group_2",
+			expectedCount: 2,
+		},
+		{
+			tag:           "bar",
+			group:         "group_2",
+			expectedCount: 3,
+		},
+
+		{
+			tag:           "baz",
+			group:         "group_2",
+			expectedCount: 3,
+		},
+	}
+
+	for _, entry := range entries {
+		if entry.ID, err = c.New(entry); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = runCases(createCases); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestMojura_Edit(t *testing.T) {
 	var (
 		c   *Mojura[*testStruct]

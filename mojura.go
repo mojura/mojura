@@ -566,6 +566,16 @@ func (m *Mojura[T]) GetFiltered(o *FilteringOpts) (filtered []T, lastID string, 
 	return
 }
 
+// AppendFiltered will attempt to append all entries associated with a set of given filters
+func (m *Mojura[T]) AppendFiltered(in []T, o *FilteringOpts) (filtered []T, lastID string, err error) {
+	err = m.ReadTransaction(context.Background(), func(txn *Transaction[T]) (err error) {
+		filtered, lastID, err = txn.appendFiltered(in, o)
+		return
+	})
+
+	return
+}
+
 // GetFirst will attempt to get the first entry which matches the provided filters
 // Note: Will return ErrEntryNotFound if no match is found
 func (m *Mojura[T]) GetFirst(o *IteratingOpts) (val T, err error) {
