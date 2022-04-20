@@ -412,29 +412,6 @@ func (t *Transaction[T]) put(entryID []byte, val T) (updated T, err error) {
 	updated = val
 	return
 }
-
-func (t *Transaction[T]) processBlock(b *kiroku.Block) (err error) {
-	switch b.Type {
-	case kiroku.TypeWriteAction:
-		var val T
-		if val, err = t.m.newValueFromBytes(b.Value); err != nil {
-			return
-		}
-
-		var idx uint64
-		if idx, err = parseIDAsIndex(b.Key); err == nil && idx >= t.meta.CurrentIndex {
-			t.setIndex(idx + 1)
-		}
-
-		_, err = t.editEntry(b.Key, val, true)
-		return
-	case kiroku.TypeDeleteAction:
-		return t.deleteEntry(b.Key)
-	}
-
-	return
-}
-
 func (t *Transaction[T]) editEntry(entryID []byte, val T, allowInsert bool) (updated T, err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
@@ -546,6 +523,28 @@ func (t *Transaction[T]) storeMeta(meta kiroku.Meta) (err error) {
 func (t *Transaction[T]) setIndex(index uint64) {
 	t.meta.CurrentIndex = index
 	t.metaUpdated = true
+}
+
+func (t *Transaction[T]) processBlock(b *kiroku.Block) (err error) {
+	switch b.Type {
+	case kiroku.TypeWriteAction:
+		var val T
+		if val, err = t.m.newValueFromBytes(b.Value); err != nil {
+			return
+		}
+
+		var idx uint64
+		if idx, err = parseIDAsIndex(b.Key); err == nil && idx >= t.meta.CurrentIndex {
+			t.setIndex(idx + 1)
+		}
+
+		_, err = t.editEntry(b.Key, val, true)
+		return
+	case kiroku.TypeDeleteAction:
+		return t.deleteEntry(b.Key)
+	}
+
+	return
 }
 
 func (t *Transaction[T]) teardown() {
