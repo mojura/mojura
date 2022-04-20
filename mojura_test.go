@@ -195,6 +195,66 @@ func TestMojura_New_with_history_and_database_build(t *testing.T) {
 	}
 }
 
+func TestMojura_Put(t *testing.T) {
+	var (
+		c   *Mojura[*testStruct]
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c, t)
+
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+
+	var created *testStruct
+	if created, err = c.Put("test", &foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(created.ID) == 0 {
+		t.Fatal("invalid entry id, expected non-empty value")
+	}
+
+	byGroup := filters.Match("groups", "group_1")
+	opts := NewFilteringOpts(byGroup)
+
+	var results []*testStruct
+	if results, _, err = c.GetFiltered(opts); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(results) != 1 {
+		t.Fatalf("invalid results, expectected count of %d and received count of %d", 1, len(results))
+	}
+
+	foobar.GroupID = "group_2"
+
+	if _, err = c.Put("test", &foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	if results, _, err = c.GetFiltered(opts); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(results) != 0 {
+		t.Fatalf("invalid results, expectected count of %d and received count of %d", 0, len(results))
+	}
+
+	byGroup = filters.Match("groups", "group_2")
+	opts = NewFilteringOpts(byGroup)
+
+	if results, _, err = c.GetFiltered(opts); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(results) != 1 {
+		t.Fatalf("invalid results, expectected count of %d and received count of %d", 1, len(results))
+	}
+}
+
 func TestMojura_Get(t *testing.T) {
 	var (
 		c   *Mojura[*testStruct]
