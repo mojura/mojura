@@ -1,7 +1,5 @@
 github.com/edsrzf/mmap-go v1.0.0 h1:CEBF7HpRnUCSJgGUb5h1Gm7e3VkmVDrR8lvWVLtrOFw=
 github.com/edsrzf/mmap-go v1.0.0/go.mod h1:YO35OhQPt3KJa3ryjFM5Bs14WD66h8eGKpfaBNrHW5M=
-github.com/gdbu/atoms v1.0.1 h1:7vSKoMNHQXQ0iMnDKjTDbOjhPVHZxgqiW4KPpKzGjyY=
-github.com/gdbu/atoms v1.0.1/go.mod h1:NAF1/IvAK0xby1xvmlRLBpapkWBhWL8dlcsxVDGuUpo=
 github.com/gdbu/bolt v1.4.0 h1:y0KmQLexHzWrpx3vdmqsFdgyRBKze/6jir9/y6Qw2Ig=
 github.com/gdbu/bolt v1.4.0/go.mod h1:VxXGB8ehMDPaJIu3txG1PboAODVQu1mVDDN8i9FBVUU=
 github.com/gdbu/scribe v0.5.3 h1:kWkkE8p3iLB2CuReTTLKBYnRx4OTMZpDJTO2Z0xZ0WE=
