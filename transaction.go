@@ -153,7 +153,7 @@ func (t *Transaction[T]) insertEntry(entryID []byte, val T) (err error) {
 	return t.bw.AddBlock(kiroku.TypeWriteAction, entryID, bs)
 }
 
-func (t *Transaction[T]) delete(entryID []byte) (err error) {
+func (t *Transaction[T]) deleteEntry(entryID []byte) (err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -372,7 +372,7 @@ func (t *Transaction[T]) forEachWithCursor(c Cursor[T], o *FilteringOpts, fn For
 	return
 }
 
-func (t *Transaction[T]) new(val T) (entryID []byte, err error) {
+func (t *Transaction[T]) new(val T) (created T, err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -381,19 +381,15 @@ func (t *Transaction[T]) new(val T) (entryID []byte, err error) {
 	t.setIndex(index + 1)
 
 	// Create a padded entry ID from index value
-	entryID = []byte(fmt.Sprintf(t.m.indexFmt, index))
+	entryID := []byte(fmt.Sprintf(t.m.indexFmt, index))
 
-	if err = t.put(entryID, val); err != nil {
-		entryID = nil
-		return
-	}
-
-	return
+	return t.put(entryID, val)
 }
 
-func (t *Transaction[T]) put(entryID []byte, val T) (err error) {
+func (t *Transaction[T]) put(entryID []byte, val T) (updated T, err error) {
 	if len(entryID) == 0 {
-		return ErrEmptyEntryID
+		err = ErrEmptyEntryID
+		return
 	}
 
 	if err = t.cc.isDone(); err != nil {
@@ -413,6 +409,7 @@ func (t *Transaction[T]) put(entryID []byte, val T) (err error) {
 		return
 	}
 
+	updated = val
 	return
 }
 
@@ -424,20 +421,21 @@ func (t *Transaction[T]) processBlock(b *kiroku.Block) (err error) {
 			return
 		}
 
-		idx, err := parseIDAsIndex(b.Key)
-		if err == nil && idx >= t.meta.CurrentIndex {
+		var idx uint64
+		if idx, err = parseIDAsIndex(b.Key); err == nil && idx >= t.meta.CurrentIndex {
 			t.setIndex(idx + 1)
 		}
 
-		return t.edit(b.Key, val, true)
+		_, err = t.editEntry(b.Key, val, true)
+		return
 	case kiroku.TypeDeleteAction:
-		return t.delete(b.Key)
+		return t.deleteEntry(b.Key)
 	}
 
 	return
 }
 
-func (t *Transaction[T]) edit(entryID []byte, val T, allowInsert bool) (err error) {
+func (t *Transaction[T]) editEntry(entryID []byte, val T, allowInsert bool) (updated T, err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -455,7 +453,7 @@ func (t *Transaction[T]) edit(entryID []byte, val T, allowInsert bool) (err erro
 	}
 }
 
-func (t *Transaction[T]) update(entryID []byte, orig Value, val T) (err error) {
+func (t *Transaction[T]) update(entryID []byte, orig Value, val T) (updated T, err error) {
 	// Ensure the ID is set as the original ID
 	val.SetID(string(entryID))
 
@@ -466,21 +464,21 @@ func (t *Transaction[T]) update(entryID []byte, orig Value, val T) (err error) {
 		relationships = orig.GetRelationships()
 	}
 
-	if err = t.put(entryID, val); err != nil {
-		err = fmt.Errorf("error putting updated Entry into DB: %v", err)
-		return
-	}
-
 	// Update relationships (if needed)
 	if err = t.updateRelationships(entryID, relationships, val.GetRelationships()); err != nil {
 		err = fmt.Errorf("error updating relationships: %v", err)
 		return
 	}
 
+	if updated, err = t.put(entryID, val); err != nil {
+		err = fmt.Errorf("error putting updated Entry into DB: %v", err)
+		return
+	}
+
 	return
 }
 
-func (t *Transaction[T]) remove(entryID []byte) (err error) {
+func (t *Transaction[T]) delete(entryID []byte) (deleted T, err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -491,7 +489,7 @@ func (t *Transaction[T]) remove(entryID []byte) (err error) {
 		return
 	}
 
-	if err = t.delete(entryID); err != nil {
+	if err = t.deleteEntry(entryID); err != nil {
 		err = fmt.Errorf("error removing entry <%s>: %v", entryID, err)
 		return
 	}
@@ -501,7 +499,12 @@ func (t *Transaction[T]) remove(entryID []byte) (err error) {
 		return
 	}
 
-	return t.bw.AddBlock(kiroku.TypeDeleteAction, entryID, nil)
+	if err = t.bw.AddBlock(kiroku.TypeDeleteAction, entryID, nil); err != nil {
+		return
+	}
+
+	deleted = val
+	return
 }
 
 func (t *Transaction[T]) loadMeta() (err error) {
@@ -551,14 +554,8 @@ func (t *Transaction[T]) teardown() {
 }
 
 // New will insert a new entry with the given value and the associated relationships
-func (t *Transaction[T]) New(val T) (entryID string, err error) {
-	var id []byte
-	if id, err = t.new(val); err != nil {
-		return
-	}
-
-	entryID = string(id)
-	return
+func (t *Transaction[T]) New(val T) (created T, err error) {
+	return t.new(val)
 }
 
 // Exists will notiy if an entry exists for a given entry ID
@@ -659,18 +656,18 @@ func (t *Transaction[T]) ForEachID(fn ForEachIDFn, o *FilteringOpts) (err error)
 // Put will place an entry at a given entry ID
 // Note: This will not check to see if the entry exists beforehand. If this functionality
 // is needed, look into using the Edit method
-func (t *Transaction[T]) Put(entryID string, val T) (err error) {
+func (t *Transaction[T]) Put(entryID string, val T) (inserted T, err error) {
 	return t.put([]byte(entryID), val)
 }
 
 // Edit will attempt to edit an entry by ID
-func (t *Transaction[T]) Edit(entryID string, val T) (err error) {
-	return t.edit([]byte(entryID), val, false)
+func (t *Transaction[T]) Edit(entryID string, val T) (updated T, err error) {
+	return t.editEntry([]byte(entryID), val, false)
 }
 
-// Remove will remove a relationship ID and it's related relationship IDs
-func (t *Transaction[T]) Remove(entryID string) (err error) {
-	return t.remove([]byte(entryID))
+// Delete will remove an entry and it's related relationship IDs
+func (t *Transaction[T]) Delete(entryID string) (deleted T, err error) {
+	return t.delete([]byte(entryID))
 }
 
 // TransactionFn represents a transaction function
