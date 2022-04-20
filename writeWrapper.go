@@ -22,8 +22,8 @@ func (w *WriteWrapper[T]) Put(entryID string, val T) (updated T, err error) {
 }
 
 // Edit will attempt to edit an entry by ID
-func (w *WriteWrapper[T]) Edit(entryID string, val T) (updated T, err error) {
-	return w.m.Edit(entryID, val)
+func (w *WriteWrapper[T]) Update(entryID string, fn UpdateFn[T]) (updated T, err error) {
+	return w.m.Update(entryID, fn)
 }
 
 // Delete will remove an entry and it's related relationship IDs

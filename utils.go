@@ -169,3 +169,7 @@ func closeSema(c chan struct{}) {
 
 	close(c)
 }
+
+type UpdateFn[T Value] func(T) error
+
+type editFn[T Value] func(T) (T, error)
