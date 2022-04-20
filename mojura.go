@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"sync"
 
-	"github.com/gdbu/atoms"
 	"github.com/gdbu/scribe"
 	"github.com/gdbu/stopwatch"
 
@@ -102,6 +102,9 @@ func makeMojura[T Value](opts Opts, ifn InitializerFn[T], relationships []string
 
 // Mojura is the DB manager
 type Mojura[T Value] struct {
+	// Closed state mutex
+	mux sync.RWMutex
+
 	db  backend.Backend
 	out *scribe.Scribe
 	b   *batcher[T]
@@ -117,7 +120,7 @@ type Mojura[T Value] struct {
 	relationships [][]byte
 
 	// Closed state
-	closed atoms.Bool
+	closed bool
 }
 
 func (m *Mojura[T]) init(relationships []string) (err error) {
@@ -682,6 +685,9 @@ func (m *Mojura[T]) Remove(entryID string) (err error) {
 
 // Transaction will initialize a transaction
 func (m *Mojura[T]) Transaction(ctx context.Context, fn func(*Transaction[T]) error) (err error) {
+	m.mux.RLock()
+	defer m.mux.RUnlock()
+
 	if m.opts.IsMirror {
 		err = ErrMirrorCannotPerformWriteActions
 		return
@@ -696,6 +702,8 @@ func (m *Mojura[T]) Transaction(ctx context.Context, fn func(*Transaction[T]) er
 
 // ReadTransaction will initialize a read-only transaction
 func (m *Mojura[T]) ReadTransaction(ctx context.Context, fn func(*Transaction[T]) error) (err error) {
+	m.mux.RLock()
+	defer m.mux.RUnlock()
 	err = m.db.ReadTransaction(func(txn backend.Transaction) (err error) {
 		var t Transaction[T]
 		t, err = m.runTransaction(ctx, txn, nil, fn)
@@ -748,9 +756,13 @@ func (m *Mojura[T]) Reindex(ctx context.Context) (err error) {
 
 // Close will close the selected instance of Mojura
 func (m *Mojura[T]) Close() (err error) {
-	if !m.closed.Set(true) {
+	m.mux.Lock()
+	defer m.mux.Unlock()
+	if m.closed {
 		return errors.ErrIsClosed
 	}
+
+	m.closed = true
 
 	var errs errors.ErrorList
 	errs.Push(m.db.Close())
