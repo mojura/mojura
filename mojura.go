@@ -651,15 +651,15 @@ func (m *Mojura[T]) Put(entryID string, val T) (updated T, err error) {
 	return
 }
 
-// Edit will attempt to edit an entry by ID
-func (m *Mojura[T]) Edit(entryID string, val T) (updated T, err error) {
+// Update will attempt to edit an entry by ID
+func (m *Mojura[T]) Update(entryID string, fn func(T) error) (updated T, err error) {
 	if m.opts.IsMirror {
 		err = ErrMirrorCannotPerformWriteActions
 		return
 	}
 
 	err = m.Transaction(context.Background(), func(txn *Transaction[T]) (err error) {
-		updated, err = txn.editEntry([]byte(entryID), val, false)
+		updated, err = txn.update([]byte(entryID), fn)
 		return
 	})
 

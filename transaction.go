@@ -139,7 +139,12 @@ func (t *Transaction[T]) insertEntry(entryID []byte, val T) (err error) {
 		return ErrNotInitialized
 	}
 
+	val.SetID(string(entryID))
 	val.SetUpdatedAt(time.Now().Unix())
+
+	if val.GetCreatedAt() == 0 {
+		val.SetCreatedAt(time.Now().Unix())
+	}
 
 	var bs []byte
 	if bs, err = t.m.marshal(val); err != nil {
@@ -386,7 +391,7 @@ func (t *Transaction[T]) new(val T) (created T, err error) {
 	return t.put(entryID, val)
 }
 
-func (t *Transaction[T]) put(entryID []byte, val T) (updated T, err error) {
+func (t *Transaction[T]) edit(entryID []byte, fn editFn[T], allowInsert bool) (updated T, err error) {
 	if len(entryID) == 0 {
 		err = ErrEmptyEntryID
 		return
@@ -396,49 +401,31 @@ func (t *Transaction[T]) put(entryID []byte, val T) (updated T, err error) {
 		return
 	}
 
-	val.SetID(string(entryID))
-	if val.GetCreatedAt() == 0 {
-		val.SetCreatedAt(time.Now().Unix())
-	}
+	var (
+		orig          T
+		createdAt     int64
+		relationships Relationships
+	)
 
-	if err = t.insertEntry(entryID, val); err != nil {
-		return
-	}
-
-	if err = t.setRelationships(val.GetRelationships(), entryID); err != nil {
-		return
-	}
-
-	updated = val
-	return
-}
-func (t *Transaction[T]) editEntry(entryID []byte, val T, allowInsert bool) (updated T, err error) {
-	if err = t.cc.isDone(); err != nil {
-		return
-	}
-
-	var orig T
 	orig, err = t.get(entryID)
 	switch {
 	case err == nil:
-		return t.update(entryID, orig, val)
+		createdAt = orig.GetCreatedAt()
+		relationships = orig.GetRelationships()
 	case err == ErrEntryNotFound && allowInsert:
-		return t.update(entryID, nil, val)
-
+		err = nil
 	default:
 		return
 	}
-}
 
-func (t *Transaction[T]) update(entryID []byte, orig Value, val T) (updated T, err error) {
-	// Ensure the ID is set as the original ID
-	val.SetID(string(entryID))
+	var val T
+	if val, err = fn(orig); err != nil {
+		return
+	}
 
-	var relationships Relationships
-	if orig != nil {
+	if createdAt != 0 {
 		// Original exists, ensure the created at timestamp is set as the original created at
-		val.SetCreatedAt(orig.GetCreatedAt())
-		relationships = orig.GetRelationships()
+		val.SetCreatedAt(createdAt)
 	}
 
 	// Update relationships (if needed)
@@ -447,12 +434,27 @@ func (t *Transaction[T]) update(entryID []byte, orig Value, val T) (updated T, e
 		return
 	}
 
-	if updated, err = t.put(entryID, val); err != nil {
-		err = fmt.Errorf("error putting updated Entry into DB: %v", err)
+	if err = t.insertEntry(entryID, val); err != nil {
 		return
 	}
 
+	updated = val
 	return
+}
+
+func (t *Transaction[T]) update(entryID []byte, fn UpdateFn[T]) (updated T, err error) {
+	return t.edit(entryID, func(in T) (out T, err error) {
+		if err = fn(in); err != nil {
+			return
+		}
+
+		out = in
+		return
+	}, false)
+}
+
+func (t *Transaction[T]) put(entryID []byte, val T) (updated T, err error) {
+	return t.edit(entryID, func(_ T) (out T, err error) { return val, nil }, true)
 }
 
 func (t *Transaction[T]) delete(entryID []byte) (deleted T, err error) {
@@ -538,7 +540,7 @@ func (t *Transaction[T]) processBlock(b *kiroku.Block) (err error) {
 			t.setIndex(idx + 1)
 		}
 
-		_, err = t.editEntry(b.Key, val, true)
+		_, err = t.put(b.Key, val)
 		return
 	case kiroku.TypeDeleteAction:
 		return t.deleteEntry(b.Key)
@@ -660,8 +662,8 @@ func (t *Transaction[T]) Put(entryID string, val T) (inserted T, err error) {
 }
 
 // Edit will attempt to edit an entry by ID
-func (t *Transaction[T]) Edit(entryID string, val T) (updated T, err error) {
-	return t.editEntry([]byte(entryID), val, false)
+func (t *Transaction[T]) Update(entryID string, fn func(T) error) (updated T, err error) {
+	return t.update([]byte(entryID), fn)
 }
 
 // Delete will remove an entry and it's related relationship IDs

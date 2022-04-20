@@ -459,7 +459,7 @@ func TestMojura_GetFiltered_many_to_many(t *testing.T) {
 
 	for _, entry := range entries {
 		entry.Tags = []string{"boom"}
-		if _, err = c.Edit(entry.ID, entry); err != nil {
+		if _, err = c.Put(entry.ID, entry); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -642,7 +642,7 @@ func TestMojura_AppendFiltered(t *testing.T) {
 	}
 }
 
-func TestMojura_Edit(t *testing.T) {
+func TestMojura_Update(t *testing.T) {
 	var (
 		c   *Mojura[*testStruct]
 		err error
@@ -663,7 +663,10 @@ func TestMojura_Edit(t *testing.T) {
 	foobar.Value = "FOO FOO"
 
 	var updated *testStruct
-	if updated, err = c.Edit(created.ID, &foobar); err != nil {
+	if updated, err = c.Update(created.ID, func(e *testStruct) (err error) {
+		*e = foobar
+		return
+	}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1406,7 +1409,7 @@ func TestMojura_Batch(t *testing.T) {
 
 	if err = c.Batch(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		foobar.Value = "foo bar baz"
-		_, err = txn.Edit(created.ID, &foobar)
+		_, err = txn.Put(created.ID, &foobar)
 		return
 	}); err != nil {
 		t.Fatal(err)
@@ -1690,7 +1693,21 @@ func ExampleMojura_ForEach_with_filter() {
 	}
 }
 
-func ExampleMojura_Edit() {
+func ExampleMojura_Update() {
+	var err error
+	var updated *testStruct
+	if updated, err = c.Update("00000000", func(ts *testStruct) (err error) {
+		// Let's update the Value field to "New foo value"
+		ts.Value = "New foo value"
+		return
+	}); err != nil {
+		return
+	}
+
+	fmt.Printf("Edited entry %+v!\n", updated)
+}
+
+func ExampleMojura_Put() {
 	var (
 		ts  *testStruct
 		err error
@@ -1702,11 +1719,11 @@ func ExampleMojura_Edit() {
 	ts.Value = "New foo value"
 
 	var updated *testStruct
-	if updated, err = c.Edit("00000000", ts); err != nil {
+	if updated, err = c.Put("00000000", ts); err != nil {
 		return
 	}
 
-	fmt.Printf("Edited entry %+v!\n", updated)
+	fmt.Printf("Updated entry %+v!\n", updated)
 }
 
 func ExampleMojura_Delete() {
