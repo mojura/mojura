@@ -520,19 +520,14 @@ func (m *Mojura[T]) reindex(txn *Transaction[T]) (err error) {
 }
 
 // New will insert a new entry with the given value and the associated relationships
-func (m *Mojura[T]) New(val T) (entryID string, err error) {
+func (m *Mojura[T]) New(val T) (created T, err error) {
 	if m.opts.IsMirror {
 		err = ErrMirrorCannotPerformWriteActions
 		return
 	}
 
 	err = m.Transaction(context.Background(), func(txn *Transaction[T]) (err error) {
-		var id []byte
-		if id, err = txn.new(val); err != nil {
-			return
-		}
-
-		entryID = string(id)
+		created, err = txn.new(val)
 		return
 	})
 
@@ -642,42 +637,45 @@ func (m *Mojura[T]) Cursor(fn func(Cursor[T]) error, fs ...Filter) (err error) {
 // Put will place an entry at a given entry ID
 // Note: This will not check to see if the entry exists beforehand. If this functionality
 // is needed, look into using the Edit method
-func (m *Mojura[T]) Put(entryID string, val T) (err error) {
+func (m *Mojura[T]) Put(entryID string, val T) (updated T, err error) {
 	if m.opts.IsMirror {
 		err = ErrMirrorCannotPerformWriteActions
 		return
 	}
 
 	err = m.Transaction(context.Background(), func(txn *Transaction[T]) (err error) {
-		return txn.put([]byte(entryID), val)
+		updated, err = txn.put([]byte(entryID), val)
+		return
 	})
 
 	return
 }
 
 // Edit will attempt to edit an entry by ID
-func (m *Mojura[T]) Edit(entryID string, val T) (err error) {
+func (m *Mojura[T]) Edit(entryID string, val T) (updated T, err error) {
 	if m.opts.IsMirror {
 		err = ErrMirrorCannotPerformWriteActions
 		return
 	}
 
 	err = m.Transaction(context.Background(), func(txn *Transaction[T]) (err error) {
-		return txn.edit([]byte(entryID), val, false)
+		updated, err = txn.editEntry([]byte(entryID), val, false)
+		return
 	})
 
 	return
 }
 
-// Remove will remove a relationship ID and it's related relationship IDs
-func (m *Mojura[T]) Remove(entryID string) (err error) {
+// Delete will remove an entry and it's related relationship IDs
+func (m *Mojura[T]) Delete(entryID string) (deleted T, err error) {
 	if m.opts.IsMirror {
 		err = ErrMirrorCannotPerformWriteActions
 		return
 	}
 
 	err = m.Transaction(context.Background(), func(txn *Transaction[T]) (err error) {
-		return txn.remove([]byte(entryID))
+		deleted, err = txn.delete([]byte(entryID))
+		return
 	})
 
 	return

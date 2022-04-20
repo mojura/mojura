@@ -354,7 +354,7 @@ func Test_baseComparisonCursor_First_with_deletion(t *testing.T) {
 			return
 		}
 
-		if err = txn.Remove("00000000"); err != nil {
+		if _, err = txn.Delete("00000000"); err != nil {
 			return
 		}
 
@@ -770,7 +770,7 @@ func Test_baseComparisonCursor_Last_with_deletion(t *testing.T) {
 			return
 		}
 
-		if err = txn.Remove("00000001"); err != nil {
+		if _, err = txn.Delete("00000001"); err != nil {
 			return
 		}
 

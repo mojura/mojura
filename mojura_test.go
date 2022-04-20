@@ -49,12 +49,12 @@ func TestMojura_New(t *testing.T) {
 
 	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
-	var entryID string
-	if entryID, err = c.New(&foobar); err != nil {
+	var created *testStruct
+	if created, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
 	}
 
-	if len(entryID) == 0 {
+	if len(created.ID) == 0 {
 		t.Fatal("invalid entry id, expected non-empty value")
 	}
 }
@@ -71,8 +71,8 @@ func TestMojura_New_with_database_build(t *testing.T) {
 
 	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
-	var entryID string
-	if entryID, err = c.New(&foobar); err != nil {
+	var created *testStruct
+	if created, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
 	}
 
@@ -91,7 +91,7 @@ func TestMojura_New_with_database_build(t *testing.T) {
 	defer testTeardown(c, t)
 
 	var e *testStruct
-	if e, err = c.Get(entryID); err != nil {
+	if e, err = c.Get(created.ID); err != nil {
 		t.Fatalf("error getting: %v", err)
 	}
 
@@ -112,8 +112,8 @@ func TestMojura_New_with_history_build(t *testing.T) {
 
 	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
-	var entryID string
-	if entryID, err = c.New(&foobar); err != nil {
+	var created *testStruct
+	if created, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
 	}
 
@@ -132,7 +132,7 @@ func TestMojura_New_with_history_build(t *testing.T) {
 	defer testTeardown(c, t)
 
 	var e *testStruct
-	if e, err = c.Get(entryID); err != nil {
+	if e, err = c.Get(created.ID); err != nil {
 		t.Fatalf("error getting: %v", err)
 	}
 
@@ -153,8 +153,8 @@ func TestMojura_New_with_history_and_database_build(t *testing.T) {
 
 	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
-	var entryID string
-	if entryID, err = c.New(&foobar); err != nil {
+	var created *testStruct
+	if created, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
 	}
 
@@ -186,7 +186,7 @@ func TestMojura_New_with_history_and_database_build(t *testing.T) {
 	defer testTeardown(c, t)
 
 	var e *testStruct
-	if e, err = c.Get(entryID); err != nil {
+	if e, err = c.Get(created.ID); err != nil {
 		t.Fatalf("error getting: %v", err)
 	}
 
@@ -208,13 +208,17 @@ func TestMojura_Get(t *testing.T) {
 
 	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
-	var entryID string
-	if entryID, err = c.New(&foobar); err != nil {
+	var created *testStruct
+	if created, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = testCheck(&foobar, created); err != nil {
 		t.Fatal(err)
 	}
 
 	var fb *testStruct
-	if fb, err = c.Get(entryID); err != nil {
+	if fb, err = c.Get(created.ID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -236,8 +240,8 @@ func TestMojura_Get_context(t *testing.T) {
 
 	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
-	var entryID string
-	if entryID, err = c.New(&foobar); err != nil {
+	var created *testStruct
+	if created, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
 	}
 
@@ -263,7 +267,7 @@ func TestMojura_Get_context(t *testing.T) {
 		if err = c.ReadTransaction(ctx, func(txn *Transaction[*testStruct]) (err error) {
 			for i := 0; i < tc.iterations; i++ {
 				time.Sleep(tc.timeout)
-				if _, err = txn.Get(entryID); err != nil {
+				if _, err = txn.Get(created.ID); err != nil {
 					return
 				}
 			}
@@ -384,7 +388,7 @@ func TestMojura_GetFiltered_many_to_many(t *testing.T) {
 	}
 
 	for _, entry := range entries {
-		if entry.ID, err = c.New(entry); err != nil {
+		if _, err = c.New(entry); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -395,7 +399,7 @@ func TestMojura_GetFiltered_many_to_many(t *testing.T) {
 
 	for _, entry := range entries {
 		entry.Tags = []string{"boom"}
-		if err = c.Edit(entry.ID, entry); err != nil {
+		if _, err = c.Edit(entry.ID, entry); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -405,7 +409,7 @@ func TestMojura_GetFiltered_many_to_many(t *testing.T) {
 	}
 
 	for _, entry := range entries {
-		if err = c.Remove(entry.ID); err != nil {
+		if _, err = c.Delete(entry.ID); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -433,7 +437,7 @@ func TestMojura_GetFiltered_seek(t *testing.T) {
 	}
 
 	for _, entry := range entries {
-		if entry.ID, err = c.New(entry); err != nil {
+		if _, err = c.New(entry); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -568,7 +572,7 @@ func TestMojura_AppendFiltered(t *testing.T) {
 	}
 
 	for _, entry := range entries {
-		if entry.ID, err = c.New(entry); err != nil {
+		if _, err = c.New(entry); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -591,19 +595,24 @@ func TestMojura_Edit(t *testing.T) {
 
 	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
-	var entryID string
-	if entryID, err = c.New(&foobar); err != nil {
+	var created *testStruct
+	if created, err = c.New(&foobar); err != nil {
 		t.Fatal(err)
 	}
 
 	foobar.Value = "FOO FOO"
 
-	if err = c.Edit(entryID, &foobar); err != nil {
+	var updated *testStruct
+	if updated, err = c.Edit(created.ID, &foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = testCheck(&foobar, updated); err != nil {
 		t.Fatal(err)
 	}
 
 	var fb *testStruct
-	if fb, err = c.Get(entryID); err != nil {
+	if fb, err = c.Get(created.ID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1327,9 +1336,9 @@ func TestMojura_Batch(t *testing.T) {
 
 	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
 
-	var entryID string
+	var created *testStruct
 	if err = c.Batch(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
-		entryID, err = txn.New(&foobar)
+		created, err = txn.New(&foobar)
 		return
 	}); err != nil {
 		t.Fatal(err)
@@ -1337,14 +1346,14 @@ func TestMojura_Batch(t *testing.T) {
 
 	if err = c.Batch(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
 		foobar.Value = "foo bar baz"
-		err = txn.Edit(entryID, &foobar)
+		_, err = txn.Edit(created.ID, &foobar)
 		return
 	}); err != nil {
 		t.Fatal(err)
 	}
 
 	var val *testStruct
-	if val, err = c.Get(entryID); err != nil {
+	if val, err = c.Get(created.ID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1382,16 +1391,16 @@ func TestMojura_index_increment_persist(t *testing.T) {
 	}
 	defer testTeardown(c, t)
 
-	var entryID string
+	var created *testStruct
 	if err = c.Transaction(context.Background(), func(txn *Transaction[*testStruct]) (err error) {
-		entryID, err = txn.New(&foobar)
+		created, err = txn.New(&foobar)
 		return
 	}); err != nil {
 		t.Fatal(err)
 	}
 
-	if entryID != "00000001" {
-		t.Fatalf("unexpected ID, expected %s and recieved %s", "00000001", entryID)
+	if created.ID != "00000001" {
+		t.Fatalf("unexpected ID, expected %s and recieved %s", "00000001", created.ID)
 	}
 }
 
@@ -1556,15 +1565,15 @@ func ExampleMojura_New() {
 	ts.Value = "Foo bar"
 
 	var (
-		entryID string
+		created *testStruct
 		err     error
 	)
 
-	if entryID, err = c.New(&ts); err != nil {
+	if created, err = c.New(&ts); err != nil {
 		return
 	}
 
-	fmt.Printf("New entry! %s\n", entryID)
+	fmt.Printf("New entry! %+v\n", created)
 }
 
 func ExampleMojura_Get() {
@@ -1632,20 +1641,25 @@ func ExampleMojura_Edit() {
 	// Let's update the Value field to "New foo value"
 	ts.Value = "New foo value"
 
-	if err = c.Edit("00000000", ts); err != nil {
+	var updated *testStruct
+	if updated, err = c.Edit("00000000", ts); err != nil {
 		return
 	}
 
-	fmt.Printf("Edited entry %s!\n", "00000000")
+	fmt.Printf("Edited entry %+v!\n", updated)
 }
 
-func ExampleMojura_Remove() {
-	var err error
-	if err = c.Remove("00000000"); err != nil {
+func ExampleMojura_Delete() {
+	var (
+		removed *testStruct
+		err     error
+	)
+
+	if removed, err = c.Delete("00000000"); err != nil {
 		return
 	}
 
-	fmt.Printf("Removed entry %s!\n", "00000000")
+	fmt.Printf("Removed entry %+v!\n", removed)
 }
 
 func testInit() (c *Mojura[*testStruct], err error) {
