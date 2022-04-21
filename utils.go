@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mojura/backend"
 	"github.com/mojura/kiroku"
@@ -13,7 +14,7 @@ import (
 
 var nopBW = &nopBlockWriter{}
 
-func recoverCall[T Value](txn *Transaction[T], fn TransactionFn[T]) (err error) {
+func recoverCall[T any, V Value[T]](txn *Transaction[T, V], fn TransactionFn[T, V]) (err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			err = fmt.Errorf("panic caught: %v", err)
@@ -86,7 +87,7 @@ func getFirstID(c IDCursor, lastID string, reverse bool) (entryID string, err er
 	return
 }
 
-func getFirst[T Value](c Cursor[T], lastID string, reverse bool) (v T, err error) {
+func getFirst[T any, V Value[T]](c Cursor[T, V], lastID string, reverse bool) (v *T, err error) {
 	switch {
 	case len(lastID) > 0 && !reverse:
 		if _, err = c.Seek(lastID); err != nil {
@@ -170,6 +171,16 @@ func closeSema(c chan struct{}) {
 	close(c)
 }
 
-type UpdateFn[T Value] func(T) error
+type UpdateFn[T any, V Value[T]] func(*T) error
 
-type editFn[T Value] func(T) (T, error)
+type editFn[T any, V Value[T]] func(*T) (*T, error)
+
+func setEssetialValues[T any, V Value[T]](entryID []byte, v V) {
+	v.SetID(string(entryID))
+	v.SetUpdatedAt(time.Now().Unix())
+
+	if v.GetCreatedAt() == 0 {
+		v.SetCreatedAt(time.Now().Unix())
+	}
+
+}

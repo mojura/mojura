@@ -1,7 +1,7 @@
 package mojura
 
 // Value represents an entry value
-type Value interface {
+type Value[T any] interface {
 	GetID() string
 	GetCreatedAt() int64
 	GetUpdatedAt() int64
@@ -15,4 +15,6 @@ type Value interface {
 	SetID(string)
 	SetCreatedAt(int64)
 	SetUpdatedAt(int64)
+
+	*T
 }
