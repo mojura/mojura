@@ -2,15 +2,15 @@ package mojura
 
 import "github.com/mojura/backend"
 
-var _ Cursor[*Entry] = &baseCursor[*Entry]{}
+var _ Cursor[Entry, *Entry] = &baseCursor[Entry, *Entry]{}
 
-func newBaseCursor[T Value](txn *Transaction[T]) (c Cursor[T], err error) {
+func newBaseCursor[T any, V Value[T]](txn *Transaction[T, V]) (c Cursor[T, V], err error) {
 	var bkt backend.Bucket
 	if bkt, err = txn.getEntriesBucket(); err != nil {
 		return
 	}
 
-	var b baseCursor[T]
+	var b baseCursor[T, V]
 	b.txn = txn
 	b.cur = bkt.Cursor()
 	c = &b
@@ -18,17 +18,17 @@ func newBaseCursor[T Value](txn *Transaction[T]) (c Cursor[T], err error) {
 }
 
 // baseCursor is an iterating structure
-type baseCursor[T Value] struct {
-	txn *Transaction[T]
+type baseCursor[T any, V Value[T]] struct {
+	txn *Transaction[T, V]
 	cur backend.Cursor
 }
 
-func (c *baseCursor[T]) getCurrentRelationshipID() (relationshipID string) {
+func (c *baseCursor[T, V]) getCurrentRelationshipID() (relationshipID string) {
 	return string("")
 }
 
 // Seek will seek the provided ID
-func (c *baseCursor[T]) Seek(seekID string) (val T, err error) {
+func (c *baseCursor[T, V]) Seek(seekID string) (val *T, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -43,12 +43,12 @@ func (c *baseCursor[T]) Seek(seekID string) (val T, err error) {
 }
 
 // Seek will seek the provided ID
-func (c *baseCursor[T]) SeekReverse(seekID string) (val T, err error) {
+func (c *baseCursor[T, V]) SeekReverse(seekID string) (val *T, err error) {
 	return c.Seek(seekID)
 }
 
 // First will return the first entry
-func (c *baseCursor[T]) First() (val T, err error) {
+func (c *baseCursor[T, V]) First() (val *T, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -63,7 +63,7 @@ func (c *baseCursor[T]) First() (val T, err error) {
 }
 
 // Last will return the last entry
-func (c *baseCursor[T]) Last() (val T, err error) {
+func (c *baseCursor[T, V]) Last() (val *T, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -78,7 +78,7 @@ func (c *baseCursor[T]) Last() (val T, err error) {
 }
 
 // Next will return the next entry
-func (c *baseCursor[T]) Next() (val T, err error) {
+func (c *baseCursor[T, V]) Next() (val *T, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -93,7 +93,7 @@ func (c *baseCursor[T]) Next() (val T, err error) {
 }
 
 // Prev will return the previous entry
-func (c *baseCursor[T]) Prev() (val T, err error) {
+func (c *baseCursor[T, V]) Prev() (val *T, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -107,11 +107,11 @@ func (c *baseCursor[T]) Prev() (val T, err error) {
 	return c.get(k, v)
 }
 
-func (c *baseCursor[T]) get(key, bs []byte) (val T, err error) {
+func (c *baseCursor[T, V]) get(key, bs []byte) (val *T, err error) {
 	return c.txn.m.newValueFromBytes(bs)
 }
 
-func (c *baseCursor[T]) teardown() {
+func (c *baseCursor[T, V]) teardown() {
 	c.txn = nil
 	c.cur = nil
 }

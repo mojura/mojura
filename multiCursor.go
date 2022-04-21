@@ -1,9 +1,9 @@
 package mojura
 
-var _ Cursor[*Entry] = &multiCursor[*Entry]{}
+var _ Cursor[Entry, *Entry] = &multiCursor[Entry, *Entry]{}
 
-func newMultiCursor[T Value](txn *Transaction[T], fs []Filter) (c Cursor[T], err error) {
-	var m multiCursor[T]
+func newMultiCursor[T any, V Value[T]](txn *Transaction[T, V], fs []Filter) (c Cursor[T, V], err error) {
+	var m multiCursor[T, V]
 	if m.mid, err = newMultiIDCursor(txn, fs); err != nil {
 		return
 	}
@@ -13,13 +13,13 @@ func newMultiCursor[T Value](txn *Transaction[T], fs []Filter) (c Cursor[T], err
 	return
 }
 
-type multiCursor[T Value] struct {
-	txn *Transaction[T]
-	mid *multiIDCursor[T]
+type multiCursor[T any, V Value[T]] struct {
+	txn *Transaction[T, V]
+	mid *multiIDCursor[T, V]
 }
 
 // Seek is an alias for SeekForward
-func (c *multiCursor[T]) Seek(seekID string) (val T, err error) {
+func (c *multiCursor[T, V]) Seek(seekID string) (val *T, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -33,7 +33,7 @@ func (c *multiCursor[T]) Seek(seekID string) (val T, err error) {
 }
 
 // SeekReverse will seek the provided ID and move reverse until match
-func (c *multiCursor[T]) SeekReverse(seekID string) (val T, err error) {
+func (c *multiCursor[T, V]) SeekReverse(seekID string) (val *T, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -47,7 +47,7 @@ func (c *multiCursor[T]) SeekReverse(seekID string) (val T, err error) {
 }
 
 // First will return the first entry
-func (c *multiCursor[T]) First() (val T, err error) {
+func (c *multiCursor[T, V]) First() (val *T, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -61,7 +61,7 @@ func (c *multiCursor[T]) First() (val T, err error) {
 }
 
 // Last will return the last entry
-func (c *multiCursor[T]) Last() (val T, err error) {
+func (c *multiCursor[T, V]) Last() (val *T, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -75,7 +75,7 @@ func (c *multiCursor[T]) Last() (val T, err error) {
 }
 
 // Next will return the next entry
-func (c *multiCursor[T]) Next() (val T, err error) {
+func (c *multiCursor[T, V]) Next() (val *T, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -89,7 +89,7 @@ func (c *multiCursor[T]) Next() (val T, err error) {
 }
 
 // Prev will return the previous entry
-func (c *multiCursor[T]) Prev() (val T, err error) {
+func (c *multiCursor[T, V]) Prev() (val *T, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -103,16 +103,16 @@ func (c *multiCursor[T]) Prev() (val T, err error) {
 }
 
 // HasForward will determine if an entry exists in a forward direction
-func (c *multiCursor[T]) HasForward(entryID string) (ok bool, err error) {
+func (c *multiCursor[T, V]) HasForward(entryID string) (ok bool, err error) {
 	return c.mid.HasForward(entryID)
 }
 
 // HasReverse will determine if an entry exists in a reverse direction
-func (c *multiCursor[T]) HasReverse(entryID string) (ok bool, err error) {
+func (c *multiCursor[T, V]) HasReverse(entryID string) (ok bool, err error) {
 	return c.mid.HasReverse(entryID)
 }
 
-func (c *multiCursor[T]) get(entryID []byte) (val T, err error) {
+func (c *multiCursor[T, V]) get(entryID []byte) (val *T, err error) {
 	var bs []byte
 	// Attempt to get and associate bytes to value
 	if bs, err = c.txn.getBytes(entryID); err != nil {
@@ -123,11 +123,11 @@ func (c *multiCursor[T]) get(entryID []byte) (val T, err error) {
 	return c.txn.m.newValueFromBytes(bs)
 }
 
-func (c *multiCursor[T]) getCurrentRelationshipID() (relationshipID string) {
+func (c *multiCursor[T, V]) getCurrentRelationshipID() (relationshipID string) {
 	return c.mid.getCurrentRelationshipID()
 }
 
-func (c *multiCursor[T]) teardown() {
+func (c *multiCursor[T, V]) teardown() {
 	c.txn = nil
 	c.mid = nil
 }

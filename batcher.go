@@ -9,22 +9,22 @@ import (
 	"github.com/hatchify/errors"
 )
 
-func newBatcher[T Value](m *Mojura[T]) *batcher[T] {
-	var b batcher[T]
+func newBatcher[T any, V Value[T]](m *Mojura[T, V]) *batcher[T, V] {
+	var b batcher[T, V]
 	b.m = m
 	return &b
 }
 
-type batcher[T Value] struct {
+type batcher[T any, V Value[T]] struct {
 	mux sync.Mutex
 
-	m *Mojura[T]
+	m *Mojura[T, V]
 
 	timer *time.Timer
-	calls []call[T]
+	calls []call[T, V]
 }
 
-func (b *batcher[T]) performCalls(txn *Transaction[T], cs calls[T]) (failIndex int, err error) {
+func (b *batcher[T, V]) performCalls(txn *Transaction[T, V], cs calls[T, V]) (failIndex int, err error) {
 	failIndex = -1
 	for i, c := range cs {
 		// Update transaction context
@@ -40,7 +40,7 @@ func (b *batcher[T]) performCalls(txn *Transaction[T], cs calls[T]) (failIndex i
 	return
 }
 
-func (b *batcher[T]) clearTimer() {
+func (b *batcher[T, V]) clearTimer() {
 	if b.timer == nil {
 		return
 	}
@@ -54,14 +54,14 @@ func (b *batcher[T]) clearTimer() {
 
 // run performs the transactions in the batch and communicates results
 // back to DB.Batch.
-func (b *batcher[T]) run(cs calls[T]) {
+func (b *batcher[T, V]) run(cs calls[T, V]) {
 	if len(cs) == 0 {
 		// We have no calls to run, bail out
 		return
 	}
 
 	var failIndex int
-	err := b.m.Transaction(context.Background(), func(txn *Transaction[T]) (err error) {
+	err := b.m.Transaction(context.Background(), func(txn *Transaction[T, V]) (err error) {
 		failIndex, err = b.performCalls(txn, cs)
 		return
 	})
@@ -94,7 +94,7 @@ func (b *batcher[T]) run(cs calls[T]) {
 	b.run(remaining)
 }
 
-func (b *batcher[T]) retry(cs calls[T], err error) {
+func (b *batcher[T, V]) retry(cs calls[T, V], err error) {
 	if b.m.opts.RetryBatchFail {
 		// Re-run the successful portion
 		// Note: This is expected to pass
@@ -107,7 +107,7 @@ func (b *batcher[T]) retry(cs calls[T], err error) {
 	cs.notifyAll(groupErr)
 }
 
-func (b *batcher[T]) flush() {
+func (b *batcher[T, V]) flush() {
 	// Clear the timer
 	b.clearTimer()
 
@@ -118,11 +118,11 @@ func (b *batcher[T]) flush() {
 	b.calls = b.calls[:0]
 }
 
-func (b *batcher[T]) Append(ctx context.Context, fn TransactionFn[T]) (errC chan error) {
+func (b *batcher[T, V]) Append(ctx context.Context, fn TransactionFn[T, V]) (errC chan error) {
 	b.mux.Lock()
 	defer b.mux.Unlock()
 
-	var c call[T]
+	var c call[T, V]
 	c.fn = fn
 	c.ctx = ctx
 	c.errC = make(chan error, 1)
@@ -146,7 +146,7 @@ func (b *batcher[T]) Append(ctx context.Context, fn TransactionFn[T]) (errC chan
 }
 
 // Run triggers the current set of calls to be ran
-func (b *batcher[T]) Run() {
+func (b *batcher[T, V]) Run() {
 	b.mux.Lock()
 	defer b.mux.Unlock()
 
