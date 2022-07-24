@@ -524,8 +524,6 @@ func TestMojura_GetFiltered_seek(t *testing.T) {
 		t.Fatalf("invalid ID, expected <%s> and received <%s>", entries[0].ID, target.ID)
 	}
 
-	filtered = filtered[:0]
-
 	if filtered, o.LastID, err = c.GetFiltered(&o); err != nil {
 		t.Fatal(err)
 	}
@@ -535,7 +533,6 @@ func TestMojura_GetFiltered_seek(t *testing.T) {
 		t.Fatalf("invalid ID, expected <%s> and received <%s>", entries[0].ID, target.ID)
 	}
 
-	filtered = filtered[:0]
 	if filtered, o.LastID, err = c.GetFiltered(&o); err != nil {
 		t.Fatal(err)
 	}
@@ -546,7 +543,6 @@ func TestMojura_GetFiltered_seek(t *testing.T) {
 		t.Fatalf("invalid ID, expected <%s> and received <%s>", entries[0].ID, target.ID)
 	}
 
-	filtered = filtered[:0]
 	if filtered, o.LastID, err = c.GetFiltered(&o); err != nil {
 		t.Fatal(err)
 	}
