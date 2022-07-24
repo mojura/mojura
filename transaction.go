@@ -606,7 +606,7 @@ func (t *Transaction[T, V]) GetFilteredIDs(o *FilteringOpts) (ids []string, last
 
 // AppendFiltered will attempt to append all entries associated with a set of given filters
 func (t *Transaction[T, V]) AppendFiltered(in []*T, o *FilteringOpts) (out []*T, lastID string, err error) {
-	return t.getFiltered(o)
+	return t.appendFiltered(in, o)
 }
 
 // GetFirst will attempt to get the first entry associated with a set of given filters
