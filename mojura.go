@@ -109,8 +109,6 @@ type Mojura[T any, V Value[T]] struct {
 
 	k kiroku.Ledger
 
-	zero T
-
 	opts     *Opts
 	indexFmt string
 
@@ -577,6 +575,16 @@ func (m *Mojura[T, V]) GetFilteredIDs(o *FilteringOpts) (filtered []string, last
 func (m *Mojura[T, V]) AppendFiltered(in []*T, o *FilteringOpts) (filtered []*T, lastID string, err error) {
 	err = m.ReadTransaction(context.Background(), func(txn *Transaction[T, V]) (err error) {
 		filtered, lastID, err = txn.appendFiltered(in, o)
+		return
+	})
+
+	return
+}
+
+// AppendFilteredIDs will attempt to append all entry IDs associated with a set of given filters
+func (m *Mojura[T, V]) AppendFilteredIDs(in []string, o *FilteringOpts) (filtered []string, lastID string, err error) {
+	err = m.ReadTransaction(context.Background(), func(txn *Transaction[T, V]) (err error) {
+		filtered, lastID, err = txn.appendFilteredIDs(in, o)
 		return
 	})
 
