@@ -485,6 +485,146 @@ func TestMojura_GetFiltered_many_to_many(t *testing.T) {
 	}
 }
 
+func TestMojura_GetFilteredIDs_many_to_many(t *testing.T) {
+	var (
+		c   *Mojura[testStruct, *testStruct]
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c, t)
+
+	entries := []*testStruct{
+		newTestStruct("user_1", "contact_1", "group_1", "FOO FOO", "foo", "bar"),
+		newTestStruct("user_1", "contact_1", "group_1", "FOO FOO", "bar"),
+		newTestStruct("user_1", "contact_1", "group_1", "FOO FOO", "baz"),
+	}
+
+	type testcase struct {
+		tag           string
+		expectedCount int
+	}
+
+	runCases := func(cases []testcase) (err error) {
+		for _, tc := range cases {
+			filter := filters.Match("tags", tc.tag)
+			o := NewFilteringOpts(filter)
+			var ids []string
+			if ids, _, err = c.GetFilteredIDs(o); err != nil {
+				return
+			}
+
+			if len(ids) != tc.expectedCount {
+				err = fmt.Errorf("invalid number of entries, expected %d and received %d for tag of \"%s\"", tc.expectedCount, len(entries), tc.tag)
+			}
+		}
+
+		return
+	}
+
+	createCases := []testcase{
+		{
+			tag:           "foo",
+			expectedCount: 1,
+		},
+		{
+			tag:           "bar",
+			expectedCount: 2,
+		},
+		{
+			tag:           "baz",
+			expectedCount: 1,
+		},
+		{
+			tag:           "beam",
+			expectedCount: 0,
+		},
+		{
+			tag:           "boom",
+			expectedCount: 0,
+		},
+	}
+
+	updateCases := []testcase{
+		{
+			tag:           "foo",
+			expectedCount: 0,
+		},
+		{
+			tag:           "bar",
+			expectedCount: 0,
+		},
+		{
+			tag:           "baz",
+			expectedCount: 0,
+		},
+		{
+			tag:           "beam",
+			expectedCount: 0,
+		},
+		{
+			tag:           "boom",
+			expectedCount: 3,
+		},
+	}
+
+	deleteCases := []testcase{
+		{
+			tag:           "foo",
+			expectedCount: 0,
+		},
+		{
+			tag:           "bar",
+			expectedCount: 0,
+		},
+		{
+			tag:           "baz",
+			expectedCount: 0,
+		},
+		{
+			tag:           "beam",
+			expectedCount: 0,
+		},
+		{
+			tag:           "boom",
+			expectedCount: 0,
+		},
+	}
+
+	for i, entry := range entries {
+		if entries[i], err = c.New(*entry); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = runCases(createCases); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, entry := range entries {
+		entry.Tags = []string{"boom"}
+		if _, err = c.Put(entry.ID, *entry); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = runCases(updateCases); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, entry := range entries {
+		if _, err = c.Delete(entry.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = runCases(deleteCases); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestMojura_GetFiltered_seek(t *testing.T) {
 	var (
 		c   *Mojura[testStruct, *testStruct]
@@ -524,8 +664,6 @@ func TestMojura_GetFiltered_seek(t *testing.T) {
 		t.Fatalf("invalid ID, expected <%s> and received <%s>", entries[0].ID, target.ID)
 	}
 
-	filtered = filtered[:0]
-
 	if filtered, o.LastID, err = c.GetFiltered(&o); err != nil {
 		t.Fatal(err)
 	}
@@ -535,7 +673,6 @@ func TestMojura_GetFiltered_seek(t *testing.T) {
 		t.Fatalf("invalid ID, expected <%s> and received <%s>", entries[0].ID, target.ID)
 	}
 
-	filtered = filtered[:0]
 	if filtered, o.LastID, err = c.GetFiltered(&o); err != nil {
 		t.Fatal(err)
 	}
@@ -546,8 +683,74 @@ func TestMojura_GetFiltered_seek(t *testing.T) {
 		t.Fatalf("invalid ID, expected <%s> and received <%s>", entries[0].ID, target.ID)
 	}
 
-	filtered = filtered[:0]
 	if filtered, o.LastID, err = c.GetFiltered(&o); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(filtered) != 0 {
+		t.Fatalf("invalid filtered length, expected %d and received %d <%v>", 0, len(filtered), filtered)
+	}
+}
+
+func TestMojura_GetFilteredIDs_seek(t *testing.T) {
+	var (
+		c   *Mojura[testStruct, *testStruct]
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c, t)
+
+	entries := []*testStruct{
+		newTestStruct("user_1", "contact_1", "group_1", "FOO FOO", "foo", "bar"),
+		newTestStruct("user_1", "contact_1", "group_1", "FOO FOO", "bar"),
+		newTestStruct("user_1", "contact_1", "group_1", "FOO FOO", "baz"),
+	}
+
+	for i, entry := range entries {
+		if entries[i], err = c.New(*entry); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	filter := filters.Match("users", "user_1")
+
+	var o FilteringOpts
+	o.Filters = append(o.Filters, filter)
+	o.Limit = 1
+
+	var filtered []string
+	if filtered, o.LastID, err = c.GetFilteredIDs(&o); err != nil {
+		t.Fatal(err)
+	}
+
+	targetID := filtered[0]
+	if targetID != entries[0].ID {
+		t.Fatalf("invalid ID, expected <%s> and received <%s>", entries[0].ID, targetID)
+	}
+
+	if filtered, o.LastID, err = c.GetFilteredIDs(&o); err != nil {
+		t.Fatal(err)
+	}
+
+	targetID = filtered[0]
+	if targetID != entries[1].ID {
+		t.Fatalf("invalid ID, expected <%s> and received <%s>", entries[0].ID, targetID)
+	}
+
+	if filtered, o.LastID, err = c.GetFilteredIDs(&o); err != nil {
+		t.Fatal(err)
+	}
+
+	targetID = filtered[0]
+
+	if targetID != entries[2].ID {
+		t.Fatalf("invalid ID, expected <%s> and received <%s>", entries[0].ID, targetID)
+	}
+
+	if filtered, o.LastID, err = c.GetFilteredIDs(&o); err != nil {
 		t.Fatal(err)
 	}
 
@@ -596,6 +799,98 @@ func TestMojura_AppendFiltered(t *testing.T) {
 
 			if len(entries) != tc.expectedCount {
 				err = fmt.Errorf("invalid number of entries, expected %d and received %d for tag of <%s> and group of <%s>", tc.expectedCount, len(entries), tc.tag, tc.group)
+			}
+		}
+
+		return
+	}
+
+	createCases := []testcase{
+		{
+			tag:           "foo",
+			group:         "group_1",
+			expectedCount: 3,
+		},
+		{
+			tag:           "bar",
+			group:         "group_1",
+			expectedCount: 4,
+		},
+
+		{
+			tag:           "baz",
+			group:         "group_1",
+			expectedCount: 4,
+		},
+		{
+			tag:           "foo",
+			group:         "group_2",
+			expectedCount: 2,
+		},
+		{
+			tag:           "bar",
+			group:         "group_2",
+			expectedCount: 3,
+		},
+
+		{
+			tag:           "baz",
+			group:         "group_2",
+			expectedCount: 3,
+		},
+	}
+
+	for _, entry := range entries {
+		if _, err = c.New(entry); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = runCases(createCases); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMojura_AppendFilteredIDs(t *testing.T) {
+	var (
+		c   *Mojura[testStruct, *testStruct]
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c, t)
+
+	entries := []testStruct{
+		makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO", "foo", "bar", "baz"),
+		makeTestStruct("user_1", "contact_1", "group_2", "FOO FOO", "bar"),
+		makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO", "baz"),
+	}
+
+	type testcase struct {
+		tag           string
+		group         string
+		expectedCount int
+	}
+
+	runCases := func(cases []testcase) (err error) {
+		for _, tc := range cases {
+			var ids []string
+			filter := filters.Match("tags", tc.tag)
+			o := NewFilteringOpts(filter)
+			if ids, _, err = c.AppendFilteredIDs(ids, o); err != nil {
+				return
+			}
+
+			filter = filters.Match("groups", tc.group)
+			o = NewFilteringOpts(filter)
+			if ids, _, err = c.AppendFilteredIDs(ids, o); err != nil {
+				return
+			}
+
+			if len(ids) != tc.expectedCount {
+				err = fmt.Errorf("invalid number of entries, expected %d and received %d for tag of <%s> and group of <%s>", tc.expectedCount, len(ids), tc.tag, tc.group)
 			}
 		}
 

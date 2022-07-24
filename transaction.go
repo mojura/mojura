@@ -325,6 +325,10 @@ func (t *Transaction[T, V]) getFiltered(o *FilteringOpts) (es []*T, lastID strin
 	return t.appendFiltered(nil, o)
 }
 
+func (t *Transaction[T, V]) getFilteredIDs(o *FilteringOpts) (IDs []string, lastID string, err error) {
+	return t.appendFilteredIDs(nil, o)
+}
+
 func (t *Transaction[T, V]) appendFiltered(in []*T, o *FilteringOpts) (out []*T, lastID string, err error) {
 	if o == nil {
 		o = defaultFilteringOpts
@@ -343,6 +347,35 @@ func (t *Transaction[T, V]) appendFiltered(in []*T, o *FilteringOpts) (out []*T,
 	out = in
 	err = t.forEachWithCursor(c, o, func(entryID string, val *T) (err error) {
 		out = append(out, val)
+		if count++; count == o.Limit {
+			lastID = joinSeekID(c.getCurrentRelationshipID(), entryID)
+			return Break
+		}
+
+		return
+	})
+
+	return
+}
+
+func (t *Transaction[T, V]) appendFilteredIDs(in []string, o *FilteringOpts) (out []string, lastID string, err error) {
+	if o == nil {
+		o = defaultFilteringOpts
+	}
+
+	if o.Limit == 0 {
+		return
+	}
+
+	var c Cursor[T, V]
+	if c, err = t.cursor(o.Filters); err != nil {
+		return
+	}
+
+	var count int64
+	out = in
+	err = t.forEachWithCursor(c, o, func(entryID string, _ *T) (err error) {
+		out = append(out, entryID)
 		if count++; count == o.Limit {
 			lastID = joinSeekID(c.getCurrentRelationshipID(), entryID)
 			return Break
@@ -566,9 +599,19 @@ func (t *Transaction[T, V]) GetFiltered(o *FilteringOpts) (es []*T, lastID strin
 	return t.getFiltered(o)
 }
 
+// GetFilteredIDs will attempt to get all IDs associated with a set of given filters
+func (t *Transaction[T, V]) GetFilteredIDs(o *FilteringOpts) (ids []string, lastID string, err error) {
+	return t.getFilteredIDs(o)
+}
+
 // AppendFiltered will attempt to append all entries associated with a set of given filters
 func (t *Transaction[T, V]) AppendFiltered(in []*T, o *FilteringOpts) (out []*T, lastID string, err error) {
-	return t.getFiltered(o)
+	return t.appendFiltered(in, o)
+}
+
+// AppendFiltered will attempt to append all entry IDs associated with a set of given filters
+func (t *Transaction[T, V]) AppendFilteredIDs(in []string, o *FilteringOpts) (out []string, lastID string, err error) {
+	return t.appendFilteredIDs(in, o)
 }
 
 // GetFirst will attempt to get the first entry associated with a set of given filters

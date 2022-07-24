@@ -24,10 +24,19 @@ func (r *ReadWrapper[T, V]) GetFiltered(o *FilteringOpts) (filtered []*T, lastID
 	return r.m.GetFiltered(o)
 }
 
+// GetFilteredIDs will attempt to get the filtered entry IDs
+func (r *ReadWrapper[T, V]) GetFilteredIDs(o *FilteringOpts) (filtered []string, lastID string, err error) {
+	return r.m.GetFilteredIDs(o)
+}
+
 // AppendFiltered will attempt to append all entries associated with a set of given filters
 func (r *ReadWrapper[T, V]) AppendFiltered(in []*T, o *FilteringOpts) (filtered []*T, lastID string, err error) {
-	return r.m.GetFiltered(o)
+	return r.m.AppendFiltered(in, o)
+}
 
+// AppendFilteredIDs will attempt to append all entry IDs associated with a set of given filters
+func (r *ReadWrapper[T, V]) AppendFilteredIDs(in []string, o *FilteringOpts) (filtered []string, lastID string, err error) {
+	return r.m.AppendFilteredIDs(in, o)
 }
 
 // GetFirst will attempt to get the first entry which matches the provided filters
