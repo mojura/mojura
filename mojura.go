@@ -563,6 +563,16 @@ func (m *Mojura[T, V]) GetFiltered(o *FilteringOpts) (filtered []*T, lastID stri
 	return
 }
 
+// GetFilteredIDs will attempt to get the filtered entry IDs
+func (m *Mojura[T, V]) GetFilteredIDs(o *FilteringOpts) (filtered []string, lastID string, err error) {
+	err = m.ReadTransaction(context.Background(), func(txn *Transaction[T, V]) (err error) {
+		filtered, lastID, err = txn.GetFilteredIDs(o)
+		return
+	})
+
+	return
+}
+
 // AppendFiltered will attempt to append all entries associated with a set of given filters
 func (m *Mojura[T, V]) AppendFiltered(in []*T, o *FilteringOpts) (filtered []*T, lastID string, err error) {
 	err = m.ReadTransaction(context.Background(), func(txn *Transaction[T, V]) (err error) {
