@@ -9,7 +9,7 @@ import (
 	"github.com/mojura/kiroku"
 )
 
-func newTransaction[T any, V Value[T]](ctx context.Context, m *Mojura[T, V], txn backend.Transaction, bw blockWriter) (t Transaction[T, V]) {
+func newTransaction[T Value](ctx context.Context, m *Mojura[T], txn backend.Transaction, bw blockWriter) (t Transaction[T]) {
 	t.m = m
 	t.cc = newContextContainer(ctx)
 	t.txn = txn
@@ -18,8 +18,8 @@ func newTransaction[T any, V Value[T]](ctx context.Context, m *Mojura[T, V], txn
 }
 
 // Transaction manages a DB transaction
-type Transaction[T any, V Value[T]] struct {
-	m *Mojura[T, V]
+type Transaction[T Value] struct {
+	m *Mojura[T]
 
 	cc *contextContainer
 
@@ -30,7 +30,7 @@ type Transaction[T any, V Value[T]] struct {
 	metaUpdated bool
 }
 
-func (t *Transaction[T, V]) getRelationshipBucket(relationship []byte) (bkt backend.Bucket, err error) {
+func (t *Transaction[T]) getRelationshipBucket(relationship []byte) (bkt backend.Bucket, err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -49,7 +49,7 @@ func (t *Transaction[T, V]) getRelationshipBucket(relationship []byte) (bkt back
 	return
 }
 
-func (t *Transaction[T, V]) getEntriesBucket() (bkt backend.Bucket, err error) {
+func (t *Transaction[T]) getEntriesBucket() (bkt backend.Bucket, err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -62,7 +62,7 @@ func (t *Transaction[T, V]) getEntriesBucket() (bkt backend.Bucket, err error) {
 	return
 }
 
-func (t *Transaction[T, V]) getMetaBucket() (bkt backend.Bucket, err error) {
+func (t *Transaction[T]) getMetaBucket() (bkt backend.Bucket, err error) {
 	if bkt = t.txn.GetBucket(metaBktKey); bkt == nil {
 		err = ErrNotInitialized
 		return
@@ -71,22 +71,20 @@ func (t *Transaction[T, V]) getMetaBucket() (bkt backend.Bucket, err error) {
 	return
 }
 
-func (t *Transaction[T, V]) get(entryID []byte) (val *T, err error) {
+func (t *Transaction[T]) get(entryID []byte) (val T, err error) {
 	var bs []byte
 	if bs, err = t.getBytes(entryID); err != nil {
 		return
 	}
 
-	var v T
-	if err = t.m.unmarshal(bs, &v); err != nil {
+	if err = t.m.unmarshal(bs, &val); err != nil {
 		return
 	}
 
-	val = &v
 	return
 }
 
-func (t *Transaction[T, V]) getBytes(entryID []byte) (bs []byte, err error) {
+func (t *Transaction[T]) getBytes(entryID []byte) (bs []byte, err error) {
 	var bkt backend.Bucket
 	if bkt, err = t.getEntriesBucket(); err != nil {
 		return
@@ -100,7 +98,7 @@ func (t *Transaction[T, V]) getBytes(entryID []byte) (bs []byte, err error) {
 	return
 }
 
-func (t *Transaction[T, V]) idCursor(fs []Filter) (c IDCursor, err error) {
+func (t *Transaction[T]) idCursor(fs []Filter) (c IDCursor, err error) {
 	if len(fs) == 0 {
 		return newBaseIDCursor(t)
 	}
@@ -108,7 +106,7 @@ func (t *Transaction[T, V]) idCursor(fs []Filter) (c IDCursor, err error) {
 	return newMultiIDCursor(t, fs)
 }
 
-func (t *Transaction[T, V]) cursor(fs []Filter) (c Cursor[T, V], err error) {
+func (t *Transaction[T]) cursor(fs []Filter) (c Cursor[T], err error) {
 	if len(fs) == 0 {
 		return newBaseCursor(t)
 	}
@@ -116,7 +114,7 @@ func (t *Transaction[T, V]) cursor(fs []Filter) (c Cursor[T, V], err error) {
 	return newMultiCursor(t, fs)
 }
 
-func (t *Transaction[T, V]) exists(entryID []byte) (ok bool, err error) {
+func (t *Transaction[T]) exists(entryID []byte) (ok bool, err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -132,7 +130,7 @@ func (t *Transaction[T, V]) exists(entryID []byte) (ok bool, err error) {
 	return
 }
 
-func (t *Transaction[T, V]) insertEntry(entryID []byte, val *T) (err error) {
+func (t *Transaction[T]) insertEntry(entryID []byte, val T) (err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -154,7 +152,7 @@ func (t *Transaction[T, V]) insertEntry(entryID []byte, val *T) (err error) {
 	return t.bw.AddBlock(kiroku.TypeWriteAction, entryID, bs)
 }
 
-func (t *Transaction[T, V]) deleteEntry(entryID []byte) (err error) {
+func (t *Transaction[T]) deleteEntry(entryID []byte) (err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -167,7 +165,7 @@ func (t *Transaction[T, V]) deleteEntry(entryID []byte) (err error) {
 	return bkt.Delete(entryID)
 }
 
-func (t *Transaction[T, V]) setRelationships(relationships Relationships, entryID []byte) (err error) {
+func (t *Transaction[T]) setRelationships(relationships Relationships, entryID []byte) (err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -184,7 +182,7 @@ func (t *Transaction[T, V]) setRelationships(relationships Relationships, entryI
 	return
 }
 
-func (t *Transaction[T, V]) setRelationship(relationship, relationshipID, entryID []byte) (err error) {
+func (t *Transaction[T]) setRelationship(relationship, relationshipID, entryID []byte) (err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -207,7 +205,7 @@ func (t *Transaction[T, V]) setRelationship(relationship, relationshipID, entryI
 	return bkt.Put(entryID, nil)
 }
 
-func (t *Transaction[T, V]) unsetRelationships(relationships Relationships, entryID []byte) (err error) {
+func (t *Transaction[T]) unsetRelationships(relationships Relationships, entryID []byte) (err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -224,7 +222,7 @@ func (t *Transaction[T, V]) unsetRelationships(relationships Relationships, entr
 	return
 }
 
-func (t *Transaction[T, V]) unsetRelationship(relationship, relationshipID, entryID []byte) (err error) {
+func (t *Transaction[T]) unsetRelationship(relationship, relationshipID, entryID []byte) (err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -256,7 +254,7 @@ func (t *Transaction[T, V]) unsetRelationship(relationship, relationshipID, entr
 	return relationshipBkt.DeleteBucket(relationshipID)
 }
 
-func (t *Transaction[T, V]) updateRelationships(entryID []byte, orig, new Relationships) (err error) {
+func (t *Transaction[T]) updateRelationships(entryID []byte, orig, new Relationships) (err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -285,7 +283,7 @@ func (t *Transaction[T, V]) updateRelationships(entryID []byte, orig, new Relati
 
 // getLast will attempt to get the first entry which matches the provided filters
 // Note: Will return ErrEntryNotFound if no match is found
-func (t *Transaction[T, V]) getFirst(o *FilteringOpts) (value *T, err error) {
+func (t *Transaction[T]) getFirst(o *FilteringOpts) (value T, err error) {
 	var cur IDCursor
 	if cur, err = t.idCursor(o.Filters); err != nil {
 		return
@@ -304,7 +302,7 @@ func (t *Transaction[T, V]) getFirst(o *FilteringOpts) (value *T, err error) {
 
 // getLast will attempt to get the last entry which matches the provided filters
 // Note: Will return ErrEntryNotFound if no match is found
-func (t *Transaction[T, V]) getLast(o *FilteringOpts) (value *T, err error) {
+func (t *Transaction[T]) getLast(o *FilteringOpts) (value T, err error) {
 	var cur IDCursor
 	if cur, err = t.idCursor(o.Filters); err != nil {
 		return
@@ -321,15 +319,15 @@ func (t *Transaction[T, V]) getLast(o *FilteringOpts) (value *T, err error) {
 	return t.get([]byte(entryID))
 }
 
-func (t *Transaction[T, V]) getFiltered(o *FilteringOpts) (es []*T, lastID string, err error) {
+func (t *Transaction[T]) getFiltered(o *FilteringOpts) (es []T, lastID string, err error) {
 	return t.appendFiltered(nil, o)
 }
 
-func (t *Transaction[T, V]) getFilteredIDs(o *FilteringOpts) (IDs []string, lastID string, err error) {
+func (t *Transaction[T]) getFilteredIDs(o *FilteringOpts) (IDs []string, lastID string, err error) {
 	return t.appendFilteredIDs(nil, o)
 }
 
-func (t *Transaction[T, V]) appendFiltered(in []*T, o *FilteringOpts) (out []*T, lastID string, err error) {
+func (t *Transaction[T]) appendFiltered(in []T, o *FilteringOpts) (out []T, lastID string, err error) {
 	if o == nil {
 		o = defaultFilteringOpts
 	}
@@ -338,14 +336,14 @@ func (t *Transaction[T, V]) appendFiltered(in []*T, o *FilteringOpts) (out []*T,
 		return
 	}
 
-	var c Cursor[T, V]
+	var c Cursor[T]
 	if c, err = t.cursor(o.Filters); err != nil {
 		return
 	}
 
 	var count int64
 	out = in
-	err = t.forEachWithCursor(c, o, func(entryID string, val *T) (err error) {
+	err = t.forEachWithCursor(c, o, func(entryID string, val T) (err error) {
 		out = append(out, val)
 		if count++; count == o.Limit {
 			lastID = joinSeekID(c.getCurrentRelationshipID(), entryID)
@@ -358,7 +356,7 @@ func (t *Transaction[T, V]) appendFiltered(in []*T, o *FilteringOpts) (out []*T,
 	return
 }
 
-func (t *Transaction[T, V]) appendFilteredIDs(in []string, o *FilteringOpts) (out []string, lastID string, err error) {
+func (t *Transaction[T]) appendFilteredIDs(in []string, o *FilteringOpts) (out []string, lastID string, err error) {
 	if o == nil {
 		o = defaultFilteringOpts
 	}
@@ -367,14 +365,14 @@ func (t *Transaction[T, V]) appendFilteredIDs(in []string, o *FilteringOpts) (ou
 		return
 	}
 
-	var c Cursor[T, V]
+	var c Cursor[T]
 	if c, err = t.cursor(o.Filters); err != nil {
 		return
 	}
 
 	var count int64
 	out = in
-	err = t.forEachWithCursor(c, o, func(entryID string, _ *T) (err error) {
+	err = t.forEachWithCursor(c, o, func(entryID string, _ T) (err error) {
 		out = append(out, entryID)
 		if count++; count == o.Limit {
 			lastID = joinSeekID(c.getCurrentRelationshipID(), entryID)
@@ -387,12 +385,12 @@ func (t *Transaction[T, V]) appendFilteredIDs(in []string, o *FilteringOpts) (ou
 	return
 }
 
-func (t *Transaction[T, V]) forEachWithCursor(c Cursor[T, V], o *FilteringOpts, fn ForEachFn[T, V]) (err error) {
-	var val *T
+func (t *Transaction[T]) forEachWithCursor(c Cursor[T], o *FilteringOpts, fn ForEachFn[T]) (err error) {
+	var val T
 	iterator := getIteratorFunc(c, o.Reverse)
 	val, err = getFirst(c, o.LastID, o.Reverse)
 	for err == nil {
-		if err = fn(V(val).GetID(), val); err != nil {
+		if err = fn(val.GetID(), val); err != nil {
 			break
 		}
 
@@ -406,7 +404,7 @@ func (t *Transaction[T, V]) forEachWithCursor(c Cursor[T, V], o *FilteringOpts, 
 	return
 }
 
-func (t *Transaction[T, V]) new(val *T) (created *T, err error) {
+func (t *Transaction[T]) new(val T) (created T, err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
@@ -420,7 +418,7 @@ func (t *Transaction[T, V]) new(val *T) (created *T, err error) {
 	return t.put(entryID, val)
 }
 
-func (t *Transaction[T, V]) edit(entryID []byte, fn editFn[T, V], allowInsert bool) (updated *T, err error) {
+func (t *Transaction[T]) edit(entryID []byte, fn editFn[T], allowInsert bool) (updated T, err error) {
 	if len(entryID) == 0 {
 		err = ErrEmptyEntryID
 		return
@@ -431,30 +429,29 @@ func (t *Transaction[T, V]) edit(entryID []byte, fn editFn[T, V], allowInsert bo
 	}
 
 	var (
-		orig          *T
+		orig          T
 		relationships Relationships
 	)
 
 	orig, err = t.get(entryID)
 	switch {
 	case err == nil:
-		relationships = V(orig).GetRelationships()
+		relationships = orig.GetRelationships()
 	case err == ErrEntryNotFound && allowInsert:
 		err = nil
 	default:
 		return
 	}
 
-	var modified *T
+	var modified T
 	if modified, err = fn(orig); err != nil {
 		return
 	}
 
-	val := V(modified)
-	setEssetialValues(entryID, val)
+	setEssetialValues(entryID, modified)
 
 	// Update relationships (if needed)
-	if err = t.updateRelationships(entryID, relationships, val.GetRelationships()); err != nil {
+	if err = t.updateRelationships(entryID, relationships, modified.GetRelationships()); err != nil {
 		err = fmt.Errorf("error updating relationships: %v", err)
 		return
 	}
@@ -467,8 +464,8 @@ func (t *Transaction[T, V]) edit(entryID []byte, fn editFn[T, V], allowInsert bo
 	return
 }
 
-func (t *Transaction[T, V]) update(entryID []byte, fn UpdateFn[T, V]) (updated *T, err error) {
-	return t.edit(entryID, func(in *T) (out *T, err error) {
+func (t *Transaction[T]) update(entryID []byte, fn UpdateFn[T]) (updated T, err error) {
+	return t.edit(entryID, func(in T) (out T, err error) {
 		if err = fn(in); err != nil {
 			return
 		}
@@ -478,16 +475,16 @@ func (t *Transaction[T, V]) update(entryID []byte, fn UpdateFn[T, V]) (updated *
 	}, false)
 }
 
-func (t *Transaction[T, V]) put(entryID []byte, val *T) (updated *T, err error) {
-	return t.edit(entryID, func(_ *T) (out *T, err error) { return val, nil }, true)
+func (t *Transaction[T]) put(entryID []byte, val T) (updated T, err error) {
+	return t.edit(entryID, func(_ T) (out T, err error) { return val, nil }, true)
 }
 
-func (t *Transaction[T, V]) delete(entryID []byte) (deleted *T, err error) {
+func (t *Transaction[T]) delete(entryID []byte) (deleted T, err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
 
-	var val *T
+	var val T
 	if val, err = t.get(entryID); err != nil {
 		err = fmt.Errorf("error finding entry <%s>: %v", entryID, err)
 		return
@@ -498,7 +495,7 @@ func (t *Transaction[T, V]) delete(entryID []byte) (deleted *T, err error) {
 		return
 	}
 
-	if err = t.unsetRelationships(V(val).GetRelationships(), entryID); err != nil {
+	if err = t.unsetRelationships(val.GetRelationships(), entryID); err != nil {
 		err = fmt.Errorf("error unsetting relationships: %v", err)
 		return
 	}
@@ -511,7 +508,7 @@ func (t *Transaction[T, V]) delete(entryID []byte) (deleted *T, err error) {
 	return
 }
 
-func (t *Transaction[T, V]) loadMeta() (err error) {
+func (t *Transaction[T]) loadMeta() (err error) {
 	var bkt backend.Bucket
 	if bkt, err = t.getMetaBucket(); err != nil {
 		return
@@ -531,7 +528,7 @@ func (t *Transaction[T, V]) loadMeta() (err error) {
 	return
 }
 
-func (t *Transaction[T, V]) storeMeta(meta kiroku.Meta) (err error) {
+func (t *Transaction[T]) storeMeta(meta kiroku.Meta) (err error) {
 	var bkt backend.Bucket
 	if bkt, err = t.getMetaBucket(); err != nil {
 		return
@@ -547,15 +544,15 @@ func (t *Transaction[T, V]) storeMeta(meta kiroku.Meta) (err error) {
 	return bkt.Put([]byte("value"), bs)
 }
 
-func (t *Transaction[T, V]) setIndex(index uint64) {
+func (t *Transaction[T]) setIndex(index uint64) {
 	t.meta.CurrentIndex = index
 	t.metaUpdated = true
 }
 
-func (t *Transaction[T, V]) processBlock(b *kiroku.Block) (err error) {
+func (t *Transaction[T]) processBlock(b *kiroku.Block) (err error) {
 	switch b.Type {
 	case kiroku.TypeWriteAction:
-		var val *T
+		var val T
 		if val, err = t.m.newValueFromBytes(b.Value); err != nil {
 			return
 		}
@@ -574,84 +571,84 @@ func (t *Transaction[T, V]) processBlock(b *kiroku.Block) (err error) {
 	return
 }
 
-func (t *Transaction[T, V]) teardown() {
+func (t *Transaction[T]) teardown() {
 	t.txn = nil
 	t.m = nil
 }
 
 // New will insert a new entry with the given value and the associated relationships
-func (t *Transaction[T, V]) New(val T) (created *T, err error) {
-	return t.new(&val)
+func (t *Transaction[T]) New(val T) (created T, err error) {
+	return t.new(val)
 }
 
 // Exists will notiy if an entry exists for a given entry ID
-func (t *Transaction[T, V]) Exists(entryID string) (exists bool, err error) {
+func (t *Transaction[T]) Exists(entryID string) (exists bool, err error) {
 	return t.exists([]byte(entryID))
 }
 
 // Get will attempt to get an entry by ID
-func (t *Transaction[T, V]) Get(entryID string) (val *T, err error) {
+func (t *Transaction[T]) Get(entryID string) (val T, err error) {
 	return t.get([]byte(entryID))
 }
 
 // GetFiltered will attempt to get all entries associated with a set of given filters
-func (t *Transaction[T, V]) GetFiltered(o *FilteringOpts) (es []*T, lastID string, err error) {
+func (t *Transaction[T]) GetFiltered(o *FilteringOpts) (es []T, lastID string, err error) {
 	return t.getFiltered(o)
 }
 
 // GetFilteredIDs will attempt to get all IDs associated with a set of given filters
-func (t *Transaction[T, V]) GetFilteredIDs(o *FilteringOpts) (ids []string, lastID string, err error) {
+func (t *Transaction[T]) GetFilteredIDs(o *FilteringOpts) (ids []string, lastID string, err error) {
 	return t.getFilteredIDs(o)
 }
 
 // AppendFiltered will attempt to append all entries associated with a set of given filters
-func (t *Transaction[T, V]) AppendFiltered(in []*T, o *FilteringOpts) (out []*T, lastID string, err error) {
+func (t *Transaction[T]) AppendFiltered(in []T, o *FilteringOpts) (out []T, lastID string, err error) {
 	return t.appendFiltered(in, o)
 }
 
 // AppendFiltered will attempt to append all entry IDs associated with a set of given filters
-func (t *Transaction[T, V]) AppendFilteredIDs(in []string, o *FilteringOpts) (out []string, lastID string, err error) {
+func (t *Transaction[T]) AppendFilteredIDs(in []string, o *FilteringOpts) (out []string, lastID string, err error) {
 	return t.appendFilteredIDs(in, o)
 }
 
 // GetFirst will attempt to get the first entry associated with a set of given filters
 // Note: Will return ErrEntryNotFound if no match is found
-func (t *Transaction[T, V]) GetFirst(o *FilteringOpts) (val *T, err error) {
+func (t *Transaction[T]) GetFirst(o *FilteringOpts) (val T, err error) {
 	return t.getFirst(o)
 }
 
 // GetLast will attempt to get the last entry associated with a set of given filters
 // Note: Will return ErrEntryNotFound if no match is found
-func (t *Transaction[T, V]) GetLast(o *FilteringOpts) (val *T, err error) {
+func (t *Transaction[T]) GetLast(o *FilteringOpts) (val T, err error) {
 	return t.getLast(o)
 }
 
 // IDCursor will return an ID iterating cursor
-func (t *Transaction[T, V]) IDCursor(fs ...Filter) (c IDCursor, err error) {
+func (t *Transaction[T]) IDCursor(fs ...Filter) (c IDCursor, err error) {
 	return t.idCursor(fs)
 }
 
 // Cursor will return an iterating cursor
-func (t *Transaction[T, V]) Cursor(fs ...Filter) (c Cursor[T, V], err error) {
+func (t *Transaction[T]) Cursor(fs ...Filter) (c Cursor[T], err error) {
 	return t.cursor(fs)
 }
 
 // ForEach will iterate through entries
-func (t *Transaction[T, V]) ForEach(fn ForEachFn[T, V], o *FilteringOpts) (err error) {
+func (t *Transaction[T]) ForEach(fn ForEachFn[T], o *FilteringOpts) (err error) {
 	if o == nil {
 		o = defaultFilteringOpts
 	}
 
-	var c Cursor[T, V]
+	var c Cursor[T]
 	if c, err = t.Cursor(o.Filters...); err != nil {
 		return
 	}
 
 	iterator := getIteratorFunc(c, o.Reverse)
 
-	var val *T
+	var val T
 	for val, err = getFirst(c, o.LastID, o.Reverse); err == nil; val, err = iterator() {
-		if err = fn(V(val).GetID(), val); err != nil {
+		if err = fn(val.GetID(), val); err != nil {
 			break
 		}
 	}
@@ -664,7 +661,7 @@ func (t *Transaction[T, V]) ForEach(fn ForEachFn[T, V], o *FilteringOpts) (err e
 }
 
 // ForEachID will iterate through entry IDs
-func (t *Transaction[T, V]) ForEachID(fn ForEachIDFn, o *FilteringOpts) (err error) {
+func (t *Transaction[T]) ForEachID(fn ForEachIDFn, o *FilteringOpts) (err error) {
 	if o == nil {
 		o = defaultFilteringOpts
 	}
@@ -692,19 +689,19 @@ func (t *Transaction[T, V]) ForEachID(fn ForEachIDFn, o *FilteringOpts) (err err
 // Put will place an entry at a given entry ID
 // Note: This will not check to see if the entry exists beforehand. If this functionality
 // is needed, look into using the Edit method
-func (t *Transaction[T, V]) Put(entryID string, val T) (inserted *T, err error) {
-	return t.put([]byte(entryID), &val)
+func (t *Transaction[T]) Put(entryID string, val T) (inserted T, err error) {
+	return t.put([]byte(entryID), val)
 }
 
 // Edit will attempt to edit an entry by ID
-func (t *Transaction[T, V]) Update(entryID string, fn func(*T) error) (updated *T, err error) {
+func (t *Transaction[T]) Update(entryID string, fn func(T) error) (updated T, err error) {
 	return t.update([]byte(entryID), fn)
 }
 
 // Delete will remove an entry and it's related relationship IDs
-func (t *Transaction[T, V]) Delete(entryID string) (deleted *T, err error) {
+func (t *Transaction[T]) Delete(entryID string) (deleted T, err error) {
 	return t.delete([]byte(entryID))
 }
 
 // TransactionFn represents a transaction function
-type TransactionFn[T any, V Value[T]] func(*Transaction[T, V]) error
+type TransactionFn[T Value] func(*Transaction[T]) error

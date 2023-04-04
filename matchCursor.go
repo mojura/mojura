@@ -8,16 +8,16 @@ import (
 )
 
 var (
-	_ filterCursor = &matchCursor[Entry, *Entry]{}
+	_ filterCursor = &matchCursor[*Entry]{}
 )
 
-func newMatchCursor[T any, V Value[T]](txn *Transaction[T, V], f *filters.MatchFilter) (c filterCursor, err error) {
+func newMatchCursor[T Value](txn *Transaction[T], f *filters.MatchFilter) (c filterCursor, err error) {
 	var parentBkt backend.Bucket
 	if parentBkt, err = txn.getRelationshipBucket([]byte(f.RelationshipKey)); err != nil {
 		return
 	}
 
-	var match matchCursor[T, V]
+	var match matchCursor[T]
 	bkt := parentBkt.GetBucket([]byte(f.RelationshipID))
 	if bkt == nil {
 		c = nopC
@@ -30,12 +30,12 @@ func newMatchCursor[T any, V Value[T]](txn *Transaction[T, V], f *filters.MatchF
 	return
 }
 
-type matchCursor[T any, V Value[T]] struct {
-	txn *Transaction[T, V]
+type matchCursor[T Value] struct {
+	txn *Transaction[T]
 	cur backend.Cursor
 }
 
-func (c *matchCursor[T, V]) seek(id []byte) (entryID []byte, err error) {
+func (c *matchCursor[T]) seek(id []byte) (entryID []byte, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -49,7 +49,7 @@ func (c *matchCursor[T, V]) seek(id []byte) (entryID []byte, err error) {
 	return
 }
 
-func (c *matchCursor[T, V]) has(entryID []byte) (ok bool, err error) {
+func (c *matchCursor[T]) has(entryID []byte) (ok bool, err error) {
 	// Get the first key matching entryID (will get next key if entryID does not exist)
 	firstKey, _ := c.cur.Seek(entryID)
 	// If the first key matches the entry ID, we have a match
@@ -57,22 +57,22 @@ func (c *matchCursor[T, V]) has(entryID []byte) (ok bool, err error) {
 	return
 }
 
-func (c *matchCursor[T, V]) getCurrentRelationshipID() (relationshipID string) {
+func (c *matchCursor[T]) getCurrentRelationshipID() (relationshipID string) {
 	return ""
 }
 
 // SeekForward will seek the provided ID
-func (c *matchCursor[T, V]) SeekForward(relationshipID, seekID []byte) (entryID []byte, err error) {
+func (c *matchCursor[T]) SeekForward(relationshipID, seekID []byte) (entryID []byte, err error) {
 	return c.seek(seekID)
 }
 
 // SeekReverse will seek the provided ID
-func (c *matchCursor[T, V]) SeekReverse(relationshipID, seekID []byte) (entryID []byte, err error) {
+func (c *matchCursor[T]) SeekReverse(relationshipID, seekID []byte) (entryID []byte, err error) {
 	return c.seek(seekID)
 }
 
 // First will return the first entry
-func (c *matchCursor[T, V]) First() (entryID []byte, err error) {
+func (c *matchCursor[T]) First() (entryID []byte, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -87,7 +87,7 @@ func (c *matchCursor[T, V]) First() (entryID []byte, err error) {
 }
 
 // Last will return the last entry
-func (c *matchCursor[T, V]) Last() (entryID []byte, err error) {
+func (c *matchCursor[T]) Last() (entryID []byte, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -102,7 +102,7 @@ func (c *matchCursor[T, V]) Last() (entryID []byte, err error) {
 }
 
 // Next will return the next entry
-func (c *matchCursor[T, V]) Next() (entryID []byte, err error) {
+func (c *matchCursor[T]) Next() (entryID []byte, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -117,7 +117,7 @@ func (c *matchCursor[T, V]) Next() (entryID []byte, err error) {
 }
 
 // Prev will return the previous entry
-func (c *matchCursor[T, V]) Prev() (entryID []byte, err error) {
+func (c *matchCursor[T]) Prev() (entryID []byte, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -132,7 +132,7 @@ func (c *matchCursor[T, V]) Prev() (entryID []byte, err error) {
 }
 
 // HasForward will determine if an entry exists in a forward direction
-func (c *matchCursor[T, V]) HasForward(entryID []byte) (ok bool, err error) {
+func (c *matchCursor[T]) HasForward(entryID []byte) (ok bool, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -141,7 +141,7 @@ func (c *matchCursor[T, V]) HasForward(entryID []byte) (ok bool, err error) {
 }
 
 // HasReverse will determine if an entry exists in a reverse direction
-func (c *matchCursor[T, V]) HasReverse(entryID []byte) (ok bool, err error) {
+func (c *matchCursor[T]) HasReverse(entryID []byte) (ok bool, err error) {
 	if err = c.txn.cc.isDone(); err != nil {
 		return
 	}
@@ -149,6 +149,6 @@ func (c *matchCursor[T, V]) HasReverse(entryID []byte) (ok bool, err error) {
 	return c.has(entryID)
 }
 
-func (c *matchCursor[T, V]) teardown() {
+func (c *matchCursor[T]) teardown() {
 	c.txn = nil
 }
