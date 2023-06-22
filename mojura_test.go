@@ -1193,7 +1193,7 @@ func TestMojura_ForEach_with_multiple_filters(t *testing.T) {
 	}
 
 	for i, tc := range tcs {
-		ss := stringset.New()
+		ss := stringset.MakeMap()
 		fn := func(key string, v *testStruct) (err error) {
 			ss.Set(key)
 			return
@@ -1334,7 +1334,7 @@ func TestMojura_GetFirst_with_multiple_filters(t *testing.T) {
 	}
 
 	for i, tc := range tcs {
-		ss := stringset.New()
+		ss := stringset.MakeMap()
 		fn := func(key string, v *testStruct) (err error) {
 			ss.Set(key)
 			return
@@ -1478,7 +1478,7 @@ func TestMojura_GetLast_with_multiple_filters(t *testing.T) {
 	}
 
 	for i, tc := range tcs {
-		ss := stringset.New()
+		ss := stringset.MakeMap()
 		fn := func(key string, v *testStruct) (err error) {
 			ss.Set(key)
 			return
