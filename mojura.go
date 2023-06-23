@@ -121,7 +121,7 @@ type Mojura[T Value] struct {
 }
 
 func (m *Mojura[T]) init(relationships []string) (err error) {
-	filename := path.Join(m.opts.Dir, m.opts.Name+".bdb")
+	filename := path.Join(m.opts.Dir, m.opts.FullName()+".bdb")
 	if m.db, err = m.opts.Initializer.New(filename); err != nil {
 		return fmt.Errorf("error opening db for %s (%s): %v", m.opts.Name, m.opts.Dir, err)
 	}
