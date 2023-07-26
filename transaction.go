@@ -438,7 +438,6 @@ func (t *Transaction[T]) edit(entryID []byte, fn editFn[T], allowInsert bool) (u
 	case err == nil:
 		relationships = orig.GetRelationships()
 	case err == ErrEntryNotFound && allowInsert:
-		err = nil
 	default:
 		return
 	}
@@ -554,6 +553,7 @@ func (t *Transaction[T]) processBlock(b *kiroku.Block) (err error) {
 	case kiroku.TypeWriteAction:
 		var val T
 		if val, err = t.m.newValueFromBytes(b.Value); err != nil {
+			err = fmt.Errorf("processBlock(): error getting new value from bytes: %v", err)
 			return
 		}
 
@@ -562,10 +562,19 @@ func (t *Transaction[T]) processBlock(b *kiroku.Block) (err error) {
 			t.setIndex(idx + 1)
 		}
 
-		_, err = t.put(b.Key, val)
+		if _, err = t.put(b.Key, val); err != nil {
+			err = fmt.Errorf("processBlock(): error putting entry <%s>: %v", string(b.Key), err)
+			return
+		}
+
 		return
 	case kiroku.TypeDeleteAction:
-		return t.deleteEntry(b.Key)
+		if err = t.deleteEntry(b.Key); err != nil {
+			err = fmt.Errorf("processBlock(): error deleting entry <%s>: %v", string(b.Key), err)
+			return
+		}
+
+		return
 	}
 
 	return
