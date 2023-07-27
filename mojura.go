@@ -391,7 +391,7 @@ func (m *Mojura[T]) importReader(txn *Transaction[T], r *kiroku.Reader) (err err
 
 	// Iterate through all entries from a given point within Reader
 	if err = r.ForEach(seekTo, txn.processBlock); err != nil {
-		err = fmt.Errorf("Mojura.importReader(): error during r.ForEach: %v", err)
+		err = fmt.Errorf("Mojura.importReader(): error during r.ForEach with metas of <%+v> (db) <%+v> (kiroku): %v", txn.meta.Meta, meta, err)
 		return
 	}
 
