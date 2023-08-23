@@ -58,16 +58,6 @@ func New[T Value](opts Opts, relationships ...string) (mp *Mojura[T], err error)
 		return
 	}
 
-	if !opts.IsMirror {
-		if err = m.primaryInitialization(); err != nil {
-			return
-		}
-	} else {
-		if err = m.mirrorInitialization(); err != nil {
-			return
-		}
-	}
-
 	// Initialize new batcher
 	m.b = newBatcher(&m)
 
@@ -88,6 +78,8 @@ func makeMojura[T Value](opts Opts, relationships []string) (m Mojura[T], err er
 	}
 
 	m.out = scribe.New(fmt.Sprintf("Mojura (%s)", opts.Name))
+	opts.OnLog = m.out.Notification
+	opts.OnError = func(err error) { m.out.Error(err.Error()) }
 	m.opts = &opts
 	m.indexFmt = fmt.Sprintf("%s0%dd", "%", opts.IndexLength)
 
@@ -109,7 +101,8 @@ type Mojura[T Value] struct {
 
 	make func() T
 
-	k kiroku.Ledger
+	p *kiroku.Producer
+	c closer
 
 	opts     *Opts
 	indexFmt string
@@ -129,7 +122,7 @@ func (m *Mojura[T]) init(relationships []string) (err error) {
 	// Set relationships
 	m.relationships = getRelationshipsAsBytes(relationships)
 
-	err = m.db.Transaction(func(txn backend.Transaction) (err error) {
+	if err = m.db.Transaction(func(txn backend.Transaction) (err error) {
 		if _, err = txn.GetOrCreateBucket(entriesBktKey); err != nil {
 			return
 		}
@@ -154,7 +147,15 @@ func (m *Mojura[T]) init(relationships []string) (err error) {
 		}
 
 		return
-	})
+	}); err != nil {
+		return
+	}
+
+	if !m.opts.IsMirror {
+		err = m.primaryInitialization()
+	} else {
+		err = m.mirrorInitialization()
+	}
 
 	return
 }
@@ -191,54 +192,41 @@ func (m *Mojura[T]) initRelationshipsBuckets(txn backend.Transaction) (err error
 }
 
 func (m *Mojura[T]) primaryInitialization() (err error) {
-	if m.k, err = kiroku.New(m.opts.Options, m.opts.Source); err != nil {
+	if m.opts.Source != nil {
+		if err = kiroku.NewOneShotConsumer(m.opts.Options, m.opts.Source, m.onImport); err != nil {
+			return
+		}
+	}
+
+	if m.p, err = kiroku.NewProducer(m.opts.Options, m.opts.Source); err != nil {
 		err = fmt.Errorf("error initializing kiroku: %v", err)
 		return
 	}
 
-	var built bool
-	if built, err = m.buildHistory(); built || err != nil {
-		return
-	}
-
-	return m.syncDatabase()
+	m.c = m.p
+	return m.buildHistory()
 }
 
 func (m *Mojura[T]) mirrorInitialization() (err error) {
-	if m.k, err = kiroku.NewMirror(m.opts.Options, m.opts.Source); err != nil {
-		err = fmt.Errorf("error initializing mirror: %v", err)
+	if m.opts.Source == nil {
 		return
 	}
 
-	if err = m.syncDatabase(); err != nil {
+	if m.c, err = kiroku.NewConsumer(m.opts.Options, m.opts.Source, m.onImport); err != nil {
+		err = fmt.Errorf("error initializing kiroku: %v", err)
 		return
 	}
 
-	mirror, ok := m.k.(*kiroku.Mirror)
-	if !ok {
-		err = fmt.Errorf("invalid type, expected %T and received %T", mirror, m.k)
-		return
-	}
-
-	go m.mirrorListen(mirror)
 	return
 }
 
-func (m *Mojura[T]) mirrorListen(mirror *kiroku.Mirror) {
-	for range mirror.Channel() {
-		if err := m.syncDatabase(); err != nil {
-			m.out.Errorf("Error encountered during sync: %v", err)
-		}
-	}
-}
-
-func (m *Mojura[T]) buildHistory() (ok bool, err error) {
-	var kmeta kiroku.Meta
-	if kmeta, err = m.k.Meta(); err != nil {
+func (m *Mojura[T]) buildHistory() (err error) {
+	var meta kiroku.Meta
+	if meta, err = m.p.Meta(); err != nil {
 		return
 	}
 
-	if kmeta.BlockCount > 0 {
+	if meta.LastProcessedTimestamp > 0 {
 		return
 	}
 
@@ -268,18 +256,7 @@ func (m *Mojura[T]) buildHistory() (ok bool, err error) {
 	}
 
 	m.out.Successf("Appended %d blocks to the history file", n)
-	ok = true
 	return
-}
-
-func (m *Mojura[T]) syncDatabase() (err error) {
-	var filename string
-	if filename, err = m.k.Filename(); err != nil {
-		err = fmt.Errorf("error getting filename of history file: %v", err)
-		return
-	}
-
-	return kiroku.Read(filename, m.onImport)
 }
 
 func (m *Mojura[T]) dumpHistory(txn *Transaction[T]) (n int64, err error) {
@@ -290,10 +267,11 @@ func (m *Mojura[T]) dumpHistory(txn *Transaction[T]) (n int64, err error) {
 	}
 
 	var lastIndex uint64
-	if err = m.k.Transaction(func(txn *kiroku.Transaction) (err error) {
+	if err = m.p.Transaction(func(txn *kiroku.Transaction) (err error) {
 		cur := bkt.Cursor()
+		aw := makeActionwriter(txn)
 		for key, value := cur.First(); len(key) > 0; key, value = cur.Next() {
-			if err = txn.AddBlock(kiroku.TypeWriteAction, key, value); err != nil {
+			if err = aw.Write(key, value); err != nil {
 				return
 			}
 
@@ -342,82 +320,45 @@ func (m *Mojura[T]) newValueFromBytes(bs []byte) (val T, err error) {
 	return
 }
 
-func (m *Mojura[T]) onImport(r *kiroku.Reader) (err error) {
+func (m *Mojura[T]) onImport(t kiroku.Type, r *kiroku.Reader) (err error) {
 	return m.importTransaction(context.Background(), func(txn *Transaction[T]) (err error) {
-		return m.importReader(txn, r)
+		return m.importReader(txn, t, r)
 	})
 }
 
-func (m *Mojura[T]) importReader(txn *Transaction[T], r *kiroku.Reader) (err error) {
-	meta := r.Meta()
-	seekTo := txn.meta.TotalBlockSize
-	blockCount := meta.BlockCount
-
-	switch {
-	case meta == txn.meta.Meta:
-		// No changes have occurred, return
-		return
-
-	case blockCount == 0:
-		return
-
-	case txn.meta.BlockCount == 0:
-		// Produce system log for fresh database build
-		m.out.Notificationf("Building fresh database from %d blocks", blockCount)
-
-	case txn.meta.LastSnapshotAt < meta.LastSnapshotAt:
-		// Produce system log for purge
-		m.out.Notificationf("Snapshot encountered, purging existing entries and building fresh database from %d blocks", blockCount)
-
+func (m *Mojura[T]) importReader(txn *Transaction[T], t kiroku.Type, r *kiroku.Reader) (err error) {
+	var sw stopwatch.Stopwatch
+	sw.Start()
+	if t == kiroku.TypeSnapshot {
 		// Snapshot occurred, purge DB and perform a full sync
 		if err = m.purge(txn.txn); err != nil {
 			return
 		}
-
-		seekTo = 0
-
-	case blockCount == txn.meta.BlockCount:
-		return
-
-	default:
-		blockCount -= txn.meta.BlockCount
-
-		// Produce system log for database sync
-		m.out.Notificationf("Syncing %d new blocks", blockCount)
 	}
 
-	var sw stopwatch.Stopwatch
-	sw.Start()
-
+	var count int
 	// Iterate through all entries from a given point within Reader
-	if err = r.ForEach(seekTo, txn.processBlock); err != nil {
-		err = fmt.Errorf("Mojura.importReader(): error during r.ForEach with metas of <%+v> (db) <%+v> (kiroku): %v", txn.meta.Meta, meta, err)
+	if err = r.ForEach(0, func(b kiroku.Block) (err error) {
+		count++
+		return txn.processBlock(b)
+	}); err != nil {
+		err = fmt.Errorf("Mojura.importReader(): error during r.ForEach: %v", err)
 		return
 	}
 
-	m.out.Successf("Successfully processed %d blocks in %v", blockCount, sw.Stop())
+	m.out.Successf("Successfully processed %d blocks in %v", count, sw.Stop())
 	return
 }
 
 func (m *Mojura[T]) transaction(fn func(backend.Transaction, *kiroku.Transaction) (Transaction[T], error)) (err error) {
 	err = m.db.Transaction(func(txn backend.Transaction) (err error) {
 		var t Transaction[T]
-		err = m.k.Transaction(func(ktxn *kiroku.Transaction) (err error) {
+		err = m.p.Transaction(func(ktxn *kiroku.Transaction) (err error) {
 			t, err = fn(txn, ktxn)
 			return
 		})
 		defer t.teardown()
-
-		if err != nil {
-			return
-		}
-
-		var meta kiroku.Meta
-		if meta, err = m.k.Meta(); err != nil {
-			return
-		}
-
-		return t.storeMeta(meta)
+		return
 	})
 
 	return
@@ -430,6 +371,11 @@ func (m *Mojura[T]) runTransaction(ctx context.Context, txn backend.Transaction,
 		if err = t.loadMeta(); err != nil {
 			return
 		}
+		defer func() {
+			if err == nil {
+				err = t.saveMeta()
+			}
+		}()
 	}
 	errCh := make(chan error)
 
@@ -458,16 +404,7 @@ func (m *Mojura[T]) importTransaction(ctx context.Context, fn func(*Transaction[
 		var t Transaction[T]
 		t, err = m.runTransaction(ctx, txn, nopBW, fn)
 		defer t.teardown()
-		if err != nil {
-			return
-		}
-
-		var meta kiroku.Meta
-		if meta, err = m.k.Meta(); err != nil {
-			return
-		}
-
-		return t.storeMeta(meta)
+		return
 	})
 
 	return
@@ -491,10 +428,11 @@ func (m *Mojura[T]) copyEntries(txn *Transaction[T]) (err error) {
 	}
 
 	writeFn := func(ss *kiroku.Snapshot) (err error) {
-		return bkt.ForEach(ss.Write)
+		aw := makeActionwriter(ss)
+		return bkt.ForEach(aw.Write)
 	}
 
-	return m.k.Snapshot(writeFn)
+	return m.p.Snapshot(writeFn)
 }
 
 func (m *Mojura[T]) reindex(txn *Transaction[T]) (err error) {
@@ -778,6 +716,10 @@ func (m *Mojura[T]) Close() (err error) {
 
 	var errs errors.ErrorList
 	errs.Push(m.db.Close())
-	errs.Push(m.k.Close())
+	errs.Push(m.c.Close())
 	return errs.Err()
+}
+
+type closer interface {
+	Close() error
 }

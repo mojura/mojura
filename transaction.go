@@ -1,11 +1,13 @@
 package mojura
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 
 	"github.com/mojura/backend"
+	"github.com/mojura/enkodo"
 	"github.com/mojura/kiroku"
 )
 
@@ -149,7 +151,8 @@ func (t *Transaction[T]) insertEntry(entryID []byte, val T) (err error) {
 		return
 	}
 
-	return t.bw.AddBlock(kiroku.TypeWriteAction, entryID, bs)
+	aw := makeActionwriter(t.bw)
+	return aw.Write(entryID, bs)
 }
 
 func (t *Transaction[T]) deleteEntry(entryID []byte) (err error) {
@@ -499,7 +502,17 @@ func (t *Transaction[T]) delete(entryID []byte) (deleted T, err error) {
 		return
 	}
 
-	if err = t.bw.AddBlock(kiroku.TypeDeleteAction, entryID, nil); err != nil {
+	var a action
+	a.Key = entryID
+	a.Value = nil
+	a.Type = actiontypeDelete
+
+	buf := bytes.NewBuffer(nil)
+	if err = enkodo.NewWriter(buf).Encode(&a); err != nil {
+		return
+	}
+
+	if err = t.bw.Write(buf.Bytes()); err != nil {
 		return
 	}
 
@@ -527,13 +540,15 @@ func (t *Transaction[T]) loadMeta() (err error) {
 	return
 }
 
-func (t *Transaction[T]) storeMeta(meta kiroku.Meta) (err error) {
+func (t *Transaction[T]) saveMeta() (err error) {
+	if !t.metaUpdated {
+		return
+	}
+
 	var bkt backend.Bucket
 	if bkt, err = t.getMetaBucket(); err != nil {
 		return
 	}
-
-	t.meta.Meta = meta
 
 	var bs []byte
 	if bs, err = json.Marshal(t.meta); err != nil {
@@ -548,29 +563,34 @@ func (t *Transaction[T]) setIndex(index uint64) {
 	t.metaUpdated = true
 }
 
-func (t *Transaction[T]) processBlock(b *kiroku.Block) (err error) {
-	switch b.Type {
-	case kiroku.TypeWriteAction:
+func (t *Transaction[T]) processBlock(b kiroku.Block) (err error) {
+	var a action
+	if err = enkodo.NewReader(bytes.NewReader(b)).Decode(&a); err != nil {
+		return
+	}
+
+	switch a.Type {
+	case actiontypeWrite:
 		var val T
-		if val, err = t.m.newValueFromBytes(b.Value); err != nil {
+		if val, err = t.m.newValueFromBytes(a.Value); err != nil {
 			err = fmt.Errorf("processBlock(): error getting new value from bytes: %v", err)
 			return
 		}
 
 		var idx uint64
-		if idx, err = parseIDAsIndex(b.Key); err == nil && idx >= t.meta.CurrentIndex {
+		if idx, err = parseIDAsIndex(a.Key); err == nil && idx >= t.meta.CurrentIndex {
 			t.setIndex(idx + 1)
 		}
 
-		if _, err = t.put(b.Key, val); err != nil {
-			err = fmt.Errorf("processBlock(): error putting entry <%s>: %v", string(b.Key), err)
+		if _, err = t.put(a.Key, val); err != nil {
+			err = fmt.Errorf("processBlock(): error putting entry <%s>: %v", string(a.Key), err)
 			return
 		}
 
 		return
-	case kiroku.TypeDeleteAction:
-		if err = t.deleteEntry(b.Key); err != nil {
-			err = fmt.Errorf("processBlock(): error deleting entry <%s>: %v", string(b.Key), err)
+	case actiontypeDelete:
+		if err = t.deleteEntry(a.Key); err != nil {
+			err = fmt.Errorf("processBlock(): error deleting entry <%s>: %v", string(a.Key), err)
 			return
 		}
 

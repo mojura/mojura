@@ -10,6 +10,7 @@ import (
 
 	"github.com/gdbu/stringset"
 	"github.com/hatchify/errors"
+	"github.com/mojura/kiroku"
 	"github.com/mojura/mojura/filters"
 )
 
@@ -76,6 +77,15 @@ func TestMojura_New_with_database_build(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	var e *testStruct
+	if e, err = c.Get(created.ID); err != nil {
+		t.Fatalf("error getting: %v", err)
+	}
+
+	if err = foobar.compare(e); err != nil {
+		t.Fatal(err)
+	}
+
 	if err = c.Close(); err != nil {
 		t.Fatalf("error closing: %v", err)
 	}
@@ -85,14 +95,18 @@ func TestMojura_New_with_database_build(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	filename = path.Join(testDir, "test.kir")
+	if err = os.Remove(filename); err != nil {
+		t.Fatal(err)
+	}
+
 	if c, err = testInit(); err != nil {
 		t.Fatalf("error initializing: %v", err)
 	}
 	defer testTeardown(c, t)
 
-	var e *testStruct
 	if e, err = c.Get(created.ID); err != nil {
-		t.Fatalf("error getting: %v", err)
+		t.Fatalf("error getting after rebuild: %v", err)
 	}
 
 	if err = foobar.compare(e); err != nil {
@@ -121,7 +135,7 @@ func TestMojura_New_with_history_build(t *testing.T) {
 		t.Fatalf("error closing: %v", err)
 	}
 
-	filename := path.Join(testDir, "test.moj")
+	filename := path.Join(testDir, "test.kir")
 	if err = os.Remove(filename); err != nil {
 		t.Fatal(err)
 	}
@@ -162,8 +176,13 @@ func TestMojura_New_with_history_and_database_build(t *testing.T) {
 		t.Fatalf("error closing: %v", err)
 	}
 
-	filename := path.Join(testDir, "test.moj")
+	filename := path.Join(testDir, "test.kir")
 	if err = os.Remove(filename); err != nil {
+		t.Fatal(err)
+	}
+
+	sourcepath := path.Join(testDir, "source")
+	if err = os.RemoveAll(sourcepath); err != nil {
 		t.Fatal(err)
 	}
 
@@ -176,6 +195,11 @@ func TestMojura_New_with_history_and_database_build(t *testing.T) {
 	}
 
 	filename = path.Join(testDir, "test.bdb")
+	if err = os.Remove(filename); err != nil {
+		t.Fatal(err)
+	}
+
+	filename = path.Join(testDir, "test.kir")
 	if err = os.Remove(filename); err != nil {
 		t.Fatal(err)
 	}
@@ -2039,6 +2063,9 @@ func testInit() (c *Mojura[*testStruct], err error) {
 	}
 
 	opts := MakeOpts("test", testDir)
+	if opts.Source, err = kiroku.NewIOSource(testDir); err != nil {
+		return
+	}
 
 	return New[*testStruct](opts, "users", "contacts", "groups", "tags")
 }
