@@ -78,6 +78,8 @@ func makeMojura[T Value](opts Opts, relationships []string) (m Mojura[T], err er
 	}
 
 	m.out = scribe.New(fmt.Sprintf("Mojura (%s)", opts.Name))
+	opts.OnLog = m.out.Notification
+	opts.OnError = func(err error) { m.out.Error(err.Error()) }
 	m.opts = &opts
 	m.indexFmt = fmt.Sprintf("%s0%dd", "%", opts.IndexLength)
 
