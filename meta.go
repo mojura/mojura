@@ -1,11 +1,7 @@
 package mojura
 
-import "github.com/mojura/kiroku"
-
 // metadata represents the meta data for the DB
 type metadata struct {
 	// CurrentIndex would be the current index count
 	CurrentIndex uint64 `json:"currentIndex"`
-
-	kiroku.Meta
 }
