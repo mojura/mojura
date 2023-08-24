@@ -54,6 +54,8 @@ type Opts struct {
 	Initializer backend.Initializer
 	Encoder     Encoder
 
+	OnImport func(*kiroku.Reader)
+
 	Source kiroku.Source
 }
 

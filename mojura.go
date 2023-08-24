@@ -321,9 +321,18 @@ func (m *Mojura[T]) newValueFromBytes(bs []byte) (val T, err error) {
 }
 
 func (m *Mojura[T]) onImport(t kiroku.Type, r *kiroku.Reader) (err error) {
-	return m.importTransaction(context.Background(), func(txn *Transaction[T]) (err error) {
+	if err = m.importTransaction(context.Background(), func(txn *Transaction[T]) (err error) {
 		return m.importReader(txn, t, r)
-	})
+	}); err != nil {
+		return
+	}
+
+	if m.opts.OnImport == nil {
+		return
+	}
+
+	m.opts.OnImport(r)
+	return
 }
 
 func (m *Mojura[T]) importReader(txn *Transaction[T], t kiroku.Type, r *kiroku.Reader) (err error) {
