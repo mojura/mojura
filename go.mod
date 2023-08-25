@@ -10,7 +10,7 @@ require (
 	github.com/mojura-backends/bolt v0.2.1
 	github.com/mojura/backend v0.2.1
 	github.com/mojura/enkodo v0.5.7
-	github.com/mojura/kiroku v0.12.2
+	github.com/mojura/kiroku v0.12.3
 )
 
 require (
