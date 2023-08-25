@@ -9,9 +9,10 @@ import (
 	"github.com/mojura/backend"
 	"github.com/mojura/enkodo"
 	"github.com/mojura/kiroku"
+	"github.com/mojura/mojura/action"
 )
 
-func newTransaction[T Value](ctx context.Context, m *Mojura[T], txn backend.Transaction, bw blockWriter) (t Transaction[T]) {
+func newTransaction[T Value](ctx context.Context, m *Mojura[T], txn backend.Transaction, bw action.BlockWriter) (t Transaction[T]) {
 	t.m = m
 	t.cc = newContextContainer(ctx)
 	t.txn = txn
@@ -26,7 +27,7 @@ type Transaction[T Value] struct {
 	cc *contextContainer
 
 	txn backend.Transaction
-	bw  blockWriter
+	bw  action.BlockWriter
 
 	meta        metadata
 	metaUpdated bool
@@ -151,7 +152,7 @@ func (t *Transaction[T]) insertEntry(entryID []byte, val T) (err error) {
 		return
 	}
 
-	aw := makeActionwriter(t.bw)
+	aw := action.MakeWriter(t.bw)
 	return aw.Write(entryID, bs)
 }
 
@@ -502,17 +503,8 @@ func (t *Transaction[T]) delete(entryID []byte) (deleted T, err error) {
 		return
 	}
 
-	var a action
-	a.Key = entryID
-	a.Value = nil
-	a.Type = actiontypeDelete
-
-	buf := bytes.NewBuffer(nil)
-	if err = enkodo.NewWriter(buf).Encode(&a); err != nil {
-		return
-	}
-
-	if err = t.bw.Write(buf.Bytes()); err != nil {
+	aw := action.MakeWriter(t.bw)
+	if err = aw.Delete(entryID); err != nil {
 		return
 	}
 
@@ -564,13 +556,13 @@ func (t *Transaction[T]) setIndex(index uint64) {
 }
 
 func (t *Transaction[T]) processBlock(b kiroku.Block) (err error) {
-	var a action
+	var a action.Action
 	if err = enkodo.NewReader(bytes.NewReader(b)).Decode(&a); err != nil {
 		return
 	}
 
 	switch a.Type {
-	case actiontypeWrite:
+	case action.TypeWrite:
 		var val T
 		if val, err = t.m.newValueFromBytes(a.Value); err != nil {
 			err = fmt.Errorf("processBlock(): error getting new value from bytes: %v", err)
@@ -588,7 +580,7 @@ func (t *Transaction[T]) processBlock(b kiroku.Block) (err error) {
 		}
 
 		return
-	case actiontypeDelete:
+	case action.TypeDelete:
 		if err = t.deleteEntry(a.Key); err != nil {
 			err = fmt.Errorf("processBlock(): error deleting entry <%s>: %v", string(a.Key), err)
 			return

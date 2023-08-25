@@ -7,6 +7,7 @@ import (
 	"github.com/mojura-backends/bolt"
 	"github.com/mojura/backend"
 	"github.com/mojura/kiroku"
+	"github.com/mojura/mojura/action"
 )
 
 const (
@@ -54,7 +55,7 @@ type Opts struct {
 	Initializer backend.Initializer
 	Encoder     Encoder
 
-	OnImport func(*kiroku.Reader)
+	OnImport func(kiroku.Type, *action.Reader)
 
 	Source kiroku.Source
 }

@@ -13,6 +13,7 @@ import (
 
 	"github.com/mojura/backend"
 	"github.com/mojura/kiroku"
+	"github.com/mojura/mojura/action"
 )
 
 const (
@@ -269,7 +270,7 @@ func (m *Mojura[T]) dumpHistory(txn *Transaction[T]) (n int64, err error) {
 	var lastIndex uint64
 	if err = m.p.Transaction(func(txn *kiroku.Transaction) (err error) {
 		cur := bkt.Cursor()
-		aw := makeActionwriter(txn)
+		aw := action.MakeWriter(txn)
 		for key, value := cur.First(); len(key) > 0; key, value = cur.Next() {
 			if err = aw.Write(key, value); err != nil {
 				return
@@ -331,7 +332,8 @@ func (m *Mojura[T]) onImport(t kiroku.Type, r *kiroku.Reader) (err error) {
 		return
 	}
 
-	m.opts.OnImport(r)
+	ar := action.MakeReader(r)
+	m.opts.OnImport(t, &ar)
 	return
 }
 
@@ -373,7 +375,7 @@ func (m *Mojura[T]) transaction(fn func(backend.Transaction, *kiroku.Transaction
 	return
 }
 
-func (m *Mojura[T]) runTransaction(ctx context.Context, txn backend.Transaction, bw blockWriter, fn TransactionFn[T]) (t Transaction[T], err error) {
+func (m *Mojura[T]) runTransaction(ctx context.Context, txn backend.Transaction, bw action.BlockWriter, fn TransactionFn[T]) (t Transaction[T], err error) {
 	t = newTransaction(ctx, m, txn, bw)
 	if bw != nil {
 		// We only need to load meta for write transactions
@@ -437,7 +439,7 @@ func (m *Mojura[T]) copyEntries(txn *Transaction[T]) (err error) {
 	}
 
 	writeFn := func(ss *kiroku.Snapshot) (err error) {
-		aw := makeActionwriter(ss)
+		aw := action.MakeWriter(ss)
 		return bkt.ForEach(aw.Write)
 	}
 

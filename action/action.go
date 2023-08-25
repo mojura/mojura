@@ -1,11 +1,11 @@
-package mojura
+package action
 
 import "github.com/mojura/enkodo"
 
-// action represents a block of data stored within history
-type action struct {
+// Action represents a historical action
+type Action struct {
 	// Type of block
-	Type actiontype
+	Type Type
 	// Key of block
 	Key []byte
 	// Value of block
@@ -13,7 +13,7 @@ type action struct {
 }
 
 // MarshalEnkodo is a enkodo encoding helper func
-func (a *action) MarshalEnkodo(enc *enkodo.Encoder) (err error) {
+func (a *Action) MarshalEnkodo(enc *enkodo.Encoder) (err error) {
 	// Write type as uint8
 	if err = enc.Uint8(uint8(a.Type)); err != nil {
 		return
@@ -33,7 +33,7 @@ func (a *action) MarshalEnkodo(enc *enkodo.Encoder) (err error) {
 }
 
 // UnmarshalEnkodo is a enkodo decoding helper func
-func (a *action) UnmarshalEnkodo(dec *enkodo.Decoder) (err error) {
+func (a *Action) UnmarshalEnkodo(dec *enkodo.Decoder) (err error) {
 	var u8 uint8
 
 	// Decode uint8 value
@@ -42,7 +42,7 @@ func (a *action) UnmarshalEnkodo(dec *enkodo.Decoder) (err error) {
 	}
 
 	// Convert uint8 value to Type
-	a.Type = actiontype(u8)
+	a.Type = Type(u8)
 
 	// Decode key as bytes
 	if err = dec.Bytes(&a.Key); err != nil {
