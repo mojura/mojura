@@ -191,7 +191,7 @@ func (t *Transaction[T]) setRelationship(relationship, relationshipID, entryID [
 		return
 	}
 
-	if len(relationshipID) == 0 {
+	if t.m.opts.IgnoreEmptyRelationshipKeys && len(relationshipID) == 0 {
 		// Unset relationship IDs can be ignored
 		return
 	}
