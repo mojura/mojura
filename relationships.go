@@ -1,5 +1,7 @@
 package mojura
 
+import "fmt"
+
 // Relationships help to store the relationships for an Entry
 type Relationships []Relationship
 
@@ -24,10 +26,12 @@ func (r Relationship) Has(relationshipID string) (has bool) {
 
 func (r Relationship) delta(old Relationship, onAdd, onRemove RelationshipFn) (err error) {
 	if err = r.addNew(old, onAdd); err != nil {
+		err = fmt.Errorf("error setting relationship <%s>: %v", old, err)
 		return
 	}
 
 	if err = r.removeOld(old, onRemove); err != nil {
+		err = fmt.Errorf("error unsetting relationship <%s>: %v", old, err)
 		return
 	}
 
