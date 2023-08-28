@@ -49,8 +49,10 @@ type Opts struct {
 	IndexLength      int           `toml:"index_length"`
 	MaxBatchCalls    int           `toml:"max_batch_calls"`
 	MaxBatchDuration time.Duration `toml:"max_batch_duration"`
-	RetryBatchFail   bool          `toml:"retry_batch_fail"`
-	IsMirror         bool          `toml:"is_mirror"`
+
+	RetryBatchFail              bool `toml:"retry_batch_fail"`
+	IsMirror                    bool `toml:"is_mirror"`
+	IgnoreEmptyRelationshipKeys bool `toml:"ignore_empty_relationship_keys"`
 
 	Initializer backend.Initializer
 	Encoder     Encoder
