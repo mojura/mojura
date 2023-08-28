@@ -191,18 +191,20 @@ func (t *Transaction[T]) setRelationship(relationship, relationshipID, entryID [
 		return
 	}
 
-	if t.m.opts.IgnoreEmptyRelationshipKeys && len(relationshipID) == 0 {
+	if len(relationshipID) == 0 {
 		// Unset relationship IDs can be ignored
 		return
 	}
 
 	var relationshipBkt backend.Bucket
 	if relationshipBkt, err = t.getRelationshipBucket(relationship); err != nil {
+		err = fmt.Errorf("error getting relationship bucket <%s>: %v", relationship, err)
 		return
 	}
 
 	var bkt backend.Bucket
 	if bkt, err = relationshipBkt.GetOrCreateBucket(relationshipID); err != nil {
+		err = fmt.Errorf("error getting bucket for relationship ID <%s>: %v", relationshipID, err)
 		return
 	}
 
