@@ -279,6 +279,54 @@ func TestMojura_Put(t *testing.T) {
 	}
 }
 
+func TestMojura_New_indexing(t *testing.T) {
+	var (
+		c   *Mojura[*testStruct]
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c, t)
+
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+
+	var created *testStruct
+	if created, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	if created.ID != "00000000" {
+		t.Fatalf("invalid created ID, expected <%s> and received <%s>", "00000000", created.ID)
+	}
+
+	if created, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	if created.ID != "00000001" {
+		t.Fatalf("invalid created ID, expected <%s> and received <%s>", "00000001", created.ID)
+	}
+
+	if created, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	if created.ID != "00000002" {
+		t.Fatalf("invalid created ID, expected <%s> and received <%s>", "00000002", created.ID)
+	}
+
+	if created, err = c.New(&foobar); err != nil {
+		t.Fatal(err)
+	}
+
+	if created.ID != "00000003" {
+		t.Fatalf("invalid created ID, expected <%s> and received <%s>", "00000003", created.ID)
+	}
+
+}
+
 func TestMojura_Get(t *testing.T) {
 	var (
 		c   *Mojura[*testStruct]
