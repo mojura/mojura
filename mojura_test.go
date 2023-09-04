@@ -324,7 +324,70 @@ func TestMojura_New_indexing(t *testing.T) {
 	if created.ID != "00000003" {
 		t.Fatalf("invalid created ID, expected <%s> and received <%s>", "00000003", created.ID)
 	}
+}
 
+func TestMojura_New_test_created_safeness(t *testing.T) {
+	var (
+		c   *Mojura[*testStruct]
+		err error
+	)
+
+	if c, err = testInit(); err != nil {
+		t.Fatal(err)
+	}
+	defer testTeardown(c, t)
+
+	foobar := makeTestStruct("user_1", "contact_1", "group_1", "FOO FOO")
+
+	var created []*testStruct
+	for i := 0; i < 10; i++ {
+		var e *testStruct
+		if e, err = c.New(&foobar); err != nil {
+			t.Fatal(err)
+		}
+
+		created = append(created, e)
+	}
+
+	if created[0].ID != "00000000" {
+		t.Fatalf("invalid created ID, expected <%s> and received <%s>", "00000000", created[0].ID)
+	}
+
+	if created[1].ID != "00000001" {
+		t.Fatalf("invalid created ID, expected <%s> and received <%s>", "00000001", created[1].ID)
+	}
+
+	if created[2].ID != "00000002" {
+		t.Fatalf("invalid created ID, expected <%s> and received <%s>", "00000002", created[2].ID)
+	}
+
+	if created[3].ID != "00000003" {
+		t.Fatalf("invalid created ID, expected <%s> and received <%s>", "00000003", created[3].ID)
+	}
+
+	if created[4].ID != "00000004" {
+		t.Fatalf("invalid created ID, expected <%s> and received <%s>", "00000004", created[4].ID)
+	}
+
+	if created[5].ID != "00000005" {
+		t.Fatalf("invalid created ID, expected <%s> and received <%s>", "00000005", created[5].ID)
+	}
+
+	if created[6].ID != "00000006" {
+		t.Fatalf("invalid created ID, expected <%s> and received <%s>", "00000006", created[6].ID)
+	}
+
+	if created[7].ID != "00000007" {
+		t.Fatalf("invalid created ID, expected <%s> and received <%s>", "00000007", created[7].ID)
+	}
+
+	if created[8].ID != "00000008" {
+		t.Fatalf("invalid created ID, expected <%s> and received <%s>", "00000008", created[8].ID)
+	}
+
+	if created[9].ID != "00000009" {
+		t.Fatalf("invalid created ID, expected <%s> and received <%s>", "00000009", created[9].ID)
+	}
 }
 
 func TestMojura_Get(t *testing.T) {
