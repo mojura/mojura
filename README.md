@@ -7,6 +7,7 @@ Mojura is a filter-based programmatic relational DB which leverages any K/V stor
 ![billboard](https://github.com/mojura/mojura/blob/main/mojura-billboard.png?raw=true "Mojura billboard")
 
 ## Usage
+For a step-by-step usage guide, see our [example repository](https://github.com/mojura/hello-world/wiki)!
 
 ### New
 ```go
