@@ -13,11 +13,13 @@ For a step-by-step usage guide, see our [example repository](https://github.com/
 ```go
 func ExampleNew() {
 	var (
-		c   *Mojura
+		c   *Mojura[*testStruct]
 		err error
 	)
 
-	if c, err = New("example", "./data", testStruct{}, "users", "contacts"); err != nil {
+	opts := MakeOpts("example", "./data")
+
+	if c, err = New[*testStruct](opts, "users", "contacts", "groups"); err != nil {
 		return
 	}
 
@@ -27,34 +29,33 @@ func ExampleNew() {
 
 ### Mojura.New
 ```go
-
 func ExampleMojura_New() {
 	var ts testStruct
 	ts.UserID = "user_1"
 	ts.Value = "Foo bar"
 
 	var (
-		entryID string
+		created *testStruct
 		err     error
 	)
 
-	if entryID, err = c.New(&ts); err != nil {
+	if created, err = c.New(&ts); err != nil {
 		return
 	}
 
-	fmt.Printf("New entry! %s\n", entryID)
+	fmt.Printf("New entry! %+v\n", created)
 }
 ```
 
-### Mojura.Get
+### Mojura.New
 ```go
 func ExampleMojura_Get() {
 	var (
-		ts  testStruct
+		ts  *testStruct
 		err error
 	)
 
-	if err = c.Get("00000000", &ts); err != nil {
+	if ts, err = c.Get("00000000"); err != nil {
 		return
 	}
 
@@ -62,11 +63,11 @@ func ExampleMojura_Get() {
 }
 ```
 
-### Mojura.GetFiltered
+### Mojura.New
 ```go
 func ExampleMojura_GetFiltered() {
 	var (
-		tss    []testStruct
+		tss    []*testStruct
 		lastID string
 		err    error
 	)
@@ -74,7 +75,7 @@ func ExampleMojura_GetFiltered() {
 	filter := filters.Match("users", "user_1")
 	opts := NewFilteringOpts(filter)
 
-	if lastID, err = c.GetFiltered(&tss, opts); err != nil {
+	if tss, lastID, err = c.GetFiltered(opts); err != nil {
 		return
 	}
 
@@ -82,13 +83,13 @@ func ExampleMojura_GetFiltered() {
 }
 ```
 
-### Mojura.ForEach
+### Mojura.New
 ```go
 func ExampleMojura_ForEach() {
 	var err error
 	filter := filters.Match("users", "user_1")
 	opts := NewFilteringOpts(filter)
-	if err = c.ForEach(func(entryID string, val Value) (err error) {
+	if err = c.ForEach(func(entryID string, val *testStruct) (err error) {
 		fmt.Printf("Iterating entry (%s)! %+v\n", entryID, val)
 		return
 	}, opts); err != nil {
@@ -97,13 +98,13 @@ func ExampleMojura_ForEach() {
 }
 ```
 
-### Mojura.ForEach (with filter)
+### Mojura.New
 ```go
 func ExampleMojura_ForEach_with_filter() {
 	var err error
 	filter := filters.Match("users", "user_1")
 	opts := NewFilteringOpts(filter)
-	if err = c.ForEach(func(entryID string, val Value) (err error) {
+	if err = c.ForEach(func(entryID string, val *testStruct) (err error) {
 		fmt.Printf("Iterating entry (%s)! %+v\n", entryID, val)
 		return
 	}, opts); err != nil {
@@ -112,11 +113,28 @@ func ExampleMojura_ForEach_with_filter() {
 }
 ```
 
-### Mojura.Edit
+### Mojura.New
 ```go
-func ExampleMojura_Edit() {
+func ExampleMojura_Update() {
+	var err error
+	var updated *testStruct
+	if updated, err = c.Update("00000000", func(ts *testStruct) (err error) {
+		// Let's update the Value field to "New foo value"
+		ts.Value = "New foo value"
+		return
+	}); err != nil {
+		return
+	}
+
+	fmt.Printf("Edited entry %+v!\n", updated)
+}
+```
+
+### Mojura.New
+```go
+func ExampleMojura_Put() {
 	var (
-		ts  *testStruct
+		ts  testStruct
 		err error
 	)
 
@@ -125,23 +143,28 @@ func ExampleMojura_Edit() {
 	// Let's update the Value field to "New foo value"
 	ts.Value = "New foo value"
 
-	if err = c.Edit("00000000", ts); err != nil {
+	var updated *testStruct
+	if updated, err = c.Put("00000000", &ts); err != nil {
 		return
 	}
 
-	fmt.Printf("Edited entry %s!\n", "00000000")
+	fmt.Printf("Updated entry %+v!\n", updated)
 }
 ```
 
-### Mojura.Remove
+### Mojura.New
 ```go
-func ExampleMojura_Remove() {
-	var err error
-	if err = c.Remove("00000000"); err != nil {
+func ExampleMojura_Delete() {
+	var (
+		removed *testStruct
+		err     error
+	)
+
+	if removed, err = c.Delete("00000000"); err != nil {
 		return
 	}
 
-	fmt.Printf("Removed entry %s!\n", "00000000")
+	fmt.Printf("Removed entry %+v!\n", removed)
 }
 ```
 
