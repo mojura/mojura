@@ -727,7 +727,10 @@ func (m *Mojura[T]) Close() (err error) {
 
 	var errs errors.ErrorList
 	errs.Push(m.db.Close())
-	errs.Push(m.c.Close())
+	if m.c != nil {
+		errs.Push(m.c.Close())
+	}
+
 	return errs.Err()
 }
 
