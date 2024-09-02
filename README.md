@@ -47,7 +47,7 @@ func ExampleMojura_New() {
 }
 ```
 
-### Mojura.New
+### Mojura.Get
 ```go
 func ExampleMojura_Get() {
 	var (
@@ -63,7 +63,7 @@ func ExampleMojura_Get() {
 }
 ```
 
-### Mojura.New
+### Mojura.GetFiltered
 ```go
 func ExampleMojura_GetFiltered() {
 	var (
@@ -83,12 +83,11 @@ func ExampleMojura_GetFiltered() {
 }
 ```
 
-### Mojura.New
+### Mojura.ForEach (no filters)
 ```go
 func ExampleMojura_ForEach() {
 	var err error
-	filter := filters.Match("users", "user_1")
-	opts := NewFilteringOpts(filter)
+	opts := NewFilteringOpts()
 	if err = c.ForEach(func(entryID string, val *testStruct) (err error) {
 		fmt.Printf("Iterating entry (%s)! %+v\n", entryID, val)
 		return
@@ -98,7 +97,7 @@ func ExampleMojura_ForEach() {
 }
 ```
 
-### Mojura.New
+### Mojura.ForEach (with filter)
 ```go
 func ExampleMojura_ForEach_with_filter() {
 	var err error
@@ -113,7 +112,7 @@ func ExampleMojura_ForEach_with_filter() {
 }
 ```
 
-### Mojura.New
+### Mojura.Update
 ```go
 func ExampleMojura_Update() {
 	var err error
@@ -130,7 +129,7 @@ func ExampleMojura_Update() {
 }
 ```
 
-### Mojura.New
+### Mojura.Put
 ```go
 func ExampleMojura_Put() {
 	var (
@@ -152,7 +151,7 @@ func ExampleMojura_Put() {
 }
 ```
 
-### Mojura.New
+### Mojura.Delete
 ```go
 func ExampleMojura_Delete() {
 	var (
