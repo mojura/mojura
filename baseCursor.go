@@ -107,7 +107,7 @@ func (c *baseCursor[T]) Prev() (val T, err error) {
 	return c.get(k, v)
 }
 
-func (c *baseCursor[T]) get(key, bs []byte) (val T, err error) {
+func (c *baseCursor[T]) get(_, bs []byte) (val T, err error) {
 	return c.txn.m.newValueFromBytes(bs)
 }
 

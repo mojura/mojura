@@ -116,10 +116,7 @@ func (c *multiIDCursor[T]) prevUntilMatch(entryID []byte) (matchEntryID []byte, 
 
 func (c *multiIDCursor[T]) seek(seekID []byte) (entryID []byte, err error) {
 	var relationshipKey []byte
-	if relationshipKey, seekID = splitSeekID(seekID); err != nil {
-		return
-	}
-
+	relationshipKey, seekID = splitSeekID(seekID)
 	if entryID, err = c.primary.SeekForward(relationshipKey, seekID); err != nil {
 		return
 	}
@@ -129,10 +126,7 @@ func (c *multiIDCursor[T]) seek(seekID []byte) (entryID []byte, err error) {
 
 func (c *multiIDCursor[T]) seekReverse(seekID []byte) (entryID []byte, err error) {
 	var relationshipKey []byte
-	if relationshipKey, seekID = splitSeekID(seekID); err != nil {
-		return
-	}
-
+	relationshipKey, seekID = splitSeekID(seekID)
 	if entryID, err = c.primary.SeekReverse(relationshipKey, seekID); err != nil {
 		return
 	}
