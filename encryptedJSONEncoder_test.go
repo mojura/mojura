@@ -29,12 +29,12 @@ func TestEncryptedJSONEncoder_Marshal_Unmarshal_RoundTrip(t *testing.T) {
 		},
 		{
 			name:  "AES-192 roundtrip",
-			key:   "0123456789abcdefghijkl", // 24 bytes
+			key:   "0123456789abcdefghijklmn", // 24 bytes
 			value: testvalue{Foo: -7, Bar: "world"},
 		},
 		{
 			name:  "AES-256 roundtrip",
-			key:   "0123456789abcdefghijklmnop", // 32 bytes
+			key:   "0123456789abcdefghijklmnopqrstuv", // 32 bytes
 			value: testvalue{Foo: 0, Bar: "!"},
 		},
 	}
