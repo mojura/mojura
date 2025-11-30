@@ -1,11 +1,9 @@
-package mojura_test
+package mojura
 
 import (
 	"bytes"
 	"encoding/json"
 	"testing"
-
-	"github.com/mojura/mojura"
 )
 
 func TestEncryptedJSONEncoder_Marshal_Unmarshal_RoundTrip(t *testing.T) {
@@ -41,7 +39,7 @@ func TestEncryptedJSONEncoder_Marshal_Unmarshal_RoundTrip(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e, err := mojura.MakeEncryptedJSONEncoder(tt.key)
+			e, err := NewEncryptedJSONEncoder(tt.key)
 			if err != nil {
 				t.Fatalf("could not construct receiver type: %v", err)
 			}
@@ -87,7 +85,7 @@ func TestMakeEncryptedJSONEncoder_KeyValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := mojura.MakeEncryptedJSONEncoder(tt.key)
+			_, err := NewEncryptedJSONEncoder(tt.key)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("MakeEncryptedJSONEncoder() error = %v, wantErr = %v", err, tt.wantErr)
 			}
@@ -103,7 +101,7 @@ func TestEncryptedJSONEncoder_BackCompat_PlainJSON(t *testing.T) {
 
 	// Create a valid encoder (key length is correct),
 	// but feed Unmarshal with *plain JSON* to exercise the fallback path.
-	e, err := mojura.MakeEncryptedJSONEncoder("0123456789abcdef")
+	e, err := NewEncryptedJSONEncoder("0123456789abcdef")
 	if err != nil {
 		t.Fatalf("could not construct encoder: %v", err)
 	}
@@ -130,11 +128,11 @@ func TestEncryptedJSONEncoder_WrongKey_Fails(t *testing.T) {
 		Bar string `json:"bar"`
 	}
 
-	e1, err := mojura.MakeEncryptedJSONEncoder("0123456789abcdef")
+	e1, err := NewEncryptedJSONEncoder("0123456789abcdef")
 	if err != nil {
 		t.Fatalf("could not construct encoder e1: %v", err)
 	}
-	e2, err := mojura.MakeEncryptedJSONEncoder("abcdef0123456789")
+	e2, err := NewEncryptedJSONEncoder("abcdef0123456789")
 	if err != nil {
 		t.Fatalf("could not construct encoder e2: %v", err)
 	}
@@ -157,7 +155,7 @@ func TestEncryptedJSONEncoder_NonceRandomized(t *testing.T) {
 		Bar string `json:"bar"`
 	}
 
-	e, err := mojura.MakeEncryptedJSONEncoder("0123456789abcdef")
+	e, err := NewEncryptedJSONEncoder("0123456789abcdef")
 	if err != nil {
 		t.Fatalf("could not construct encoder: %v", err)
 	}
@@ -183,7 +181,7 @@ func TestEncryptedJSONEncoder_TamperDetect(t *testing.T) {
 		Bar string `json:"bar"`
 	}
 
-	e, err := mojura.MakeEncryptedJSONEncoder("0123456789abcdef")
+	e, err := NewEncryptedJSONEncoder("0123456789abcdef")
 	if err != nil {
 		t.Fatalf("could not construct encoder: %v", err)
 	}
