@@ -18,18 +18,19 @@ var _ Encoder = &EncryptedJSONEncoder{} // compile-time check that EncryptedJSON
 // to AES-128, AES-192, or AES-256 respectively. Any other key length will
 // cause this function to return an error, ensuring that encryption behavior
 // is always explicit and predictable.
-func MakeEncryptedJSONEncoder(key string) (enc EncryptedJSONEncoder, err error) {
+func NewEncryptedJSONEncoder(key string) (out *EncryptedJSONEncoder, err error) {
+	var enc EncryptedJSONEncoder
 	// Validate key length against the three AES block cipher key sizes.
 	switch len(key) {
 	case 16, 24, 32:
 		// Convert the string key to a byte slice and assign it.
 		// AES requires raw bytes, so this conversion is expected and safe.
 		enc.key = []byte(key)
-		return enc, nil
+		return &enc, nil
 	default:
 		// Reject invalid key lengths to prevent implicit resizing or insecure padding.
 		// Fail fast to avoid unpredictable encryption behavior.
-		return enc, fmt.Errorf("invalid AES key length, %d is not accepted: must be 16, 24, or 32 bytes", len(key))
+		return &enc, fmt.Errorf("invalid AES key length, %d is not accepted: must be 16, 24, or 32 bytes", len(key))
 	}
 }
 
