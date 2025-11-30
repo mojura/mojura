@@ -1,6 +1,6 @@
 module github.com/mojura/mojura
 
-go 1.23.0
+go 1.25.0
 
 require (
 	github.com/gdbu/scribe v0.5.3
