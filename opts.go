@@ -3,7 +3,7 @@ package mojura
 import (
 	"time"
 
-	"github.com/hatchify/errors"
+	"github.com/gdbu/errors"
 	"github.com/mojura-backends/bolt"
 	"github.com/mojura/backend"
 	"github.com/mojura/kiroku"
@@ -60,6 +60,7 @@ type Opts struct {
 	OnImport func(kiroku.Type, *action.Reader)
 
 	Source kiroku.Source
+	Logger Logger
 }
 
 // Validate will validate a set of Options

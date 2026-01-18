@@ -3,13 +3,13 @@ package mojura
 import (
 	"context"
 	"fmt"
+	"log"
 	"path"
 	"sync"
 
-	"github.com/gdbu/scribe"
 	"github.com/gdbu/stopwatch"
 
-	"github.com/hatchify/errors"
+	"github.com/gdbu/errors"
 
 	"github.com/mojura/backend"
 	"github.com/mojura/kiroku"
@@ -78,8 +78,12 @@ func makeMojura[T Value](opts Opts, relationships []string) (m Mojura[T], err er
 		return
 	}
 
-	m.out = scribe.New(fmt.Sprintf("Mojura (%s)", opts.Name))
-	opts.OnLog = m.out.Notification
+	if opts.Logger == nil {
+		opts.Logger = &logger{}
+	}
+
+	m.out = opts.Logger
+	opts.OnLog = func(message string) { m.out.Info(message) }
 	opts.OnError = func(err error) { m.out.Error(err.Error()) }
 	m.opts = &opts
 	m.indexFmt = fmt.Sprintf("%s0%dd", "%", opts.IndexLength)
@@ -87,6 +91,8 @@ func makeMojura[T Value](opts Opts, relationships []string) (m Mojura[T], err er
 	if err = m.init(relationships); err != nil {
 		return
 	}
+
+	log.Writer()
 
 	return
 }
@@ -97,7 +103,7 @@ type Mojura[T Value] struct {
 	mux sync.RWMutex
 
 	db  backend.Backend
-	out *scribe.Scribe
+	out Logger
 	b   *batcher[T]
 
 	make func() T
@@ -244,7 +250,7 @@ func (m *Mojura[T]) buildHistory() (err error) {
 	}
 
 	var n int64
-	m.out.Notification("Found populated database with an empty history file, building history file from database entries")
+	m.out.Info("Found populated database with an empty history file, building history file from database entries")
 	if err = m.importTransaction(context.Background(), func(txn *Transaction[T]) (err error) {
 		if n, err = m.dumpHistory(txn); err != nil {
 			err = fmt.Errorf("error encountered while dumping to history file: %v", err)
@@ -256,7 +262,7 @@ func (m *Mojura[T]) buildHistory() (err error) {
 		return
 	}
 
-	m.out.Successf("Appended %d blocks to the history file", n)
+	m.out.Info("Appended %d blocks to the history file", n)
 	return
 }
 
@@ -357,7 +363,7 @@ func (m *Mojura[T]) importReader(txn *Transaction[T], t kiroku.Type, r *kiroku.R
 		return
 	}
 
-	m.out.Successf("Successfully processed %d blocks in %v", count, sw.Stop())
+	m.out.Info("Successfully processed %d blocks in %v", count, sw.Stop())
 	return
 }
 
