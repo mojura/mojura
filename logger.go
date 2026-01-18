@@ -6,6 +6,10 @@ import (
 	"sync"
 )
 
+func NewLogger() Logger {
+	return &logger{}
+}
+
 type Logger interface {
 	Info(msg string, args ...any)
 	Warn(msg string, args ...any)

@@ -79,7 +79,7 @@ func makeMojura[T Value](opts Opts, relationships []string) (m Mojura[T], err er
 	}
 
 	if opts.Logger == nil {
-		opts.Logger = &logger{}
+		opts.Logger = NewLogger()
 	}
 
 	m.out = opts.Logger
