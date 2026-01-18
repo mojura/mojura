@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hatchify/errors"
+	"github.com/gdbu/errors"
 )
 
 func newBatcher[T Value](m *Mojura[T]) *batcher[T] {

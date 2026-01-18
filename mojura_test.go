@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gdbu/errors"
 	"github.com/gdbu/stringset"
-	"github.com/hatchify/errors"
 	"github.com/mojura/kiroku"
 	"github.com/mojura/mojura/filters"
 )
