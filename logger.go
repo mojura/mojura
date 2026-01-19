@@ -38,7 +38,7 @@ func (l *logger) log(level, msg string, args ...any) {
 	err := line.write(&b)
 
 	l.mux.Lock()
-	defer l.mux.Lock()
+	defer l.mux.Unlock()
 
 	if err != nil {
 		log.Println(err)
