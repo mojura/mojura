@@ -1,5 +1,5 @@
-github.com/edsrzf/mmap-go v1.1.0 h1:6EUwBLQ/Mcr1EYLE4Tn1VdW1A4ckqCQWZBw8Hr0kjpQ=
-github.com/edsrzf/mmap-go v1.1.0/go.mod h1:19H/e8pUPLicwkyNgOykDXkJ9F0MHE+Z52B8EIth78Q=
+github.com/edsrzf/mmap-go v1.2.0 h1:hXLYlkbaPzt1SaQk+anYwKSRNhufIDCchSPkUD6dD84=
+github.com/edsrzf/mmap-go v1.2.0/go.mod h1:19H/e8pUPLicwkyNgOykDXkJ9F0MHE+Z52B8EIth78Q=
 github.com/gdbu/bolt v1.4.0 h1:y0KmQLexHzWrpx3vdmqsFdgyRBKze/6jir9/y6Qw2Ig=
 github.com/gdbu/bolt v1.4.0/go.mod h1:VxXGB8ehMDPaJIu3txG1PboAODVQu1mVDDN8i9FBVUU=
 github.com/gdbu/errors v0.5.0 h1:Eind/t7U7V8ALS9U5BGl4Sgf/o4OrAZHYXvZO33Hbd0=
@@ -12,10 +12,10 @@ github.com/mojura-backends/bolt v0.2.1 h1:eqSRKqE3FD3TrYSP2Ocl1+/PrwNkyguEHA/r6E
 github.com/mojura-backends/bolt v0.2.1/go.mod h1:+KjtCS4OuLbID3MO9jRs2EFMBwY/S5KS3YX4MTL6mxQ=
 github.com/mojura/backend v0.2.1 h1:IvyZeWcAAu8TZ1u3cB5+9WtA0NbWbAsf5iymuDQ8LBs=
 github.com/mojura/backend v0.2.1/go.mod h1:JasOEo8h+g7kp7qybW3K3F7qtcITeknVo27tSOibD6c=
-github.com/mojura/enkodo v0.6.0 h1:ThyUiJr49hLMFDg+ZMWWMe69RIRD/RcRcVa4jfNVtiE=
-github.com/mojura/enkodo v0.6.0/go.mod h1:anUBJX4KuHLU1T+yytnGFrfQyye1dNHYpjWOAq2xvzI=
-github.com/mojura/kiroku v0.18.0 h1:w6l4vCWHYPIffKTybip9HBgPv16tE2TiUbVuIuB8StY=
-github.com/mojura/kiroku v0.18.0/go.mod h1:o0xONLRUOLoCNhTJhOkf5mzcwwokzSlguMhA8swaHz8=
+github.com/mojura/enkodo v0.6.1 h1:sVCgAjyQhI1bGRhQy/pRQtKjr2szElgvx0a2TwcdU7w=
+github.com/mojura/enkodo v0.6.1/go.mod h1:anUBJX4KuHLU1T+yytnGFrfQyye1dNHYpjWOAq2xvzI=
+github.com/mojura/kiroku v0.18.1 h1:NMT9StRt+mEOFCnCPiqqX+nwKawu0Q06xVFy4yxdunw=
+github.com/mojura/kiroku v0.18.1/go.mod h1:JvAo+ysYg5Lm1HqAVzV7CppvWa5bMg7iXcrM0OXrsDA=
 golang.org/x/sys v0.0.0-20201207223542-d4d67f95c62d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
-golang.org/x/sys v0.24.0 h1:Twjiwq9dn6R1fQcyiK+wQyHWfaz/BJB+YIpzU/Cv3Xg=
-golang.org/x/sys v0.24.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+golang.org/x/sys v0.40.0 h1:DBZZqJ2Rkml6QMQsZywtnjnnGvHza6BTfYFWY9kjEWQ=
+golang.org/x/sys v0.40.0/go.mod h1:OgkHotnGiDImocRcuBABYBEXf8A9a87e/uXjp9XT3ks=
