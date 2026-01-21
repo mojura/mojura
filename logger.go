@@ -41,7 +41,8 @@ func (l *logger) log(level, msg string, args ...any) {
 	defer l.mux.Unlock()
 
 	if err != nil {
-		log.Println(err)
+		vals := append([]any{"warning: invalid log formatting ::", level, msg}, args...)
+		log.Println(vals...)
 		return
 	}
 
