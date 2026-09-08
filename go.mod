@@ -14,6 +14,6 @@ require (
 
 require (
 	github.com/edsrzf/mmap-go v1.2.0 // indirect
-	github.com/gdbu/bolt v1.4.0 // indirect
+	github.com/gdbu/bolt v1.4.1-0.20260908154430-409d2bd25b27 // indirect
 	golang.org/x/sys v0.40.0 // indirect
 )

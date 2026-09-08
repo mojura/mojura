@@ -9,6 +9,29 @@ Mojura is a filter-based programmatic relational DB which leverages any K/V stor
 ## Usage
 For a step-by-step usage guide, see our [example repository](https://github.com/mojura/hello-world/wiki)!
 
+### Transaction Contexts and Errors
+`Transaction`, `ReadTransaction`, and `Batch` run callbacks synchronously within
+the backend transaction. Cancellation is cooperative: callbacks must use their
+context for blocking work. Context checks before and after callbacks do not
+interrupt an arbitrary blocked callback or backend transaction begin. A callback's
+own error takes precedence over cancellation detected after it returns.
+
+With `RetryBatchFail` enabled, `Batch` may retry the successful prefix of a batch
+when the transaction returns that callback's failure unchanged. Backend begin or
+commit errors are returned without replaying callbacks. A commit error may
+represent an already-committed outcome, so it does not guarantee rollback. These
+rules leave the existing journaling and durability contract unchanged.
+
+### Relationship Backfill
+`BackfillRelationship(ctx, relationship, afterID, limit)` adds one relationship
+index in bounded, resumable backend transactions. It does not rewrite entries,
+unrelated indexes, or journal history. Mirrors refuse this mutation. Cancellation
+is checked during scanning and after the batch callback, including when the final
+entry has no values for that relationship. A callback error or detected cancellation
+rolls back the batch and returns the original continuation; advance using `LastID`
+only on success. Backend commit errors can represent an already-committed outcome,
+as with other transactions; replay remains additive and idempotent.
+
 ### New
 ```go
 func ExampleNew() {

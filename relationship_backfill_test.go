@@ -120,6 +120,126 @@ func TestMojuraBackfillRelationshipRejectsInvalidRequests(t *testing.T) {
 	}
 }
 
+func TestMojuraBackfillRelationshipRefusesMirrorMutation(t *testing.T) {
+	opts := MakeOpts("relationship-backfill-mirror", t.TempDir())
+	store, err := New[*testStruct](opts, "users", "contacts", "groups", "tags")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	value := makeTestStruct("user-b", "contact-b", "group", "original")
+	if _, err := store.Put("b", &value); err != nil {
+		t.Fatal(err)
+	}
+	clearRelationshipIndex(t, store, "users")
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	opts.IsMirror = true
+	mirror, err := New[*testStruct](opts, "users", "contacts", "groups", "tags")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := mirror.Close(); err != nil {
+			t.Errorf("close mirror: %v", err)
+		}
+	})
+	page, err := mirror.BackfillRelationship(context.Background(), "users", "a", 1)
+	if !errors.Is(err, ErrMirrorCannotPerformWriteActions) {
+		t.Errorf("mirror backfill error = %v, want %v", err, ErrMirrorCannotPerformWriteActions)
+	}
+	if page.LastID != "a" || page.Scanned != 0 || page.Indexed != 0 || page.Done {
+		t.Errorf("refused mirror backfill advanced progress: %#v", page)
+	}
+	if _, err := mirror.GetFirst(NewFilteringOpts(filters.Match("users", "user-b"))); !errors.Is(err, ErrEntryNotFound) {
+		t.Errorf("mirror backfill changed the missing index: %v", err)
+	}
+	got, err := mirror.GetFirst(NewFilteringOpts(filters.Match("contacts", "contact-b")))
+	if err != nil || got.Value != "original" {
+		t.Fatalf("mirror entry or unrelated index changed: value=%v err=%v", got, err)
+	}
+}
+
+func TestMojuraBackfillRelationshipFinalDecodeCancellationRollsBack(t *testing.T) {
+	for _, boundary := range []string{"page-limit", "end-of-store"} {
+		t.Run(boundary, func(t *testing.T) {
+			store := newBackfillTestStore(t)
+			ids := []string{"b", "c"}
+			if boundary == "page-limit" {
+				ids = append(ids, "d")
+			}
+			for _, id := range ids {
+				var tags []string
+				if id != "c" {
+					tags = []string{"tag-" + id}
+				}
+				value := makeTestStruct("user-"+id, "contact-"+id, "group", id, tags...)
+				if _, err := store.Put(id, &value); err != nil {
+					t.Fatal(err)
+				}
+			}
+			clearRelationshipIndex(t, store, "tags")
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			decoded := 0
+			original := store.opts.Encoder
+			store.opts.Encoder = backfillDecodeObserver{Encoder: original, decoded: func() {
+				decoded++
+				if decoded == 2 {
+					cancel()
+				}
+			}}
+			defer func() { store.opts.Encoder = original }()
+			// The final entry has no tags, so no relationship write follows its decode.
+			page, err := store.BackfillRelationship(ctx, "tags", "a", 2)
+			store.opts.Encoder = original
+			if decoded != 2 {
+				t.Fatalf("decoded %d entries, want cancellation on the final entry", decoded)
+			}
+			if !errors.Is(err, context.Canceled) {
+				t.Errorf("final-decode cancellation error = %v, want %v", err, context.Canceled)
+			}
+			if page.LastID != "a" || page.Scanned != 0 || page.Indexed != 0 || page.Done {
+				t.Errorf("cancelled batch advanced progress: %#v", page)
+			}
+			for _, id := range ids {
+				if _, err := store.GetFirst(NewFilteringOpts(filters.Match("tags", "tag-"+id))); !errors.Is(err, ErrEntryNotFound) {
+					t.Errorf("cancelled batch committed index for %q: %v", id, err)
+				}
+				got, err := store.GetFirst(NewFilteringOpts(filters.Match("contacts", "contact-"+id)))
+				if err != nil || got.Value != id {
+					t.Fatalf("entry %q or unrelated index changed: value=%v err=%v", id, got, err)
+				}
+			}
+			retry, err := store.BackfillRelationship(context.Background(), "tags", "a", 2)
+			if err != nil || retry.LastID != "c" || retry.Scanned != 2 || retry.Indexed != 1 || retry.Done != (boundary == "end-of-store") {
+				t.Fatalf("retry after rollback: page=%#v err=%v", retry, err)
+			}
+			if _, err := store.GetFirst(NewFilteringOpts(filters.Match("tags", "tag-b"))); err != nil {
+				t.Fatalf("retry did not commit index for b: %v", err)
+			}
+			if _, err := store.GetFirst(NewFilteringOpts(filters.Match("tags", "tag-c"))); !errors.Is(err, ErrEntryNotFound) {
+				t.Fatalf("retry added a nonexistent tag: %v", err)
+			}
+		})
+	}
+}
+
+type backfillDecodeObserver struct {
+	Encoder
+	decoded func()
+}
+
+func (e backfillDecodeObserver) Unmarshal(raw []byte, value any) error {
+	if err := e.Encoder.Unmarshal(raw, value); err != nil {
+		return err
+	}
+	e.decoded()
+	return nil
+}
+
 func TestMojuraBackfillRelationshipRollsBackFailedBatchAndProgress(t *testing.T) {
 	opts := MakeOpts("relationship-backfill-rollback", t.TempDir())
 	store, err := New[*backfillTestValue](opts, "users")
