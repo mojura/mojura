@@ -2,23 +2,758 @@ package mojura
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"path"
+	"strings"
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
+	boltDB "github.com/gdbu/bolt"
 	"github.com/gdbu/errors"
 	"github.com/gdbu/stringset"
+	"github.com/mojura/backend"
 	"github.com/mojura/kiroku"
 	"github.com/mojura/mojura/filters"
 )
 
-const (
-	testDir = "./test_data"
-)
-
 var c *Mojura[*testStruct]
+
+func TestMojuraInitializedReopenDoesNotWriteBuckets(t *testing.T) {
+	for _, mirror := range []bool{false, true} {
+		for _, populated := range []bool{false, true} {
+			t.Run(fmt.Sprintf("mirror=%t/populated=%t", mirror, populated), func(t *testing.T) {
+				opts := MakeOpts("initialized-reopen", t.TempDir())
+				source, err := kiroku.NewIOSource(opts.Dir)
+				if err != nil {
+					t.Fatal(err)
+				}
+				opts.Source = source
+				store, err := New[*testStruct](opts, "users", "contacts", "groups", "tags")
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() { _ = store.Close() })
+				if populated {
+					value := makeTestStruct("user", "contact", "group", "preserved", "tag")
+					if _, err := store.Put("existing", &value); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if err := store.Close(); err != nil {
+					t.Fatal(err)
+				}
+				filename := path.Join(opts.Dir, opts.FullName()+".bdb")
+				before := initTestBoltTxID(t, filename)
+				opts.IsMirror = mirror
+				reopened, err := New[*testStruct](opts, "users", "contacts", "groups", "tags")
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() { _ = reopened.Close() })
+				if populated {
+					got, err := reopened.GetFirst(NewFilteringOpts(filters.Match("users", "user"), filters.Match("tags", "tag")))
+					if err != nil || got.ID != "existing" || got.Value != "preserved" {
+						t.Fatalf("reopen lost record or indexes: value=%v err=%v", got, err)
+					}
+				}
+				if err := reopened.Close(); err != nil {
+					t.Fatal(err)
+				}
+				if after := initTestBoltTxID(t, filename); after != before {
+					t.Fatalf("initialized reopen committed a write: Tx.ID %d -> %d", before, after)
+				}
+			})
+		}
+	}
+}
+
+func TestMojuraInitializesOnlyMissingBuckets(t *testing.T) {
+	for _, missing := range []string{"fresh", "entries", "lookups", "meta", "relationships", "users"} {
+		t.Run(missing, func(t *testing.T) {
+			opts := MakeOpts("missing-buckets", t.TempDir())
+			filename := path.Join(opts.Dir, opts.FullName()+".bdb")
+			if missing != "fresh" {
+				store, err := New[*testStruct](opts, "users", "contacts", "groups", "tags")
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := store.Close(); err != nil {
+					t.Fatal(err)
+				}
+			}
+			db, err := boltDB.Open(filename, 0600, &boltDB.Options{Timeout: time.Second})
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = db.Close() })
+			if missing != "fresh" {
+				if err := db.Update(func(tx *boltDB.Tx) error {
+					if missing == "users" {
+						return tx.Bucket(relationshipsBktKey).DeleteBucket([]byte(missing))
+					}
+					return tx.DeleteBucket([]byte(missing))
+				}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := db.Close(); err != nil {
+				t.Fatal(err)
+			}
+			before := initTestBoltTxID(t, filename)
+			opts.IsMirror = true
+			store, err := New[*testStruct](opts, "users", "contacts", "groups", "tags")
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = store.Close() })
+			if err := store.db.ReadTransaction(func(tx backend.Transaction) error {
+				for _, key := range [][]byte{entriesBktKey, lookupsBktKey, metaBktKey, relationshipsBktKey} {
+					if tx.GetBucket(key) == nil {
+						return fmt.Errorf("missing root bucket %q", key)
+					}
+				}
+				for _, key := range store.relationships {
+					if tx.GetBucket(relationshipsBktKey).GetBucket(key) == nil {
+						return fmt.Errorf("missing relationship bucket %q", key)
+					}
+				}
+				return nil
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if err := store.Close(); err != nil {
+				t.Fatal(err)
+			}
+			if after := initTestBoltTxID(t, filename); after != before+1 {
+				t.Fatalf("missing state requires exactly one initialization commit: Tx.ID %d -> %d", before, after)
+			}
+		})
+	}
+}
+
+func TestMojuraSourceLessReopenPreservesRecords(t *testing.T) {
+	opts := MakeOpts("source-less-reopen", t.TempDir())
+	store, err := New[*testStruct](opts, "users", "contacts", "groups", "tags")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	value := makeTestStruct("user", "contact", "group", "preserved", "tag")
+	if _, err := store.Put("existing", &value); err != nil {
+		t.Fatal(err)
+	}
+	meta, err := store.p.Meta()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(opts.Dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var chunks, snapshots int
+	for _, entry := range entries {
+		parsed, err := kiroku.ParseFilename(entry.Name())
+		if err != nil {
+			continue
+		}
+		switch parsed.Filetype {
+		case kiroku.TypeChunk:
+			chunks++
+		case kiroku.TypeSnapshot:
+			snapshots++
+		}
+	}
+	filename := path.Join(opts.Dir, opts.FullName()+".bdb")
+	before := initTestBoltTxID(t, filename)
+	reopened, err := New[*testStruct](opts, "users", "contacts", "groups", "tags")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = reopened.Close() })
+	got, err := reopened.GetFirst(NewFilteringOpts(filters.Match("users", "user"), filters.Match("tags", "tag")))
+	if err != nil || got.ID != "existing" || got.Value != "preserved" {
+		t.Fatalf("source-less reopen lost record/indexes: value=%v err=%v", got, err)
+	}
+	if err := reopened.Close(); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("source-less post-Put metadata=%+v, post-close chunks=%d snapshots=%d, reopen Tx.ID %d -> %d",
+		meta, chunks, snapshots, before, initTestBoltTxID(t, filename))
+}
+
+func TestMojuraInitializedReopenAddsRelationshipBucket(t *testing.T) {
+	opts := MakeOpts("additive-bucket", t.TempDir())
+	source, err := kiroku.NewIOSource(opts.Dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts.Source = source
+	store, err := New[*testStruct](opts, "users", "contacts", "groups", "tags")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	value := makeTestStruct("user", "contact", "group", "preserved", "tag")
+	if _, err := store.Put("existing", &value); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	filename := path.Join(opts.Dir, opts.FullName()+".bdb")
+	before := initTestBoltTxID(t, filename)
+	reopened, err := New[*initAddedRelationshipValue](opts, "users", "contacts", "groups", "tags", "extra")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = reopened.Close() })
+	if err := reopened.db.ReadTransaction(func(tx backend.Transaction) error {
+		if tx.GetBucket(relationshipsBktKey).GetBucket([]byte("extra")) == nil {
+			return fmt.Errorf("additional relationship bucket was not initialized")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := reopened.GetFirst(NewFilteringOpts(filters.Match("users", "user"), filters.Match("tags", "tag")))
+	if err != nil || got.ID != "existing" || got.Value != "preserved" {
+		t.Fatalf("additive initialization changed existing record/indexes: value=%v err=%v", got, err)
+	}
+	if err := reopened.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if after := initTestBoltTxID(t, filename); after != before+1 {
+		t.Fatalf("additive initialization requires one commit: Tx.ID %d -> %d", before, after)
+	}
+}
+
+func TestMojuraBucketInitializationFailureClosesOwnedBackend(t *testing.T) {
+	for _, phase := range []string{"before-read", "after-read", "missing-write"} {
+		t.Run(phase, func(t *testing.T) {
+			opts := MakeOpts("initialization-failure", t.TempDir())
+			opts.IsMirror = true
+			store, err := New[*testStruct](opts, "users", "contacts", "groups", "tags")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := store.Close(); err != nil {
+				t.Fatal(err)
+			}
+			filename := path.Join(opts.Dir, opts.FullName()+".bdb")
+			if phase == "missing-write" {
+				db, err := boltDB.Open(filename, 0600, &boltDB.Options{Timeout: time.Second})
+				if err != nil {
+					t.Fatal(err)
+				}
+				err = db.Update(func(tx *boltDB.Tx) error { return tx.DeleteBucket(metaBktKey) })
+				closeErr := db.Close()
+				if err != nil || closeErr != nil {
+					t.Fatalf("remove metadata: update=%v close=%v", err, closeErr)
+				}
+			}
+			before := initTestBoltTxID(t, filename)
+			refusal := stderrors.New("backend initialization refused")
+			probe := &initFailureBackend{phase: phase, refusal: refusal}
+			opts.Initializer = initFailureInitializer{probe}
+			t.Cleanup(func() {
+				if probe.Backend != nil && probe.closes == 0 {
+					_ = probe.Backend.Close()
+				}
+			})
+			opened, err := New[*testStruct](opts, "users", "contacts", "groups", "tags")
+			if opened != nil {
+				_ = opened.Close()
+				t.Fatalf("backend refusal was accepted: err=%v", err)
+			}
+			if !stderrors.Is(err, refusal) || probe.closes != 1 {
+				t.Fatalf("initialization refusal/ownership lost: err=%v closes=%d", err, probe.closes)
+			}
+			wantWrites := 0
+			if phase == "missing-write" {
+				wantWrites = 1
+			}
+			if probe.writes != wantWrites {
+				t.Fatalf("write attempts=%d, want %d", probe.writes, wantWrites)
+			}
+			if after := initTestBoltTxID(t, filename); after != before {
+				t.Fatalf("failed initialization committed: Tx.ID %d -> %d", before, after)
+			}
+		})
+	}
+}
+
+type initFailureInitializer struct{ probe *initFailureBackend }
+
+func (i initFailureInitializer) New(filename string) (backend.Backend, error) {
+	var err error
+	i.probe.Backend, err = defaultOpts.Initializer.New(filename)
+	return i.probe, err
+}
+
+type initFailureBackend struct {
+	backend.Backend
+	phase          string
+	refusal        error
+	writes, closes int
+}
+
+func (b *initFailureBackend) ReadTransaction(fn func(backend.Transaction) error) error {
+	if b.phase == "before-read" {
+		return b.refusal
+	}
+	if err := b.Backend.ReadTransaction(fn); err != nil {
+		return err
+	}
+	if b.phase == "after-read" {
+		return b.refusal
+	}
+	return nil
+}
+
+func (b *initFailureBackend) Transaction(fn func(backend.Transaction) error) error {
+	b.writes++
+	return b.Backend.Transaction(func(tx backend.Transaction) error {
+		if err := fn(tx); err != nil {
+			return err
+		}
+		if b.phase == "missing-write" {
+			return b.refusal
+		}
+		return nil
+	})
+}
+
+func (b *initFailureBackend) Close() error {
+	b.closes++
+	return b.Backend.Close()
+}
+
+type initAddedRelationshipValue struct{ testStruct }
+
+func (v *initAddedRelationshipValue) GetRelationships() Relationships {
+	return append(v.testStruct.GetRelationships(), Relationship{})
+}
+
+func initTestBoltTxID(t *testing.T, filename string) int {
+	t.Helper()
+	db, err := boltDB.Open(filename, 0600, &boltDB.Options{ReadOnly: true, Timeout: time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var id int
+	if err := db.View(func(tx *boltDB.Tx) error { id = tx.ID(); return nil }); err != nil {
+		_ = db.Close()
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
+
+func TestFixtureStoresRemainIsolated(t *testing.T) {
+	survivor, err := testInit(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var retiredDir string
+	t.Run("independent", func(t *testing.T) {
+		retired, err := testInit(t)
+		if err != nil {
+			t.Fatal(err)
+		}
+		retiredDir = retired.opts.Dir
+		if retiredDir == survivor.opts.Dir {
+			t.Fatalf("independent fixtures share directory %q", retiredDir)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		results := make(chan error, 2)
+		for i, store := range []*Mojura[*testStruct]{survivor, retired} {
+			go func() {
+				value := makeTestStruct("user", "contact", "group", fmt.Sprintf("owner-%d", i))
+				results <- store.Transaction(ctx, func(tx *Transaction[*testStruct]) error {
+					created, err := tx.New(&value)
+					if err != nil {
+						return err
+					}
+					if created.ID != "00000000" {
+						return fmt.Errorf("fixture %d first ID=%q, want 00000000", i, created.ID)
+					}
+					got, err := tx.Get(created.ID)
+					if err != nil {
+						return err
+					}
+					return value.compare(got)
+				})
+			}()
+		}
+		for range 2 {
+			if err := <-results; err != nil {
+				t.Error(err)
+			}
+		}
+	})
+	if t.Failed() {
+		return
+	}
+	if _, err := os.Stat(retiredDir); !os.IsNotExist(err) {
+		t.Fatalf("retired fixture directory survived cleanup: %v", err)
+	}
+	got, err := survivor.Get("00000000")
+	if err != nil {
+		t.Fatalf("surviving fixture lost its record: %v", err)
+	}
+	if got.Value != "owner-0" {
+		t.Fatalf("surviving fixture record=%q, want owner-0", got.Value)
+	}
+}
+
+func TestMojuraTransactionCancellation(t *testing.T) {
+	for _, mode := range []string{"read", "write", "import"} {
+		for _, phase := range []string{"before", "after", "callback-error"} {
+			t.Run(mode+"/"+phase, func(t *testing.T) {
+				store := newBackfillTestStore(t)
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				if phase == "before" {
+					cancel()
+				}
+				called := false
+				callbackErr := stderrors.New("callback refused")
+				fn := func(tx *Transaction[*testStruct]) error {
+					called = true
+					if mode != "read" && phase != "before" {
+						value := makeTestStruct("user", "contact", "group", "cancelled")
+						if _, err := tx.Put("cancelled", &value); err != nil {
+							return err
+						}
+					}
+					cancel()
+					if phase == "callback-error" {
+						return callbackErr
+					}
+					return nil
+				}
+				var err error
+				switch mode {
+				case "read":
+					err = store.ReadTransaction(ctx, fn)
+				case "write":
+					err = store.Transaction(ctx, fn)
+				case "import":
+					err = store.importTransaction(ctx, fn)
+				}
+				want := error(context.Canceled)
+				if phase == "callback-error" {
+					want = callbackErr
+				}
+				if !stderrors.Is(err, want) || called != (phase != "before") {
+					t.Fatalf("err=%v want=%v called=%v", err, want, called)
+				}
+				if _, err := store.Get("cancelled"); !stderrors.Is(err, ErrEntryNotFound) {
+					t.Fatalf("cancelled write committed: %v", err)
+				}
+			})
+		}
+	}
+}
+
+func TestMojuraReadCancellationJoinsCallback(t *testing.T) {
+	store := newBackfillTestStore(t)
+	value := makeTestStruct("user", "contact", "group", "held")
+	if _, err := store.Put("held", &value); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	entered, release := make(chan struct{}), make(chan struct{})
+	callbackReturned := make(chan struct{})
+	store.db = callbackLifetimeBackend{Backend: store.db, returned: callbackReturned}
+	done := make(chan error, 1)
+	go func() {
+		done <- store.ReadTransaction(ctx, func(tx *Transaction[*testStruct]) error {
+			defer close(callbackReturned)
+			bkt, err := tx.getEntriesBucket()
+			if err != nil {
+				return err
+			}
+			close(entered)
+			<-release
+			// This view must remain usable until the callback returns, even after cancellation.
+			if len(bkt.Get([]byte("held"))) == 0 {
+				return fmt.Errorf("read view closed before callback returned")
+			}
+			return nil
+		})
+	}()
+	<-entered
+	cancel()
+	select {
+	case err := <-done:
+		close(release)
+		t.Fatalf("transaction returned before held callback: %v", err)
+	default:
+	}
+	close(release)
+	if err := <-done; !stderrors.Is(err, context.Canceled) {
+		t.Fatalf("held read cancellation: %v", err)
+	}
+}
+
+type callbackLifetimeBackend struct {
+	backend.Backend
+	returned <-chan struct{}
+}
+
+func (b callbackLifetimeBackend) ReadTransaction(fn func(backend.Transaction) error) error {
+	return b.Backend.ReadTransaction(func(tx backend.Transaction) error {
+		err := fn(tx)
+		select {
+		case <-b.returned:
+			return err
+		default:
+			return fmt.Errorf("backend view closing before user callback returned")
+		}
+	})
+}
+
+type transactionFailureBackend struct {
+	backend.Backend
+	phase    string
+	err      error
+	attempts *int
+}
+
+func (b transactionFailureBackend) Transaction(fn func(backend.Transaction) error) error {
+	*b.attempts++
+	if b.phase == "begin" {
+		return b.err
+	}
+	err := b.Backend.Transaction(func(tx backend.Transaction) error {
+		if err := fn(tx); err != nil {
+			if b.phase == "callback-replaced" {
+				return b.err
+			}
+			if b.phase == "callback-joined" {
+				return stderrors.Join(err, b.err)
+			}
+			return err
+		}
+		if b.phase == "rollback" {
+			return b.err
+		}
+		return nil
+	})
+	if err == nil && b.phase == "committed" {
+		return b.err
+	}
+	return err
+}
+
+func TestMojuraBatchReturnsOuterErrorsWithoutRetry(t *testing.T) {
+	for _, phase := range []string{"begin", "rollback", "committed", "callback-replaced", "callback-joined"} {
+		t.Run(phase, func(t *testing.T) {
+			store := newBackfillTestStore(t)
+			store.opts.RetryBatchFail = true
+			store.opts.MaxBatchDuration = time.Hour
+			failure := stderrors.New("outer transaction failed")
+			callbackFailure := stderrors.New("callback failed before outer error")
+			callbackFails := phase == "callback-replaced" || phase == "callback-joined"
+			attempts := 0
+			store.db = transactionFailureBackend{Backend: store.db, phase: phase, err: failure, attempts: &attempts}
+			var called [3]int
+			var results [3]chan error
+			for i := range results {
+				results[i] = store.b.Append(context.Background(), func(tx *Transaction[*testStruct]) error {
+					called[i]++
+					if callbackFails && i == 1 {
+						return callbackFailure
+					}
+					value := makeTestStruct("user", "contact", "group", phase)
+					_, err := tx.Put(fmt.Sprintf("outer-%d", i), &value)
+					return err
+				})
+			}
+			store.b.Run()
+			if attempts != 1 {
+				t.Errorf("outer failure retried %d transactions, want 1", attempts)
+			}
+			for i, result := range results {
+				if err := <-result; !stderrors.Is(err, failure) {
+					t.Errorf("call %d acknowledged outer failure: %v", i, err)
+				}
+				wantCalls := 1
+				if phase == "begin" || (callbackFails && i == 2) {
+					wantCalls = 0
+				}
+				if called[i] != wantCalls {
+					t.Errorf("call %d ran %d times, want %d", i, called[i], wantCalls)
+				}
+				_, err := store.Get(fmt.Sprintf("outer-%d", i))
+				if phase == "committed" && err != nil {
+					t.Errorf("ambiguous commit did not retain committed data: %v", err)
+				} else if phase != "committed" && !stderrors.Is(err, ErrEntryNotFound) {
+					t.Errorf("failed transaction retained record: %v", err)
+				}
+			}
+			store.opts.MaxBatchCalls = 1
+			err := store.Batch(context.Background(), func(*Transaction[*testStruct]) error {
+				if callbackFails {
+					return callbackFailure
+				}
+				return nil
+			})
+			if !stderrors.Is(err, failure) || attempts != 2 {
+				t.Fatalf("public Batch err=%v attempts=%d, want outer failure and one additional attempt", err, attempts)
+			}
+		})
+	}
+}
+
+type batchSliceError []string
+
+func (err batchSliceError) Error() string { return strings.Join(err, ": ") }
+
+func TestMojuraBatchPreservesNoncomparableCallbackError(t *testing.T) {
+	store := newBackfillTestStore(t)
+	store.opts.MaxBatchCalls = 1
+	want := batchSliceError{"original", "callback error"}
+	err := store.Batch(context.Background(), func(*Transaction[*testStruct]) error { return want })
+	got, ok := err.(batchSliceError)
+	if !ok || len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Fatalf("callback error replaced: %#v", err)
+	}
+}
+
+func TestMojuraBatchCancellationAndCallbackRetry(t *testing.T) {
+	for _, phase := range []string{"before", "after", "callback-error"} {
+		for _, retry := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/retry=%t", phase, retry), func(t *testing.T) {
+				store := newBackfillTestStore(t)
+				store.opts.RetryBatchFail = retry
+				store.opts.MaxBatchDuration = time.Hour
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				if phase == "before" {
+					cancel()
+				}
+				callbackErr := stderrors.New("batch callback refused")
+				var called [3]int
+				var results [3]chan error
+				for i := range results {
+					callCtx := context.Background()
+					if i == 1 {
+						callCtx = ctx
+					}
+					results[i] = store.b.Append(callCtx, func(tx *Transaction[*testStruct]) error {
+						called[i]++
+						value := makeTestStruct("user", "contact", "group", phase)
+						if _, err := tx.Put(fmt.Sprintf("batch-%d", i), &value); err != nil {
+							return err
+						}
+						if i == 1 {
+							cancel()
+							if phase == "callback-error" {
+								return callbackErr
+							}
+						}
+						return nil
+					})
+				}
+				store.b.Run()
+				for i, result := range results {
+					err := <-result
+					want := error(nil)
+					if i == 1 {
+						want = context.Canceled
+						if phase == "callback-error" {
+							want = callbackErr
+						}
+					}
+					if i == 0 && !retry {
+						if err == nil {
+							t.Error("failed group acknowledged unretried prefix")
+						}
+					} else if !stderrors.Is(err, want) {
+						t.Errorf("call %d err=%v want=%v", i, err, want)
+					}
+					wantCalls := 1
+					if i == 0 && retry {
+						wantCalls = 2
+					} else if i == 1 && phase == "before" {
+						wantCalls = 0
+					}
+					if called[i] != wantCalls {
+						t.Errorf("call %d count=%d want=%d", i, called[i], wantCalls)
+					}
+					_, readErr := store.Get(fmt.Sprintf("batch-%d", i))
+					if i == 1 || (i == 0 && !retry) {
+						if !stderrors.Is(readErr, ErrEntryNotFound) {
+							t.Errorf("failed call %d retained data: %v", i, readErr)
+						}
+					} else if readErr != nil {
+						t.Errorf("successful call %d missing: %v", i, readErr)
+					}
+				}
+			})
+		}
+	}
+}
+
+func TestMojuraBatchLimitReturnsResult(t *testing.T) {
+	store := newBackfillTestStore(t)
+	store.opts.MaxBatchCalls = 1
+	called := 0
+	fn := func(*Transaction[*testStruct]) error { called++; return nil }
+	result := store.b.Append(context.Background(), fn)
+	if result == nil {
+		t.Fatal("batch-limit flush returned nil channel; public Batch would wait forever")
+	}
+	if err := <-result; err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Batch(context.Background(), fn); err != nil {
+		t.Fatal(err)
+	}
+	if called != 2 {
+		t.Fatalf("callback count=%d want 2", called)
+	}
+}
+
+type observedDoneContext struct {
+	context.Context
+	observed atomic.Int64
+}
+
+func (c *observedDoneContext) Done() <-chan struct{} {
+	c.observed.Add(1)
+	return c.Context.Done()
+}
+
+func TestMojuraContextUpdatesDoNotStartWaiters(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		observed := &observedDoneContext{Context: ctx}
+		cc := newContextContainer(context.Background())
+		for range 8 {
+			cc.update(observed)
+		}
+		synctest.Wait()
+		if got := observed.observed.Load(); got != 0 {
+			t.Errorf("context updates started %d asynchronous waiters", got)
+		}
+		cancel()
+		synctest.Wait()
+	})
+}
 
 func TestNew(t *testing.T) {
 	var (
@@ -26,12 +761,10 @@ func TestNew(t *testing.T) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(t); err != nil {
 		testTeardown(c, t)
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(testDir)
-
 	if err = c.Close(); err != nil {
 		return
 	}
@@ -43,7 +776,7 @@ func TestMojura_New(t *testing.T) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(c, t)
@@ -61,12 +794,13 @@ func TestMojura_New(t *testing.T) {
 }
 
 func TestMojura_New_with_database_build(t *testing.T) {
+	testDir := t.TempDir()
 	var (
 		c   *Mojura[*testStruct]
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInitInDir(t, testDir); err != nil {
 		t.Fatal(err)
 	}
 
@@ -100,7 +834,7 @@ func TestMojura_New_with_database_build(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInitInDir(t, testDir); err != nil {
 		t.Fatalf("error initializing: %v", err)
 	}
 	defer testTeardown(c, t)
@@ -115,12 +849,13 @@ func TestMojura_New_with_database_build(t *testing.T) {
 }
 
 func TestMojura_New_with_history_build(t *testing.T) {
+	testDir := t.TempDir()
 	var (
 		c   *Mojura[*testStruct]
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInitInDir(t, testDir); err != nil {
 		t.Fatal(err)
 	}
 
@@ -140,7 +875,7 @@ func TestMojura_New_with_history_build(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInitInDir(t, testDir); err != nil {
 		t.Fatalf("error initializing: %v", err)
 	}
 	defer testTeardown(c, t)
@@ -156,12 +891,13 @@ func TestMojura_New_with_history_build(t *testing.T) {
 }
 
 func TestMojura_New_with_history_and_database_build(t *testing.T) {
+	testDir := t.TempDir()
 	var (
 		c   *Mojura[*testStruct]
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInitInDir(t, testDir); err != nil {
 		t.Fatal(err)
 	}
 
@@ -186,7 +922,7 @@ func TestMojura_New_with_history_and_database_build(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInitInDir(t, testDir); err != nil {
 		t.Fatalf("error initializing: %v", err)
 	}
 
@@ -204,7 +940,7 @@ func TestMojura_New_with_history_and_database_build(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInitInDir(t, testDir); err != nil {
 		t.Fatalf("error initializing: %v", err)
 	}
 	defer testTeardown(c, t)
@@ -225,7 +961,7 @@ func TestMojura_Put(t *testing.T) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(c, t)
@@ -285,7 +1021,7 @@ func TestMojura_New_indexing(t *testing.T) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(c, t)
@@ -333,7 +1069,7 @@ func TestMojura_Get(t *testing.T) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(c, t)
@@ -371,7 +1107,7 @@ func TestMojura_Get_context(t *testing.T) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(c, t)
@@ -423,7 +1159,7 @@ func TestMojura_GetFiltered_many_to_many(t *testing.T) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(c, t)
@@ -563,7 +1299,7 @@ func TestMojura_GetFilteredIDs_many_to_many(t *testing.T) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(c, t)
@@ -703,7 +1439,7 @@ func TestMojura_GetFiltered_seek(t *testing.T) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(c, t)
@@ -770,7 +1506,7 @@ func TestMojura_GetFilteredIDs_seek(t *testing.T) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(c, t)
@@ -837,7 +1573,7 @@ func TestMojura_AppendFiltered(t *testing.T) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(c, t)
@@ -929,7 +1665,7 @@ func TestMojura_AppendFilteredIDs(t *testing.T) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(c, t)
@@ -1021,7 +1757,7 @@ func TestMojura_Update(t *testing.T) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(c, t)
@@ -1064,7 +1800,7 @@ func TestMojura_ForEach(t *testing.T) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(c, t)
@@ -1105,7 +1841,7 @@ func TestMojura_ForEach_with_filter(t *testing.T) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(c, t)
@@ -1154,7 +1890,7 @@ func TestMojura_ForEach_with_multiple_filters(t *testing.T) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(c, t)
@@ -1292,7 +2028,7 @@ func TestMojura_GetFirst_with_multiple_filters(t *testing.T) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(c, t)
@@ -1436,7 +2172,7 @@ func TestMojura_GetLast_with_multiple_filters(t *testing.T) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(c, t)
@@ -1580,7 +2316,7 @@ func TestMojura_Cursor(t *testing.T) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(c, t)
@@ -1629,7 +2365,7 @@ func TestMojura_Cursor_First(t *testing.T) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(c, t)
@@ -1672,7 +2408,7 @@ func TestMojura_Cursor_Last(t *testing.T) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(c, t)
@@ -1715,7 +2451,7 @@ func TestMojura_Cursor_Seek(t *testing.T) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(c, t)
@@ -1758,7 +2494,7 @@ func TestMojura_Batch(t *testing.T) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(c, t)
@@ -1792,12 +2528,13 @@ func TestMojura_Batch(t *testing.T) {
 }
 
 func TestMojura_index_increment_persist(t *testing.T) {
+	testDir := t.TempDir()
 	var (
 		c   *Mojura[*testStruct]
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInitInDir(t, testDir); err != nil {
 		testTeardown(c, t)
 		t.Fatal(err)
 	}
@@ -1815,7 +2552,7 @@ func TestMojura_index_increment_persist(t *testing.T) {
 		t.Fatalf("error closing Mojura: %v", err)
 	}
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInitInDir(t, testDir); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(c, t)
@@ -1839,7 +2576,7 @@ func TestMojura_Reindex(t *testing.T) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(t); err != nil {
 		testTeardown(c, t)
 		t.Fatal(err)
 	}
@@ -1926,7 +2663,7 @@ func benchmarkMojuraNew(b *testing.B, threads int) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(b); err != nil {
 		b.Fatal(err)
 	}
 	defer testTeardown(c, b)
@@ -1951,7 +2688,7 @@ func benchmarkMojuraBatch(b *testing.B, threads int) {
 		err error
 	)
 
-	if c, err = testInit(); err != nil {
+	if c, err = testInit(b); err != nil {
 		b.Fatal(err)
 	}
 	defer testTeardown(c, b)
@@ -2104,7 +2841,13 @@ func ExampleMojura_Delete() {
 	fmt.Printf("Removed entry %+v!\n", removed)
 }
 
-func testInit() (c *Mojura[*testStruct], err error) {
+func testInit(t testing.TB) (*Mojura[*testStruct], error) {
+	t.Helper()
+	return testInitInDir(t, t.TempDir())
+}
+
+func testInitInDir(t testing.TB, testDir string) (c *Mojura[*testStruct], err error) {
+	t.Helper()
 	if err = os.MkdirAll(testDir, 0744); err != nil {
 		return
 	}
@@ -2114,19 +2857,23 @@ func testInit() (c *Mojura[*testStruct], err error) {
 		return
 	}
 
-	return New[*testStruct](opts, "users", "contacts", "groups", "tags")
+	c, err = New[*testStruct](opts, "users", "contacts", "groups", "tags")
+	if err == nil {
+		t.Cleanup(func() {
+			if err := c.Close(); err != nil && !stderrors.Is(err, errors.ErrIsClosed) {
+				t.Error(err)
+			}
+		})
+	}
+	return
 }
 
-func testTeardown(c *Mojura[*testStruct], t interface{ Fatal(...interface{}) }) {
-	var errs errors.ErrorList
+func testTeardown(c *Mojura[*testStruct], t testing.TB) {
+	t.Helper()
 	if c != nil {
-		errs.Push(c.Close())
-	}
-
-	errs.Push(os.RemoveAll(testDir))
-
-	if err := errs.Err(); err != nil {
-		t.Fatal(err)
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 

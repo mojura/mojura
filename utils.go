@@ -152,14 +152,6 @@ func (n *nopBlockWriter) Meta() (m kiroku.Meta) {
 	return
 }
 
-func closeSema(c chan struct{}) {
-	if c == nil {
-		return
-	}
-
-	close(c)
-}
-
 type UpdateFn[T Value] func(T) error
 
 type editFn[T Value] func(T) (T, error)

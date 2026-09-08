@@ -14,7 +14,7 @@ func Test_inverseMatchCursor_SeekForward(t *testing.T) {
 		err error
 	)
 
-	if m, err = testInit(); err != nil {
+	if m, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(m, t)
@@ -103,7 +103,7 @@ func Test_inverseMatchCursor_SeekReverse(t *testing.T) {
 		err error
 	)
 
-	if m, err = testInit(); err != nil {
+	if m, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(m, t)
@@ -192,7 +192,7 @@ func Test_inverseMatchCursor_First(t *testing.T) {
 		err error
 	)
 
-	if m, err = testInit(); err != nil {
+	if m, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(m, t)
@@ -276,7 +276,7 @@ func Test_inverseMatchCursor_Next(t *testing.T) {
 		err error
 	)
 
-	if m, err = testInit(); err != nil {
+	if m, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(m, t)
@@ -376,7 +376,7 @@ func Test_inverseMatchCursor_Prev(t *testing.T) {
 		err error
 	)
 
-	if m, err = testInit(); err != nil {
+	if m, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(m, t)
@@ -476,7 +476,7 @@ func Test_inverseMatchCursor_Last(t *testing.T) {
 		err error
 	)
 
-	if m, err = testInit(); err != nil {
+	if m, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(m, t)
@@ -577,7 +577,7 @@ func Test_inverseMatchCursor_ForEach(t *testing.T) {
 		err error
 	)
 
-	if m, err = testInit(); err != nil {
+	if m, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(m, t)
@@ -751,7 +751,7 @@ func testInverseMatchCursor(t *testing.T, fn func(*Transaction[*testStruct]) err
 		err error
 	)
 
-	if m, err = testInit(); err != nil {
+	if m, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(m, t)

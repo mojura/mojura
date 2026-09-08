@@ -24,14 +24,27 @@ type batcher[T Value] struct {
 	calls []call[T]
 }
 
+type batchCallbackFailure struct {
+	err error
+}
+
+func (e *batchCallbackFailure) Error() string { return e.err.Error() }
+func (e *batchCallbackFailure) Unwrap() error { return e.err }
+
 func (b *batcher[T]) performCalls(txn *Transaction[T], cs calls[T]) (failIndex int, err error) {
 	failIndex = -1
 	for i, c := range cs {
 		// Update transaction context
 		txn.cc.update(c.ctx)
+		if err = txn.cc.isDone(); err != nil {
+			return i, err
+		}
 
 		// Pass call func to recoverCall
-		if err = recoverCall(txn, c.fn); err != nil {
+		if err = recoverCall(txn, c.fn); err == nil {
+			err = txn.cc.isDone()
+		}
+		if err != nil {
 			failIndex = i
 			return
 		}
@@ -60,21 +73,29 @@ func (b *batcher[T]) run(cs calls[T]) {
 		return
 	}
 
-	var failIndex int
+	failIndex := -1
+	var callbackFailure *batchCallbackFailure
 	err := b.m.Transaction(context.Background(), func(txn *Transaction[T]) (err error) {
 		failIndex, err = b.performCalls(txn, cs)
+		if err != nil {
+			callbackFailure = &batchCallbackFailure{err: err}
+			err = callbackFailure
+		}
 		return
 	})
 
-	if err == errors.ErrIsClosed {
+	// Retry only an unchanged callback failure, never an outer begin/commit error or a joined error.
+	if callbackFailure == nil || err != callbackFailure {
+		if err == nil && callbackFailure != nil {
+			err = callbackFailure.err
+		}
 		cs.notifyAll(err)
 		return
 	}
 
-	// Check to see if we had no failures in our batch
-	if failIndex == -1 {
-		// We successfully batched our list of calls without error, notify all calls of nil error status
-		cs.notifyAll(nil)
+	err = callbackFailure.err
+	if err == errors.ErrIsClosed {
+		cs.notifyAll(err)
 		return
 	}
 
@@ -134,7 +155,7 @@ func (b *batcher[T]) Append(ctx context.Context, fn TransactionFn[T]) (errC chan
 	if len(b.calls) >= b.m.opts.MaxBatchCalls {
 		// Since we've matched or exceeded our MaxBatchCalls, manually flush the calls buffer and return
 		b.flush()
-		return
+		return c.errC
 	}
 
 	if b.timer == nil {

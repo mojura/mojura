@@ -14,7 +14,7 @@ func Test_baseComparisonCursor_SeekForward(t *testing.T) {
 		err error
 	)
 
-	if m, err = testInit(); err != nil {
+	if m, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(m, t)
@@ -121,7 +121,7 @@ func Test_baseComparisonCursor_SeekReverse(t *testing.T) {
 		err error
 	)
 
-	if m, err = testInit(); err != nil {
+	if m, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(m, t)
@@ -223,7 +223,7 @@ func Test_baseComparisonCursor_First(t *testing.T) {
 		err error
 	)
 
-	if m, err = testInit(); err != nil {
+	if m, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(m, t)
@@ -305,7 +305,7 @@ func Test_baseComparisonCursor_First_with_deletion(t *testing.T) {
 		err error
 	)
 
-	if m, err = testInit(); err != nil {
+	if m, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(m, t)
@@ -391,7 +391,7 @@ func Test_baseComparisonCursor_Next(t *testing.T) {
 		err error
 	)
 
-	if m, err = testInit(); err != nil {
+	if m, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(m, t)
@@ -519,7 +519,7 @@ func Test_baseComparisonCursor_Prev(t *testing.T) {
 		err error
 	)
 
-	if m, err = testInit(); err != nil {
+	if m, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(m, t)
@@ -625,7 +625,7 @@ func Test_baseComparisonCursor_Last(t *testing.T) {
 		err error
 	)
 
-	if m, err = testInit(); err != nil {
+	if m, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(m, t)
@@ -714,7 +714,7 @@ func Test_baseComparisonCursor_Last_with_deletion(t *testing.T) {
 		err error
 	)
 
-	if m, err = testInit(); err != nil {
+	if m, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(m, t)
@@ -928,7 +928,7 @@ func testBaseComparisonCursor(t *testing.T, fn func(*Transaction[*testStruct]) e
 		err error
 	)
 
-	if m, err = testInit(); err != nil {
+	if m, err = testInit(t); err != nil {
 		t.Fatal(err)
 	}
 	defer testTeardown(m, t)

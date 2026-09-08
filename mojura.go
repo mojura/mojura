@@ -129,32 +129,33 @@ func (m *Mojura[T]) init(relationships []string) (err error) {
 	// Set relationships
 	m.relationships = getRelationshipsAsBytes(relationships)
 
-	if err = m.db.Transaction(func(txn backend.Transaction) (err error) {
-		if _, err = txn.GetOrCreateBucket(entriesBktKey); err != nil {
-			return
-		}
-
-		if _, err = txn.GetOrCreateBucket(lookupsBktKey); err != nil {
-			return
-		}
-
-		if _, err = txn.GetOrCreateBucket(metaBktKey); err != nil {
-			return
-		}
-
-		var relationshipsBkt backend.Bucket
-		if relationshipsBkt, err = txn.GetOrCreateBucket(relationshipsBktKey); err != nil {
-			return
-		}
-
-		for _, relationship := range m.relationships {
-			if _, err = relationshipsBkt.GetOrCreateBucket(relationship); err != nil {
-				return
+	// Even a no-op writable transaction commits backend pages on reopen.
+	var initialized bool
+	err = m.db.ReadTransaction(func(txn backend.Transaction) error {
+		for _, key := range [][]byte{entriesBktKey, lookupsBktKey, metaBktKey} {
+			if txn.GetBucket(key) == nil {
+				return nil
 			}
 		}
-
-		return
-	}); err != nil {
+		relationshipsBkt := txn.GetBucket(relationshipsBktKey)
+		if relationshipsBkt == nil {
+			return nil
+		}
+		for _, relationship := range m.relationships {
+			if relationshipsBkt.GetBucket(relationship) == nil {
+				return nil
+			}
+		}
+		initialized = true
+		return nil
+	})
+	if err == nil && !initialized {
+		err = m.db.Transaction(m.initBuckets)
+	}
+	if err != nil {
+		if closeErr := m.db.Close(); closeErr != nil {
+			err = fmt.Errorf("%w (closing db: %v)", err, closeErr)
+		}
 		return
 	}
 
@@ -383,6 +384,9 @@ func (m *Mojura[T]) transaction(fn func(backend.Transaction, *kiroku.Transaction
 
 func (m *Mojura[T]) runTransaction(ctx context.Context, txn backend.Transaction, bw action.BlockWriter, fn TransactionFn[T]) (t Transaction[T], err error) {
 	t = newTransaction(ctx, m, txn, bw)
+	if err = t.cc.isDone(); err != nil {
+		return
+	}
 	if bw != nil {
 		// We only need to load meta for write transactions
 		if err = t.loadMeta(); err != nil {
@@ -394,23 +398,9 @@ func (m *Mojura[T]) runTransaction(ctx context.Context, txn backend.Transaction,
 			}
 		}()
 	}
-	errCh := make(chan error)
-
-	// Call function from within goroutine
-	go func() {
-		// Pass returning error to error channel
-		errCh <- fn(&t)
-	}()
-
-	select {
-	case err = <-errCh:
-	case <-t.cc.Done():
-		// Context is done, attempt to set error from Context
-		if err = t.cc.Err(); err != nil {
-			return
-		}
-
-		err = ErrContextCancelled
+	// The backend view and journal writer must outlive the entire callback.
+	if err = fn(&t); err == nil {
+		err = t.cc.isDone()
 	}
 
 	return

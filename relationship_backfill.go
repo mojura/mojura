@@ -22,12 +22,19 @@ type RelationshipBackfillPage struct {
 // BackfillRelationship adds one relationship index in a bounded transaction.
 // Existing entries and unrelated relationship indexes are left untouched.
 func (m *Mojura[T]) BackfillRelationship(ctx context.Context, relationship, afterID string, limit int) (page RelationshipBackfillPage, err error) {
+	m.mux.RLock()
+	defer m.mux.RUnlock()
+
 	relationship = strings.TrimSpace(relationship)
 	afterID = strings.TrimSpace(afterID)
 	page = RelationshipBackfillPage{
 		Relationship: relationship,
 		AfterID:      afterID,
 		LastID:       afterID,
+	}
+	if m.opts.IsMirror {
+		err = ErrMirrorCannotPerformWriteActions
+		return
 	}
 	if err = ctx.Err(); err != nil {
 		return
@@ -52,8 +59,7 @@ func (m *Mojura[T]) BackfillRelationship(ctx context.Context, relationship, afte
 		return
 	}
 
-	err = m.db.Transaction(func(backendTxn backend.Transaction) error {
-		txn := newTransaction(ctx, m, backendTxn, nil)
+	backfill := func(txn *Transaction[T]) error {
 		entries, getErr := txn.getEntriesBucket()
 		if getErr != nil {
 			return getErr
@@ -90,6 +96,11 @@ func (m *Mojura[T]) BackfillRelationship(ctx context.Context, relationship, afte
 		}
 		page.Done = entryID == nil
 		return nil
+	}
+	err = m.db.Transaction(func(backendTxn backend.Transaction) error {
+		txn, runErr := m.runTransaction(ctx, backendTxn, nil, backfill)
+		defer txn.teardown()
+		return runErr
 	})
 	if err != nil {
 		page.LastID = afterID
