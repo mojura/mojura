@@ -42,7 +42,9 @@ func GreaterThanOrEqualTo(relationshipKey, greaterThanOrEqualTo string) *Compari
 	return ComparisonWithRange(relationshipKey, greaterThanOrEqualTo, "", fn)
 }
 
-// Range is an alias func for range comparison
+// Range configures inclusive lexical bounds with an always-true predicate.
+// Current Mojura cursor boundary defects can return values outside these bounds;
+// use Comparison with an explicit predicate when strict bounds are required.
 func Range(relationshipKey, rangeStart, rangeEnd string) *ComparisonFilter {
 	return ComparisonWithRange(relationshipKey, rangeStart, rangeEnd, nopComparisonFn)
 }

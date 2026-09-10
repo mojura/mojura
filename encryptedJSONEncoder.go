@@ -12,12 +12,9 @@ import (
 
 var _ Encoder = &EncryptedJSONEncoder{} // compile-time check that EncryptedJSONEncoder satisfies Encoder
 
-// MakeEncryptedJSONEncoder constructs an EncryptedJSONEncoder by value.
-//
-// The provided key must be exactly 16, 24, or 32 bytes long — corresponding
-// to AES-128, AES-192, or AES-256 respectively. Any other key length will
-// cause this function to return an error, ensuring that encryption behavior
-// is always explicit and predictable.
+// NewEncryptedJSONEncoder constructs an AES-GCM encoder for JSON entry payloads.
+// key must contain exactly 16, 24, or 32 raw bytes; it is not decoded or derived.
+// On error, the returned encoder must not be used.
 func NewEncryptedJSONEncoder(key string) (out *EncryptedJSONEncoder, err error) {
 	var enc EncryptedJSONEncoder
 	// Validate key length against the three AES block cipher key sizes.
@@ -34,14 +31,15 @@ func NewEncryptedJSONEncoder(key string) (out *EncryptedJSONEncoder, err error) 
 	}
 }
 
-// EncryptedJSONEncoderJSONEncoder represents an encrypted JSON encoder
+// EncryptedJSONEncoder encrypts JSON entry payloads using AES-GCM.
+// It does not encrypt relationship keys, entry IDs, or database/history metadata.
 type EncryptedJSONEncoder struct {
 	// key is the encryption and decryption key
 	// Must be 16, 24, or 32 bytes long for AES-128/192/256
 	key []byte
 }
 
-// Marshal is an encoding helper method
+// Marshal encodes value as JSON and prepends a random nonce to AES-GCM ciphertext.
 func (e *EncryptedJSONEncoder) Marshal(value any) (bs []byte, err error) {
 	// Marshal the Go value into JSON first
 	var marshalled []byte
@@ -53,7 +51,9 @@ func (e *EncryptedJSONEncoder) Marshal(value any) (bs []byte, err error) {
 	return e.encrypt(marshalled)
 }
 
-// Unmarshal is a decoding helper method
+// Unmarshal decrypts bs and decodes JSON into val. If decryption fails, it accepts
+// valid plaintext JSON for compatibility. Inputs shorter than the nonce can
+// currently panic before fallback because decrypt does not check their length.
 func (e *EncryptedJSONEncoder) Unmarshal(bs []byte, val any) (err error) {
 	// Declare local vars for decrypted data and collected errors
 	var (

@@ -19,23 +19,24 @@ import (
 const (
 	// ErrNotInitialized is returned when a service has not been properly initialized
 	ErrNotInitialized = errors.Error("service has not been properly initialized")
-	// ErrRelationshipNotFound is returned when an relationship is not available for the given relationship key
+	// ErrRelationshipNotFound is returned when an index key is not available.
 	ErrRelationshipNotFound = errors.Error("relationship was not found")
 	// ErrEntryNotFound is returned when an entry is not available for the given ID
 	ErrEntryNotFound = errors.Error("entry was not found")
-	// ErrEndOfEntries is returned when a cursor has reached the end of entries
+	// ErrEndOfEntries is a legacy sentinel. Current cursors return Break on exhaustion.
 	ErrEndOfEntries = errors.Error("end of entries")
-	// ErrInvalidNumberOfRelationships is returned when an invalid number of relationships is provided in a New call
+	// ErrInvalidNumberOfRelationships reports a mismatch between constructor keys and zero-value relationship slots.
 	ErrInvalidNumberOfRelationships = errors.Error("invalid number of relationships")
-	// ErrInvalidType is returned when a type which does not match the generator is provided
+	// ErrInvalidType is a legacy sentinel with no current return path.
 	ErrInvalidType = errors.Error("invalid type encountered, please check generators")
-	// ErrInvalidEntries is returned when a non-slice is presented to GetByRelationship
+	// ErrInvalidEntries is a legacy sentinel from the removed GetByRelationship API.
 	ErrInvalidEntries = errors.Error("invalid entries, slice expected")
-	// ErrEmptyFilters is returned when relationship pairs are empty for a filter or joined request
+	// ErrEmptyFilters is returned by internal multi-cursor construction for an empty filter list.
+	// Public queries with no filters use an unfiltered cursor instead.
 	ErrEmptyFilters = errors.Error("invalid relationship pairs, cannot be empty")
 	// ErrContextCancelled is returned when a transaction ends early from context
 	ErrContextCancelled = errors.Error("context cancelled")
-	// ErrInvalidBlockWriter is called when NextIndex is called on a nopBlockWriters
+	// ErrInvalidBlockWriter is a legacy sentinel with no current return path.
 	ErrInvalidBlockWriter = errors.Error("invalid block writer, cannot be used for the requested action")
 	// ErrEmptyEntryID is returned when an entry ID is empty
 	ErrEmptyEntryID = errors.Error("invalid entry ID, cannot be empty")
@@ -52,7 +53,11 @@ var (
 	metaBktKey          = []byte("meta")
 )
 
-// New will return a new instance of Mojura
+// New opens a database for T with positional relationship index keys.
+// It fills and validates opts and checks the relationship count on a fresh T.
+// Prefer a concrete pointer type embedding Entry by value. Create opts.Dir before
+// calling New with the default backend. Close the database after successful use.
+// Initialization failures do not consistently clean up previously opened resources.
 func New[T Value](opts Opts, relationships ...string) (mp *Mojura[T], err error) {
 	var m Mojura[T]
 	if m, err = makeMojura[T](opts, relationships); err != nil {
@@ -97,7 +102,7 @@ func makeMojura[T Value](opts Opts, relationships []string) (m Mojura[T], err er
 	return
 }
 
-// Mojura is the DB manager
+// Mojura stores typed values, relationship indexes, and Kiroku history.
 type Mojura[T Value] struct {
 	// Closed state mutex
 	mux sync.RWMutex
@@ -347,7 +352,7 @@ func (m *Mojura[T]) importReader(txn *Transaction[T], t kiroku.Type, r *kiroku.R
 	var sw stopwatch.Stopwatch
 	sw.Start()
 	if t == kiroku.TypeSnapshot {
-		// Snapshot occurred, purge DB and perform a full sync
+		// Snapshot import resets indexes and metadata; purge currently retains entries.
 		if err = m.purge(txn.txn); err != nil {
 			return
 		}
@@ -468,7 +473,9 @@ func (m *Mojura[T]) reindex(txn *Transaction[T]) (err error) {
 	return txn.ForEach(fn, nil)
 }
 
-// New will insert a new entry with the given value and the associated relationships
+// New assigns the next generated ID and stores val and its relationship indexes.
+// It mutates val's ID and timestamps. Explicit IDs written with Put do not advance
+// the counter and can be overwritten by later generated IDs.
 func (m *Mojura[T]) New(val T) (created T, err error) {
 	if m.opts.IsMirror {
 		err = ErrMirrorCannotPerformWriteActions
@@ -483,7 +490,7 @@ func (m *Mojura[T]) New(val T) (created T, err error) {
 	return
 }
 
-// Exists will notiy if an entry exists for a given entry ID
+// Exists reports whether an entry is stored at entryID.
 func (m *Mojura[T]) Exists(entryID string) (exists bool, err error) {
 	err = m.ReadTransaction(context.Background(), func(txn *Transaction[T]) (err error) {
 		exists, err = txn.exists([]byte(entryID))
@@ -544,7 +551,7 @@ func (m *Mojura[T]) AppendFilteredIDs(in []string, o *FilteringOpts) (filtered [
 }
 
 // GetFirst will attempt to get the first entry which matches the provided filters
-// Note: Will return ErrEntryNotFound if no match is found
+// The options must be non-nil. It returns ErrEntryNotFound if no match is found.
 func (m *Mojura[T]) GetFirst(o *FilteringOpts) (val T, err error) {
 	if err = m.ReadTransaction(context.Background(), func(txn *Transaction[T]) (err error) {
 		val, err = txn.getFirst(o)
@@ -557,7 +564,7 @@ func (m *Mojura[T]) GetFirst(o *FilteringOpts) (val T, err error) {
 }
 
 // GetLast will attempt to get the last entry which matches the provided filters
-// Note: Will return ErrEntryNotFound if no match is found
+// The options must be non-nil. It returns ErrEntryNotFound if no match is found.
 func (m *Mojura[T]) GetLast(o *FilteringOpts) (val T, err error) {
 	if err = m.ReadTransaction(context.Background(), func(txn *Transaction[T]) (err error) {
 		val, err = txn.getLast(o)
@@ -603,9 +610,9 @@ func (m *Mojura[T]) Cursor(fn func(Cursor[T]) error, fs ...Filter) (err error) {
 	return
 }
 
-// Put will place an entry at a given entry ID
-// Note: This will not check to see if the entry exists beforehand. If this functionality
-// is needed, look into using the Edit method
+// Put inserts or replaces val at entryID and updates its relationship indexes.
+// It mutates val's ID/timestamps and does not advance the generated-ID counter.
+// Use Update when the entry must already exist.
 func (m *Mojura[T]) Put(entryID string, val T) (updated T, err error) {
 	if m.opts.IsMirror {
 		err = ErrMirrorCannotPerformWriteActions
@@ -635,7 +642,7 @@ func (m *Mojura[T]) Update(entryID string, fn UpdateFn[T]) (updated T, err error
 	return
 }
 
-// Delete will remove an entry and it's related relationship IDs
+// Delete removes an existing entry and its relationship memberships.
 func (m *Mojura[T]) Delete(entryID string) (deleted T, err error) {
 	if m.opts.IsMirror {
 		err = ErrMirrorCannotPerformWriteActions
@@ -650,7 +657,11 @@ func (m *Mojura[T]) Delete(entryID string) (deleted T, err error) {
 	return
 }
 
-// Transaction will initialize a transaction
+// Transaction runs fn in a backend write transaction with Kiroku history recording.
+// Return operation errors from fn to abort the backend transaction. Use only the
+// supplied transaction inside fn; it must not escape or be shared by goroutines.
+// Operations check ctx, but cancellation does not interrupt an arbitrary callback.
+// Backend and history commits are separate and are not crash-atomic together.
 func (m *Mojura[T]) Transaction(ctx context.Context, fn func(*Transaction[T]) error) (err error) {
 	m.mux.RLock()
 	defer m.mux.RUnlock()
@@ -667,7 +678,9 @@ func (m *Mojura[T]) Transaction(ctx context.Context, fn func(*Transaction[T]) er
 	return
 }
 
-// ReadTransaction will initialize a read-only transaction
+// ReadTransaction runs fn with a read-only backend transaction.
+// Use the transaction only during fn. Context checks occur during operations;
+// cancellation does not interrupt arbitrary callback code.
 func (m *Mojura[T]) ReadTransaction(ctx context.Context, fn func(*Transaction[T]) error) (err error) {
 	m.mux.RLock()
 	defer m.mux.RUnlock()
@@ -681,7 +694,10 @@ func (m *Mojura[T]) ReadTransaction(ctx context.Context, fn func(*Transaction[T]
 	return
 }
 
-// Batch will initialize a batch
+// Batch groups concurrent callbacks into a write transaction.
+// Callbacks may be repeated when RetryBatchFail is enabled.
+// Known limitation: a size-triggered flush returns a nil completion channel and
+// blocks its caller. Commit errors can also be lost; prefer Transaction until fixed.
 func (m *Mojura[T]) Batch(ctx context.Context, fn func(*Transaction[T]) error) (err error) {
 	if m.opts.IsMirror {
 		err = ErrMirrorCannotPerformWriteActions
@@ -691,7 +707,8 @@ func (m *Mojura[T]) Batch(ctx context.Context, fn func(*Transaction[T]) error) (
 	return <-m.b.Append(ctx, fn)
 }
 
-// Snapshot will create a snapshot of the database in it's current state
+// Snapshot writes stored entry bytes to a Kiroku snapshot on a primary.
+// Export to Source is handled by Kiroku and may complete after this call returns.
 func (m *Mojura[T]) Snapshot(ctx context.Context) (err error) {
 	if m.opts.IsMirror {
 		err = ErrMirrorCannotPerformWriteActions
@@ -706,7 +723,8 @@ func (m *Mojura[T]) Snapshot(ctx context.Context) (err error) {
 	return
 }
 
-// Reindex will reindex the relationships
+// Reindex deletes and rebuilds all relationship indexes in one backend write
+// transaction. It does not rewrite entries or history and is unavailable on mirrors.
 func (m *Mojura[T]) Reindex(ctx context.Context) (err error) {
 	if m.opts.IsMirror {
 		err = ErrMirrorCannotPerformWriteActions
@@ -721,7 +739,9 @@ func (m *Mojura[T]) Reindex(ctx context.Context) (err error) {
 	return
 }
 
-// Close will close the selected instance of Mojura
+// Close closes the backend, then the Kiroku producer or consumer.
+// It does not drain pending batches; callers must coordinate shutdown with work.
+// A second call returns github.com/gdbu/errors.ErrIsClosed.
 func (m *Mojura[T]) Close() (err error) {
 	m.mux.Lock()
 	defer m.mux.Unlock()

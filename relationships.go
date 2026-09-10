@@ -2,15 +2,15 @@ package mojura
 
 import "fmt"
 
-// Relationships help to store the relationships for an Entry
+// Relationships contains one positional slot per key passed to New.
 type Relationships []Relationship
 
-// Append will append a set of relationship IDs for a given relationship
+// Append adds one relationship slot containing the supplied IDs, including an empty slot.
 func (r *Relationships) Append(relationshipIDs ...string) {
 	*r = append(*r, relationshipIDs)
 }
 
-// Relationship help to store the IDs for an Entry's relationship
+// Relationship contains the indexed IDs for one relationship key.
 type Relationship []string
 
 // Has will note if a relationship has a particular relationship ID

@@ -10,13 +10,15 @@ func Match(relationshipKey, relationshipID string) *MatchFilter {
 
 // MatchFilter will match against a relationship key and relationship ID
 type MatchFilter struct {
-	// Relationship represents the relationship to target
+	// RelationshipKey names the index to target.
 	RelationshipKey string `json:"relationshipKey"`
-	// RelationshipID represents the ID of the corasponding relationship
+	// RelationshipID is the indexed membership value.
 	RelationshipID string `json:"relationshipID"`
 }
 
-// InverseMatch creates a new inverse match filter
+// InverseMatch creates an inverse membership filter. As a primary filter, Mojura
+// scans other relationship-ID buckets; as a secondary filter, it rejects entries
+// in the excluded bucket. Results can differ for absent or multiple memberships.
 func InverseMatch(relationshipKey, relationshipID string) *InverseMatchFilter {
 	var m InverseMatchFilter
 	m.RelationshipKey = relationshipKey
@@ -26,8 +28,8 @@ func InverseMatch(relationshipKey, relationshipID string) *InverseMatchFilter {
 
 // InverseMatchFilter will inverse match against a relationship key and relationship ID
 type InverseMatchFilter struct {
-	// Relationship represents the relationship to target
+	// RelationshipKey names the index to target.
 	RelationshipKey string `json:"relationshipKey"`
-	// RelationshipID represents the ID of the corasponding relationship
+	// RelationshipID is the indexed membership value.
 	RelationshipID string `json:"relationshipID"`
 }
