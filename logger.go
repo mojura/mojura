@@ -6,10 +6,12 @@ import (
 	"sync"
 )
 
+// NewLogger returns a Logger that serializes formatted output to the standard logger.
 func NewLogger() Logger {
 	return &logger{}
 }
 
+// Logger receives messages and printf-style formatting arguments.
 type Logger interface {
 	Info(msg string, args ...any)
 	Warn(msg string, args ...any)

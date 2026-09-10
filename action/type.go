@@ -7,7 +7,7 @@ const (
 	TypeUnset Type = iota
 	// TypeWrite represents a write action block
 	TypeWrite
-	// TypeDelete represets a delete action block
+	// TypeDelete represents a delete action block.
 	TypeDelete
 	// TypeComment represents a comment block
 	TypeComment
@@ -15,7 +15,7 @@ const (
 
 const invalidactiontypeLayout = "invalid type, <%d> is not supported"
 
-// actiontype represents a block type
+// Type identifies a history action kind.
 type Type uint8
 
 // Validate will ensure a type is valid
@@ -33,7 +33,7 @@ func (t Type) Validate() (err error) {
 	return
 }
 
-// Validate will ensure a type is valid
+// String returns the action name, or "invalid" for unknown types.
 func (t Type) String() string {
 	switch t {
 	case TypeUnset:

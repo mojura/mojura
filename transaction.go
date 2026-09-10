@@ -20,7 +20,8 @@ func newTransaction[T Value](ctx context.Context, m *Mojura[T], txn backend.Tran
 	return
 }
 
-// Transaction manages a DB transaction
+// Transaction provides operations within a Mojura transaction callback.
+// It and its cursors must not escape the callback or be used concurrently.
 type Transaction[T Value] struct {
 	m *Mojura[T]
 
@@ -287,8 +288,7 @@ func (t *Transaction[T]) updateRelationships(entryID []byte, orig, new Relations
 	return
 }
 
-// getLast will attempt to get the first entry which matches the provided filters
-// Note: Will return ErrEntryNotFound if no match is found
+// getFirst finds the first match using non-nil options, or returns ErrEntryNotFound.
 func (t *Transaction[T]) getFirst(o *FilteringOpts) (value T, err error) {
 	var cur IDCursor
 	if cur, err = t.idCursor(o.Filters); err != nil {
@@ -307,7 +307,7 @@ func (t *Transaction[T]) getFirst(o *FilteringOpts) (value T, err error) {
 }
 
 // getLast will attempt to get the last entry which matches the provided filters
-// Note: Will return ErrEntryNotFound if no match is found
+// The options must be non-nil. It returns ErrEntryNotFound if no match is found.
 func (t *Transaction[T]) getLast(o *FilteringOpts) (value T, err error) {
 	var cur IDCursor
 	if cur, err = t.idCursor(o.Filters); err != nil {
@@ -599,12 +599,12 @@ func (t *Transaction[T]) teardown() {
 	t.m = nil
 }
 
-// New will insert a new entry with the given value and the associated relationships
+// New assigns the next generated ID and stores val and its relationship indexes.
 func (t *Transaction[T]) New(val T) (created T, err error) {
 	return t.new(val)
 }
 
-// Exists will notiy if an entry exists for a given entry ID
+// Exists reports whether an entry is stored at entryID.
 func (t *Transaction[T]) Exists(entryID string) (exists bool, err error) {
 	return t.exists([]byte(entryID))
 }
@@ -629,19 +629,19 @@ func (t *Transaction[T]) AppendFiltered(in []T, o *FilteringOpts) (out []T, last
 	return t.appendFiltered(in, o)
 }
 
-// AppendFiltered will attempt to append all entry IDs associated with a set of given filters
+// AppendFilteredIDs appends matching entry IDs and returns a continuation token.
 func (t *Transaction[T]) AppendFilteredIDs(in []string, o *FilteringOpts) (out []string, lastID string, err error) {
 	return t.appendFilteredIDs(in, o)
 }
 
 // GetFirst will attempt to get the first entry associated with a set of given filters
-// Note: Will return ErrEntryNotFound if no match is found
+// The options must be non-nil. It returns ErrEntryNotFound if no match is found.
 func (t *Transaction[T]) GetFirst(o *FilteringOpts) (val T, err error) {
 	return t.getFirst(o)
 }
 
 // GetLast will attempt to get the last entry associated with a set of given filters
-// Note: Will return ErrEntryNotFound if no match is found
+// The options must be non-nil. It returns ErrEntryNotFound if no match is found.
 func (t *Transaction[T]) GetLast(o *FilteringOpts) (val T, err error) {
 	return t.getLast(o)
 }
@@ -709,19 +709,19 @@ func (t *Transaction[T]) ForEachID(fn ForEachIDFn, o *FilteringOpts) (err error)
 	return
 }
 
-// Put will place an entry at a given entry ID
-// Note: This will not check to see if the entry exists beforehand. If this functionality
-// is needed, look into using the Edit method
+// Put inserts or replaces val at entryID and updates its relationship indexes.
+// It mutates val's ID/timestamps and does not advance the generated-ID counter.
+// Use Update when the entry must already exist.
 func (t *Transaction[T]) Put(entryID string, val T) (inserted T, err error) {
 	return t.put([]byte(entryID), val)
 }
 
-// Edit will attempt to edit an entry by ID
+// Update modifies an existing entry and updates its relationship indexes.
 func (t *Transaction[T]) Update(entryID string, fn func(T) error) (updated T, err error) {
 	return t.update([]byte(entryID), fn)
 }
 
-// Delete will remove an entry and it's related relationship IDs
+// Delete removes an existing entry and its relationship memberships.
 func (t *Transaction[T]) Delete(entryID string) (deleted T, err error) {
 	return t.delete([]byte(entryID))
 }

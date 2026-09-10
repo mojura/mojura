@@ -1,18 +1,17 @@
 package mojura
 
-// Entry is a base entry type for mojura Entries. This type contains all
-// the base methods required by mojura. This struct can be included to decrease
-// the time of initial integration
+// Entry supplies the Value metadata methods and empty relationships.
+// Embed it by value in a concrete type and override GetRelationships for indexes.
 type Entry struct {
-	// Entry ID
+	// ID is the storage key, assigned by New or Put.
 	ID string `json:"id"`
-	// Unix timestamp of Entry creation time
+	// CreatedAt is the creation time in Unix seconds; writes fill it only when zero.
 	CreatedAt int64 `json:"createdAt"`
-	// Unix timestamp of last Entry update
+	// UpdatedAt is refreshed to Unix seconds on writes, including history replay.
 	UpdatedAt int64 `json:"updatedAt"`
 }
 
-// GetID will get the message ID
+// GetID returns the entry ID.
 func (e *Entry) GetID() (id string) {
 	return e.ID
 }
@@ -42,17 +41,17 @@ func (e *Entry) GetRelationships() (r Relationships) {
 	return
 }
 
-// SetID will get the message ID
+// SetID sets the entry ID.
 func (e *Entry) SetID(id string) {
 	e.ID = id
 }
 
-// SetCreatedAt will get the created at timestamp
+// SetCreatedAt sets the creation timestamp in Unix seconds.
 func (e *Entry) SetCreatedAt(createdAt int64) {
 	e.CreatedAt = createdAt
 }
 
-// SetUpdatedAt will get the updated at timestamp
+// SetUpdatedAt sets the update timestamp in Unix seconds.
 func (e *Entry) SetUpdatedAt(updatedAt int64) {
 	e.UpdatedAt = updatedAt
 }

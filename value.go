@@ -1,6 +1,9 @@
 package mojura
 
-// Value represents an entry value
+// Value is the metadata and relationship contract for a stored value.
+// Prefer a concrete pointer type embedding Entry by value. GetRelationships must
+// work on a newly allocated value and return fixed slots in constructor-key order.
+// GetRelationshipIDs remains required for compatibility but is not used for indexing.
 type Value interface {
 	GetID() string
 	GetCreatedAt() int64

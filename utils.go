@@ -160,6 +160,7 @@ func closeSema(c chan struct{}) {
 	close(c)
 }
 
+// UpdateFn modifies an existing value; a non-nil error aborts the update.
 type UpdateFn[T Value] func(T) error
 
 type editFn[T Value] func(T) (T, error)

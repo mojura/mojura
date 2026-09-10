@@ -1,15 +1,17 @@
 package mojura
 
+// MakeReadWrapper exposes read convenience methods on m without owning its lifetime.
 func MakeReadWrapper[T Value](m *Mojura[T]) (r ReadWrapper[T]) {
 	r.m = m
 	return
 }
 
+// ReadWrapper delegates read convenience methods to its underlying database.
 type ReadWrapper[T Value] struct {
 	m *Mojura[T]
 }
 
-// Exists will notiy if an entry exists for a given entry ID
+// Exists reports whether an entry is stored at entryID.
 func (r *ReadWrapper[T]) Exists(entryID string) (exists bool, err error) {
 	return r.m.Exists(entryID)
 }
@@ -40,13 +42,13 @@ func (r *ReadWrapper[T]) AppendFilteredIDs(in []string, o *FilteringOpts) (filte
 }
 
 // GetFirst will attempt to get the first entry which matches the provided filters
-// Note: Will return ErrEntryNotFound if no match is found
+// The options must be non-nil. It returns ErrEntryNotFound if no match is found.
 func (r *ReadWrapper[T]) GetFirst(o *FilteringOpts) (val T, err error) {
 	return r.m.GetFirst(o)
 }
 
 // GetLast will attempt to get the last entry which matches the provided filters
-// Note: Will return ErrEntryNotFound if no match is found
+// The options must be non-nil. It returns ErrEntryNotFound if no match is found.
 func (r *ReadWrapper[T]) GetLast(o *FilteringOpts) (val T, err error) {
 	return r.m.GetLast(o)
 }
