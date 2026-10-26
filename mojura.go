@@ -1,10 +1,13 @@
 package mojura
 
 import (
+	"bytes"
 	"context"
+	stderrors "errors"
 	"fmt"
 	"log"
 	"path"
+	"slices"
 	"sync"
 
 	"github.com/gdbu/stopwatch"
@@ -42,6 +45,9 @@ const (
 	ErrEmptyEntryID = errors.Error("invalid entry ID, cannot be empty")
 	// ErrMirrorCannotPerformWriteActions is returned when write actions are called on a mirror
 	ErrMirrorCannotPerformWriteActions = errors.Error("mirrors cannot perform write actions")
+	// ErrIntersectionNeedsMatchFilters is returned by ForEachIntersectedID
+	// for anything but one or more Match filters.
+	ErrIntersectionNeedsMatchFilters = errors.Error("an intersection needs one or more Match filters")
 	// Break is a non-error which will cause a ForEach loop to break early
 	Break = errors.Error("break!")
 )
@@ -78,6 +84,14 @@ func makeMojura[T Value](opts Opts, relationships []string) (m Mojura[T], err er
 
 	m.make = makeType[T]()
 	t := m.make()
+	if sorted, ok := any(t).(SortedValue); ok {
+		m.sortKeyWidth = len(sorted.GetSortKey())
+		if m.sortKeyWidth == 0 {
+			err = ErrInvalidSortKey
+			return
+		}
+	}
+
 	if len(t.GetRelationships()) != len(relationships) {
 		err = ErrInvalidNumberOfRelationships
 		return
@@ -120,6 +134,7 @@ type Mojura[T Value] struct {
 	indexFmt string
 
 	relationships [][]byte
+	sortKeyWidth  int
 
 	// Closed state
 	closed bool
@@ -147,18 +162,7 @@ func (m *Mojura[T]) init(relationships []string) (err error) {
 			return
 		}
 
-		var relationshipsBkt backend.Bucket
-		if relationshipsBkt, err = txn.GetOrCreateBucket(relationshipsBktKey); err != nil {
-			return
-		}
-
-		for _, relationship := range m.relationships {
-			if _, err = relationshipsBkt.GetOrCreateBucket(relationship); err != nil {
-				return
-			}
-		}
-
-		return
+		return m.initRelationshipLayout(txn)
 	}); err != nil {
 		return
 	}
@@ -189,18 +193,7 @@ func (m *Mojura[T]) initBuckets(txn backend.Transaction) (err error) {
 }
 
 func (m *Mojura[T]) initRelationshipsBuckets(txn backend.Transaction) (err error) {
-	var relationshipsBkt backend.Bucket
-	if relationshipsBkt, err = txn.GetOrCreateBucket(relationshipsBktKey); err != nil {
-		return
-	}
-
-	for _, relationship := range m.relationships {
-		if _, err = relationshipsBkt.GetOrCreateBucket(relationship); err != nil {
-			return
-		}
-	}
-
-	return
+	return m.initRelationshipLayout(txn)
 }
 
 func (m *Mojura[T]) primaryInitialization() (err error) {
@@ -312,11 +305,23 @@ func (m *Mojura[T]) purge(txn backend.Transaction) (err error) {
 		return
 	}
 
-	if err = txn.DeleteBucket(relationshipsBktKey); err != nil {
+	if txn.GetBucket(relationshipsBktKey) != nil {
+		if err = txn.DeleteBucket(relationshipsBktKey); err != nil {
+			return
+		}
+	}
+
+	if txn.GetBucket(relationshipAlternateKey) != nil {
+		if err = txn.DeleteBucket(relationshipAlternateKey); err != nil {
+			return
+		}
+	}
+
+	if err = m.initBuckets(txn); err != nil {
 		return
 	}
 
-	return m.initBuckets(txn)
+	return saveRelationshipLayout(txn, &relationshipLayout{Width: m.sortKeyWidth, Keys: m.relationshipNames()})
 }
 
 func (m *Mojura[T]) marshal(val interface{}) (bs []byte, err error) {
@@ -458,7 +463,11 @@ func (m *Mojura[T]) copyEntries(txn *Transaction[T]) (err error) {
 }
 
 func (m *Mojura[T]) reindex(txn *Transaction[T]) (err error) {
-	if err = txn.txn.DeleteBucket(relationshipsBktKey); err != nil {
+	if err = txn.checkRelationshipLayout(); err != nil {
+		return
+	}
+
+	if err = txn.txn.DeleteBucket(txn.layout.root()); err != nil {
 		return
 	}
 
@@ -467,7 +476,12 @@ func (m *Mojura[T]) reindex(txn *Transaction[T]) (err error) {
 	}
 
 	fn := func(entryID string, t T) (err error) {
-		return txn.setRelationships(t.GetRelationships(), []byte(entryID))
+		key, err := txn.membershipKey([]byte(entryID), t)
+		if err != nil {
+			return err
+		}
+
+		return txn.setRelationships(t.GetRelationships(), key)
 	}
 
 	return txn.ForEach(fn, nil)
@@ -762,4 +776,288 @@ func (m *Mojura[T]) Close() (err error) {
 
 type closer interface {
 	Close() error
+}
+
+func (m *Mojura[T]) relationshipNames() []string {
+	keys := make([]string, len(m.relationships))
+	for i, key := range m.relationships {
+		keys[i] = string(key)
+	}
+
+	return keys
+}
+
+func (m *Mojura[T]) relationshipNamesMatch(names []string) bool {
+	if len(names) != len(m.relationships) {
+		return false
+	}
+
+	for i, key := range m.relationships {
+		if names[i] != string(key) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (m *Mojura[T]) initRelationshipLayout(tx backend.Transaction) error {
+	layout, err := loadRelationshipLayout(tx)
+	if err != nil {
+		return err
+	}
+
+	if layout == nil {
+		layout = &relationshipLayout{}
+		if !hasEntries(tx.GetBucket(entriesBktKey)) {
+			layout.Width = m.sortKeyWidth
+			layout.Keys = m.relationshipNames()
+		}
+
+		if err = saveRelationshipLayout(tx, layout); err != nil {
+			return err
+		}
+	}
+
+	root, err := tx.GetOrCreateBucket(layout.root())
+	if err != nil {
+		return err
+	}
+
+	for _, key := range m.relationships {
+		if _, err = root.GetOrCreateBucket(key); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// RebuildRelationships explicitly builds the requested layout in bounded batches.
+// It never runs at Open. Filtered reads and writes refuse while building; Get
+// remains available. One replacement generation is temporary, not a query index.
+// The final build transaction selects it atomically; later batches retire the old
+// generation. Call until Done, including after restart. No live-store policy is
+// implied: callers must arrange availability and rollback before beginning.
+func (m *Mojura[T]) RebuildRelationships(ctx context.Context, limit int) (RelationshipRebuildPage, error) {
+	if limit <= 0 {
+		return RelationshipRebuildPage{}, stderrors.New("relationship rebuild limit must be positive")
+	}
+
+	if m.opts.IsMirror {
+		return RelationshipRebuildPage{}, ErrMirrorCannotPerformWriteActions
+	}
+
+	m.mux.RLock()
+	defer m.mux.RUnlock()
+	var page RelationshipRebuildPage
+	err := m.db.Transaction(func(tx backend.Transaction) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		layout, err := loadRelationshipLayout(tx)
+		if err != nil {
+			return err
+		}
+
+		if layout == nil {
+			return ErrNotInitialized
+		}
+
+		keys := m.relationshipNames()
+		if layout.Retiring {
+			if layout.Width != m.sortKeyWidth || !slices.Equal(layout.Keys, keys) {
+				return ErrRelationshipRebuildRequired
+			}
+
+			page.Phase = "retiring"
+			page.Removed, page.Done, err = retireRelationships(ctx, tx, layout.otherRoot(), limit)
+			if err != nil {
+				return err
+			}
+
+			layout.Retiring = !page.Done
+			if err = ctx.Err(); err != nil {
+				return err
+			}
+
+			return saveRelationshipLayout(tx, layout)
+		}
+
+		if layout.Build == nil {
+			if layout.Width == m.sortKeyWidth && slices.Equal(layout.Keys, keys) {
+				page.Done, page.Phase = true, "ready"
+				return nil
+			}
+
+			if tx.GetBucket(layout.otherRoot()) != nil {
+				return stderrors.New("unowned replacement relationship generation exists")
+			}
+
+			layout.Build = &relationshipBuild{Width: m.sortKeyWidth, Keys: keys}
+		} else if layout.Build.Aborting {
+			return ErrRelationshipRebuildAborting
+		} else if layout.Build.Width != m.sortKeyWidth || !slices.Equal(layout.Build.Keys, keys) {
+			return stderrors.New("relationship rebuild configuration changed")
+		}
+
+		page, err = m.buildRelationshipPage(ctx, tx, layout, limit)
+		if err != nil {
+			return err
+		}
+
+		return saveRelationshipLayout(tx, layout)
+	})
+	if err != nil {
+		return RelationshipRebuildPage{}, err
+	}
+
+	return page, nil
+}
+
+// AbortRelationshipRebuild retires only an unfinished replacement generation.
+// It cannot undo an already committed cutover. After cutover, a reverse layout
+// conversion must be explicitly rebuilt; an old binary must not open that store.
+func (m *Mojura[T]) AbortRelationshipRebuild(ctx context.Context, limit int) (RelationshipRebuildPage, error) {
+	if limit <= 0 {
+		return RelationshipRebuildPage{}, stderrors.New("relationship abort limit must be positive")
+	}
+
+	if m.opts.IsMirror {
+		return RelationshipRebuildPage{}, ErrMirrorCannotPerformWriteActions
+	}
+
+	m.mux.RLock()
+	defer m.mux.RUnlock()
+	var page RelationshipRebuildPage
+	err := m.db.Transaction(func(tx backend.Transaction) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		layout, err := loadRelationshipLayout(tx)
+		if err != nil {
+			return err
+		}
+
+		if layout == nil {
+			return ErrNotInitialized
+		}
+
+		if layout.Retiring {
+			return stderrors.New("relationship cutover already committed; finish retirement before reverse conversion")
+		}
+
+		page.Phase = "aborting"
+		if layout.Build == nil {
+			page.Done = true
+			return nil
+		}
+
+		layout.Build.Aborting = true
+		page.Removed, page.Done, err = retireRelationships(ctx, tx, layout.otherRoot(), limit)
+		if err != nil {
+			return err
+		}
+
+		if page.Done {
+			layout.Build = nil
+		}
+
+		if err = ctx.Err(); err != nil {
+			return err
+		}
+
+		return saveRelationshipLayout(tx, layout)
+	})
+	if err != nil {
+		return RelationshipRebuildPage{}, err
+	}
+
+	return page, nil
+}
+
+func (m *Mojura[T]) buildRelationshipPage(ctx context.Context, tx backend.Transaction, layout *relationshipLayout, limit int) (RelationshipRebuildPage, error) {
+	page := RelationshipRebuildPage{Phase: "building", AfterID: layout.Build.After}
+	root, err := tx.GetOrCreateBucket(layout.otherRoot())
+	if err != nil {
+		return page, err
+	}
+
+	for _, name := range m.relationships {
+		if _, err = root.GetOrCreateBucket(name); err != nil {
+			return page, err
+		}
+	}
+
+	cursor := tx.GetBucket(entriesBktKey).Cursor()
+	id, raw := cursor.First()
+	if layout.Build.After != "" {
+		id, raw = cursor.Seek([]byte(layout.Build.After))
+		if bytes.Equal(id, []byte(layout.Build.After)) {
+			id, raw = cursor.Next()
+		}
+	}
+
+	t := newTransaction(ctx, m, tx, nil)
+	for id != nil && page.Scanned < limit {
+		if err = ctx.Err(); err != nil {
+			return page, err
+		}
+
+		var value T
+		value, err = m.newValueFromBytes(raw)
+		if err != nil {
+			return page, err
+		}
+
+		var key []byte
+		key, err = t.membershipKey(id, value)
+		if err != nil {
+			return page, err
+		}
+
+		relationships := value.GetRelationships()
+		if len(relationships) != len(m.relationships) {
+			return page, ErrInvalidNumberOfRelationships
+		}
+
+		for i, values := range relationships {
+			parent := root.GetBucket(m.relationships[i])
+			for _, relationshipID := range values {
+				if err = ctx.Err(); err != nil {
+					return page, err
+				}
+
+				if relationshipID == "" {
+					continue
+				}
+
+				var bucket backend.Bucket
+				bucket, err = parent.GetOrCreateBucket([]byte(relationshipID))
+				if err != nil {
+					return page, err
+				}
+
+				if err = bucket.Put(key, nil); err != nil {
+					return page, err
+				}
+			}
+		}
+
+		page.Scanned++
+		page.AfterID = string(id)
+		id, raw = cursor.Next()
+	}
+
+	layout.Build.After = page.AfterID
+	if id == nil {
+		layout.Width, layout.Keys = layout.Build.Width, layout.Build.Keys
+		layout.Slot = 1 - layout.Slot
+		layout.Build, layout.Retiring = nil, true
+		page.Phase = "retiring"
+	}
+
+	return page, ctx.Err()
 }

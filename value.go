@@ -19,3 +19,10 @@ type Value interface {
 	SetCreatedAt(int64)
 	SetUpdatedAt(int64)
 }
+
+// SortedValue opts relationship memberships into (sort key, entry ID) order.
+// GetSortKey must return the same nonzero width on a fresh and a stored value.
+// Existing stores require an explicit RebuildRelationships before changing it.
+type SortedValue interface {
+	GetSortKey() []byte
+}

@@ -55,6 +55,50 @@ in one backend write transaction. It can block other writes for the full scan an
 does not rewrite entries, rebuild history, or offer bounded/resumable backfill.
 Coordinate deployment and reindexing with the schema change.
 
+### Ordered membership sets
+
+Values may additionally implement `SortedValue.GetSortKey() []byte`. The method
+must return the same nonzero byte width on a freshly allocated value and every
+stored value. Keys compare lexicographically, then by entry ID. Encode application
+timestamps in a fixed-width sortable representation; Mojura does not select a
+timestamp or reinterpret its units. Changing a record's key moves all its indexed
+memberships atomically. Values without this interface retain entry-ID keys.
+
+`Transaction.ForEachOrderedID` intersects exact `filters.Match` sets without
+fetching records or sorting matches in memory. `OrderedReadOptions.After` and
+`Before` are exclusive `(SortKey, EntryID)` bounds in ascending order, including
+when `Reverse` is true. Bounds remain usable after the referenced record is
+deleted. A positive `Limit` bounds yielded matches; zero/negative is unlimited.
+Visitors may return `Break`. Cancellation and other visitor errors are preserved.
+No filters, non-Match filters, or use on an unsorted value are rejected. Legacy
+ID-only cursor APIs retain their documented limitations; use tuple bounds for
+ordered pagination. A relationship-only seek (`value::`) does not require an
+entry ID. A nonempty ID on a sorted cursor must still resolve to its stored key.
+
+Opening old populated data never converts it automatically. Sorted filtered
+reads and writes require the persisted key width and index names to match.
+`RebuildRelationships(ctx, limit)` explicitly converts in restartable batches;
+`limit` bounds records decoded during building or keys/empty buckets removed
+during retirement. A record's relationship fanout is not separately bounded.
+Each successful page commits its keys and checkpoint together. An error reports
+no committed progress. Keep calling until `Done`, also after reopening the store.
+
+During building, filtered reads and writes refuse; direct record reads remain
+available. The final build transaction selects the replacement generation
+atomically. Retirement then removes the old generation in bounded calls. There
+is only one active query index, not a permanent secondary chronological index.
+`AbortRelationshipRebuild(ctx, limit)` can remove unfinished staging in bounded
+calls before cutover. Once abort starts it must finish before building resumes.
+After cutover, finish retirement and perform an explicit reverse conversion to
+roll back the layout; abort cannot resurrect the previous generation.
+
+This API supplies no deployment or availability policy. Stop application writes
+and imports, preserve an independent backup, and qualify conversion/rollback on
+disposable data before live use. Do not open a converted store with an old binary
+that does not understand layout metadata. Mirrors reject these public conversion
+operations. Snapshot replacement and generic transaction lifecycle limitations
+listed in the development guide are not resolved by this feature.
+
 ## Creating, reading, and changing entries
 
 | Method | Current behavior |
@@ -104,8 +148,9 @@ numbers and dates. Empty range endpoints mean unbounded. The MQL comment in
 
 Multiple filters are intended to intersect (AND). The first filter supplies the
 traversal order; later filters check membership. With no filters, entries follow
-backend key order. Exact-match traversal orders by entry ID. Comparison/inverse
-traversal orders by relationship ID and then entry ID. An entry with multiple
+backend key order. For unsorted values, exact-match traversal orders by entry ID;
+for `SortedValue`, it orders by `(sort key, entry ID)`. Comparison/inverse
+traversal orders by relationship ID and then the applicable membership order. An entry with multiple
 matching relationship IDs can appear more than once; results are not deduplicated.
 
 An inverse filter used first does not produce the complement of all database

@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/mojura/backend"
 	"github.com/mojura/enkodo"
 	"github.com/mojura/kiroku"
 	"github.com/mojura/mojura/action"
+	"github.com/mojura/mojura/filters"
 )
 
 func newTransaction[T Value](ctx context.Context, m *Mojura[T], txn backend.Transaction, bw action.BlockWriter) (t Transaction[T]) {
@@ -32,6 +34,7 @@ type Transaction[T Value] struct {
 
 	meta        metadata
 	metaUpdated bool
+	layout      *relationshipLayout
 }
 
 func (t *Transaction[T]) getRelationshipBucket(relationship []byte) (bkt backend.Bucket, err error) {
@@ -39,8 +42,12 @@ func (t *Transaction[T]) getRelationshipBucket(relationship []byte) (bkt backend
 		return
 	}
 
+	if err = t.checkRelationshipLayout(); err != nil {
+		return
+	}
+
 	var relationshipsBkt backend.Bucket
-	if relationshipsBkt = t.txn.GetBucket(relationshipsBktKey); relationshipsBkt == nil {
+	if relationshipsBkt = t.txn.GetBucket(t.layout.root()); relationshipsBkt == nil {
 		err = ErrNotInitialized
 		return
 	}
@@ -425,6 +432,10 @@ func (t *Transaction[T]) new(val T) (created T, err error) {
 }
 
 func (t *Transaction[T]) edit(entryID []byte, fn editFn[T], allowInsert bool) (updated T, err error) {
+	if err = t.checkRelationshipLayout(); err != nil {
+		return
+	}
+
 	if len(entryID) == 0 {
 		err = ErrEmptyEntryID
 		return
@@ -437,12 +448,16 @@ func (t *Transaction[T]) edit(entryID []byte, fn editFn[T], allowInsert bool) (u
 	var (
 		orig          T
 		relationships Relationships
+		originalKey   []byte
 	)
 
 	orig, err = t.get(entryID)
 	switch {
 	case err == nil:
 		relationships = orig.GetRelationships()
+		if originalKey, err = t.membershipKey(entryID, orig); err != nil {
+			return
+		}
 	case err == ErrEntryNotFound && allowInsert:
 	default:
 		return
@@ -456,7 +471,20 @@ func (t *Transaction[T]) edit(entryID []byte, fn editFn[T], allowInsert bool) (u
 	setEssetialValues(entryID, modified)
 
 	// Update relationships (if needed)
-	if err = t.updateRelationships(entryID, relationships, modified.GetRelationships()); err != nil {
+	key, err := t.membershipKey(entryID, modified)
+	if err != nil {
+		return updated, err
+	}
+
+	if originalKey != nil && !bytes.Equal(originalKey, key) {
+		if err = t.unsetRelationships(relationships, originalKey); err != nil {
+			return
+		}
+
+		relationships = nil
+	}
+
+	if err = t.updateRelationships(key, relationships, modified.GetRelationships()); err != nil {
 		err = fmt.Errorf("error updating relationships: %v", err)
 		return
 	}
@@ -488,6 +516,9 @@ func (t *Transaction[T]) delete(entryID []byte) (deleted T, err error) {
 	if err = t.cc.isDone(); err != nil {
 		return
 	}
+	if err = t.checkRelationshipLayout(); err != nil {
+		return
+	}
 
 	var val T
 	if val, err = t.get(entryID); err != nil {
@@ -500,7 +531,12 @@ func (t *Transaction[T]) delete(entryID []byte) (deleted T, err error) {
 		return
 	}
 
-	if err = t.unsetRelationships(val.GetRelationships(), entryID); err != nil {
+	key, err := t.membershipKey(entryID, val)
+	if err != nil {
+		return deleted, err
+	}
+
+	if err = t.unsetRelationships(val.GetRelationships(), key); err != nil {
 		err = fmt.Errorf("error unsetting relationships: %v", err)
 		return
 	}
@@ -583,6 +619,16 @@ func (t *Transaction[T]) processBlock(b kiroku.Block) (err error) {
 
 		return
 	case action.TypeDelete:
+		if t.m.sortKeyWidth > 0 {
+			var exists bool
+			if exists, err = t.exists(a.Key); err != nil || !exists {
+				return
+			}
+
+			_, err = t.delete(a.Key)
+			return
+		}
+
 		if err = t.deleteEntry(a.Key); err != nil {
 			err = fmt.Errorf("processBlock(): error deleting entry <%s>: %v", string(a.Key), err)
 			return
@@ -709,6 +755,45 @@ func (t *Transaction[T]) ForEachID(fn ForEachIDFn, o *FilteringOpts) (err error)
 	return
 }
 
+// ForEachIntersectedID calls fn with each entry ID that every filter in fs
+// holds, in ascending entry-ID order for unsorted values and (sort key, entry ID)
+// order for SortedValue. Every filter must be a non-nil Match filter, and at
+// least one is required: otherwise ErrIntersectionNeedsMatchFilters. The
+// filters' relationship buckets are walked together on their keys: a cursor
+// behind the highest current ID steps once, which reaches it where the sets
+// interleave, and seeks to it otherwise. A walk costs about a seek per ID of
+// its smallest set, and allocates only the IDs it yields. fn returning Break
+// ends the walk with nil; another error from fn is returned as is, as is the
+// transaction's own, such as its context's cancellation.
+func (t *Transaction[T]) ForEachIntersectedID(fn ForEachIDFn, fs ...Filter) error {
+	if t.m.sortKeyWidth > 0 {
+		return t.forEachOrderedID(func(position OrderedID) error {
+			return fn(position.EntryID)
+		}, OrderedReadOptions{}, false, fs...)
+	}
+
+	if len(fs) == 0 {
+		return ErrIntersectionNeedsMatchFilters
+	}
+
+	cursors := make([]filterCursor, len(fs))
+	for i, f := range fs {
+		match, ok := f.(*filters.MatchFilter)
+		if !ok || match == nil {
+			return ErrIntersectionNeedsMatchFilters
+		}
+
+		cursor, err := newMatchCursor(t, match)
+		if err != nil {
+			return err
+		}
+
+		cursors[i] = cursor
+	}
+
+	return walkIntersection(cursors, fn)
+}
+
 // Put inserts or replaces val at entryID and updates its relationship indexes.
 // It mutates val's ID/timestamps and does not advance the generated-ID counter.
 // Use Update when the entry must already exist.
@@ -728,3 +813,193 @@ func (t *Transaction[T]) Delete(entryID string) (deleted T, err error) {
 
 // TransactionFn represents a transaction function
 type TransactionFn[T Value] func(*Transaction[T]) error
+
+func (t *Transaction[T]) orderedBound(position *OrderedID) ([]byte, error) {
+	if position == nil {
+		return nil, nil
+	}
+
+	if len(position.SortKey) != t.m.sortKeyWidth {
+		return nil, ErrInvalidSortKey
+	}
+
+	key := make([]byte, len(position.SortKey)+len(position.EntryID))
+	copy(key, position.SortKey)
+	copy(key[len(position.SortKey):], position.EntryID)
+	return key, nil
+}
+
+// ForEachOrderedID intersects exact relationship sets on their persisted sort
+// keys. It does not fetch records or sort matches in memory. Bounds survive
+// deletion of the resume record. An unsorted value cannot use this API.
+func (t *Transaction[T]) ForEachOrderedID(fn func(OrderedID) error, opts OrderedReadOptions, fs ...Filter) error {
+	return t.forEachOrderedID(fn, opts, true, fs...)
+}
+
+// The ID-only adapter shares traversal but does not need an owned sort key.
+func (t *Transaction[T]) forEachOrderedID(fn func(OrderedID) error, opts OrderedReadOptions, includeSortKey bool, fs ...Filter) error {
+	if t.m.sortKeyWidth == 0 {
+		return ErrInvalidSortKey
+	}
+
+	if err := t.checkRelationshipLayout(); err != nil {
+		return err
+	}
+
+	if fn == nil {
+		return errors.New("ordered read requires a visitor")
+	}
+
+	lower, err := t.orderedBound(opts.After)
+	if err != nil {
+		return err
+	}
+
+	upper, err := t.orderedBound(opts.Before)
+	if err != nil {
+		return err
+	}
+
+	if len(fs) == 0 {
+		return ErrIntersectionNeedsMatchFilters
+	}
+
+	for _, f := range fs {
+		if match, ok := f.(*filters.MatchFilter); !ok || match == nil {
+			return ErrIntersectionNeedsMatchFilters
+		}
+	}
+
+	cursors := make([]backend.Cursor, len(fs))
+	keys := make([][]byte, len(fs))
+	empty := false
+	for i, f := range fs {
+		match := f.(*filters.MatchFilter)
+		var parent backend.Bucket
+		parent, err = t.getRelationshipBucket([]byte(match.RelationshipKey))
+		if err != nil {
+			return err
+		}
+
+		bucket := parent.GetBucket([]byte(match.RelationshipID))
+		if bucket == nil {
+			empty = true
+			continue
+		}
+
+		cursors[i] = bucket.Cursor()
+		bound := lower
+		if opts.Reverse {
+			bound = upper
+		}
+
+		keys[i] = orderedStart(cursors[i], bound, opts.Reverse)
+	}
+
+	if empty {
+		return t.cc.isDone()
+	}
+
+	yielded := 0
+	for {
+		if err = t.cc.isDone(); err != nil {
+			return err
+		}
+
+		var target []byte
+		for _, key := range keys {
+			if key == nil {
+				return nil
+			}
+
+			if len(key) <= t.m.sortKeyWidth {
+				return ErrInvalidSortKey
+			}
+
+			if target == nil || orderedBehind(target, key, opts.Reverse) {
+				target = key
+			}
+		}
+
+		if (lower != nil && bytes.Compare(target, lower) <= 0) || (upper != nil && bytes.Compare(target, upper) >= 0) {
+			return nil
+		}
+
+		aligned := true
+		for i, key := range keys {
+			if bytes.Equal(key, target) {
+				continue
+			}
+
+			aligned = false
+			keys[i] = orderedStepTo(cursors[i], target, opts.Reverse)
+		}
+
+		if !aligned {
+			continue
+		}
+
+		position := OrderedID{EntryID: string(target[t.m.sortKeyWidth:])}
+		if includeSortKey {
+			position.SortKey = bytes.Clone(target[:t.m.sortKeyWidth])
+		}
+
+		if err = fn(position); err != nil {
+			return endOfIntersection(err)
+		}
+
+		if err = t.cc.isDone(); err != nil {
+			return err
+		}
+
+		yielded++
+		if opts.Limit > 0 && yielded == opts.Limit {
+			return nil
+		}
+
+		for i, cursor := range cursors {
+			keys[i] = orderedNext(cursor, opts.Reverse)
+		}
+	}
+}
+
+func (t *Transaction[T]) checkRelationshipLayout() error {
+	if t.layout == nil {
+		layout, err := loadRelationshipLayout(t.txn)
+		if err != nil {
+			return err
+		}
+
+		if layout == nil {
+			return ErrNotInitialized
+		}
+
+		t.layout = layout
+	}
+
+	if t.layout.Build != nil {
+		return ErrRelationshipRebuildInProgress
+	}
+
+	if t.layout.Width != t.m.sortKeyWidth || (t.m.sortKeyWidth > 0 && !t.m.relationshipNamesMatch(t.layout.Keys)) {
+		return ErrRelationshipRebuildRequired
+	}
+
+	return nil
+}
+
+func (t *Transaction[T]) membershipKey(id []byte, value T) ([]byte, error) {
+	if t.m.sortKeyWidth == 0 {
+		return id, nil
+	}
+
+	key := any(value).(SortedValue).GetSortKey()
+	if len(key) != t.m.sortKeyWidth {
+		return nil, ErrInvalidSortKey
+	}
+
+	out := make([]byte, len(key)+len(id))
+	copy(out, key)
+	copy(out[len(key):], id)
+	return out, nil
+}

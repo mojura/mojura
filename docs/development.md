@@ -11,6 +11,7 @@ limitations that must not be mistaken for working features.
 | --- | --- | --- |
 | Database lifecycle and public facade | [mojura.go](../mojura.go) | Construction, bucket initialization, CRUD wrappers, transactions, history import, snapshots, reindexing, close. |
 | Transaction implementation | [transaction.go](../transaction.go) | Entry encoding/storage, metadata, relationship deltas, filtering, replay. |
+| Ordered memberships | [transaction.go](../transaction.go), [mojura.go](../mojura.go), [ordered_read.go](../ordered_read.go), [relationship_layout.go](../relationship_layout.go), [entry_filter_cursor.go](../entry_filter_cursor.go) | Transaction-owned tuple intersection; Mojura-owned bounded conversion/abort; supporting positions, layout state and legacy ID cursor adapter. |
 | Value contract | [value.go](../value.go), [entry.go](../entry.go), [relationships.go](../relationships.go), [reflect.go](../reflect.go) | Generic values, metadata accessors, positional index memberships, type allocation. |
 | Options | [opts.go](../opts.go), [filteringOpts.go](../filteringOpts.go) | Runtime options/defaults and query options. |
 | Filters | [filters](../filters), [filter.go](../filter.go), [filterCursor.go](../filterCursor.go) | Public filter constructors and supported-type dispatch. |
@@ -165,8 +166,9 @@ failure test was run.
   `updateRelationships` and `setRelationships` in [transaction.go](../transaction.go)
   assume positional consistency later. Variable slot counts can panic or leave
   stale indexes. `Update` also assumes old/new relationship slices do not alias
-  mutable data. Reopening with new keys does not backfill entries. Only full
-  `Reindex` is implemented; the bounded-backfill feature was reverted.
+  mutable data. Reopening with new keys does not backfill entries. Full `Reindex`
+  remains available for the active layout; explicit `RebuildRelationships`
+  converts layouts and builds added indexes in bounded, restartable batches.
 - **Source inspection: explicit IDs do not advance the generated counter.**
   `Transaction.new` increments metadata; ordinary `put` does not. `New` calls the
   upsert path, so an explicit numeric ID can be overwritten when allocation reaches
@@ -184,9 +186,10 @@ failure test was run.
   `lookups`, `meta`, and `relationships`, leaving `entries` intact. Existing entries
   absent from the snapshot remain, potentially without relationship indexes and
   with inconsistent allocation metadata.
-- **Source inspection: delete replay leaves stale relationships.** `processBlock`
-  in [transaction.go](../transaction.go) handles deletes with `deleteEntry` instead
-  of the normal membership cleanup. Index traversal can then refer to a missing
+- **Source inspection: unsorted delete replay leaves stale relationships.** `processBlock`
+  in [transaction.go](../transaction.go) handles unsorted deletes with `deleteEntry`
+  instead of the normal membership cleanup. Sorted deletes remove their memberships.
+  Unsorted index traversal can then refer to a missing
   value. Write replay goes through `put` and `setEssetialValues` in
   [utils.go](../utils.go), refreshing `UpdatedAt` instead of preserving it exactly.
 - **Source inspection: constructor/shutdown cleanup is incomplete.**
