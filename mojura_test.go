@@ -14,9 +14,9 @@ import (
 	"github.com/mojura/mojura/filters"
 )
 
-const (
-	testDir = "./test_data"
-)
+// testDir is per process: a sharded run starts several test processes here at
+// once (INT-MOJURA-TICKET-4).
+var testDir = path.Join(os.TempDir(), fmt.Sprintf("mojura-test-%d", os.Getpid()))
 
 func TestNew(t *testing.T) {
 	var (

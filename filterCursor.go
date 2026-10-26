@@ -9,15 +9,25 @@ import (
 func newFilterCursor[T Value](txn *Transaction[T], f Filter) (fc filterCursor, err error) {
 	switch n := f.(type) {
 	case *filters.MatchFilter:
-		return newMatchCursor(txn, n)
+		fc, err = newMatchCursor(txn, n)
 	case *filters.InverseMatchFilter:
-		return newInverseMatchCursor(txn, n)
+		fc, err = newInverseMatchCursor(txn, n)
 	case *filters.ComparisonFilter:
-		return newComparisonCursor(txn, n)
+		if n.RelationshipKey == "" {
+			return newComparisonCursor(txn, n)
+		}
+
+		fc, err = newComparisonCursor(txn, n)
 	default:
 		err = fmt.Errorf("filter of %T is not supported", n)
 		return
 	}
+
+	if err == nil && txn.m.sortKeyWidth > 0 {
+		fc = &entryFilterCursor[T]{filterCursor: fc, txn: txn}
+	}
+
+	return
 }
 
 type filterCursor interface {

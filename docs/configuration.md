@@ -103,6 +103,15 @@ memberships are stored as nested `relationships / key / relationshipID / entryID
 keys. `meta/value` holds JSON with `currentIndex`. `lookups` is created/reset but
 has no active lookup API in this checkout.
 
+For `SortedValue`, membership keys are fixed-width sort bytes followed by entry
+ID. `meta/relationship_layout` identifies the active generation and any explicit
+conversion checkpoint. A conversion temporarily uses `relationships_next` and
+retires the former generation after atomic cutover. Generation names alternate
+on subsequent conversions. See [ordered memberships](usage.md#ordered-membership-sets)
+for availability, bounded work, abort, and rollback requirements. Opening a store
+does not initiate conversion, and no live-data migration is implied by upgrading
+the library.
+
 Without a source, the producer still runs and writes local history files, but
 processed chunks/snapshots can be removed without export. Do not treat these files
 as a retained backup. Configure a source for retained/exported history and verify
@@ -172,7 +181,7 @@ Consume its reader during the callback rather than retaining it. Write/delete
 actions are replayed; comment and other unhandled action types have no replay effect.
 
 Current replication defects matter for recovery: snapshot import preserves existing
-entry rows, delete replay leaves relationship memberships behind, and write replay
+entry rows, unsorted delete replay leaves relationship memberships behind, and write replay
 refreshes `UpdatedAt`. Shutdown closes the backend before the producer/consumer.
 Read [the source-linked limitations](development.md#known-defects-and-limitations)
 before depending on exact snapshot replacement or mirror consistency.
